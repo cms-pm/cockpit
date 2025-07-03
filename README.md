@@ -61,6 +61,7 @@ The Cockpit project aims to create a versatile platform for embedded application
 
 ### **🛠️ Development Tools**
 *   **⚙️ C/C++ to Bytecode Compiler:** Direct compilation from high-level code to VM bytecode
+*   **🦀 Rust Bytecode Support:** Safe systems programming with memory safety guarantees
 *   **🔬 Hardware-in-the-Loop Testing:** Real hardware validation and performance measurement
 *   **📊 Performance Profiling:** Cycle-accurate timing analysis and optimization tools
 *   **🔄 CI/CD Pipeline:** Automated testing and deployment infrastructure
