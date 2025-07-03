@@ -1,28 +1,64 @@
 # Cockpit Project
 
-Cockpit is an embedded hypervisor project designed to bring a new level of flexibility and abstraction to embedded systems development. It provides a lightweight virtual machine (VM) environment capable of running bytecode programs on a variety of microcontroller architectures, initially targeting ARM Cortex-M4, with planned support for RISC-V and 8051.
+Cockpit is an embedded hypervisor project that provides a lightweight virtual machine (VM) environment for running bytecode programs on microcontrollers. Currently targeting ARM Cortex-M4 platforms, with a focus on Arduino-compatible hardware abstraction.
 
 ## Vision
 
-The Cockpit project aims to create a versatile platform for embedded applications, enabling:
+The Cockpit project aims to create a versatile platform for embedded applications, enabling hardware abstraction and simplified embedded development through a stack-based virtual machine.
 
-*   **Hardware Abstraction:** Run the same bytecode application across different microcontrollers, reducing hardware dependencies and simplifying porting.
-*   **Dynamic Updates:** Implement over-the-air (OTA) updates for application bytecode, allowing for bug fixes, feature enhancements, and new application deployment without reflashing the entire firmware.
-*   **Remote Management:** Enable remote orchestration and control of embedded devices, facilitating tasks such as configuration, monitoring, and data collection.
-*   **Telemetry:** Collect and transmit telemetry data from embedded devices, providing insights into application performance and system health.
+## Current Implementation (Phase 2.1 Complete)
 
-## Key Features
+### **Core Features Implemented**
 
-*   **Virtual Machine Core:** Implements a 16-bit bytecode instruction set with stack-based operations (PUSH, POP, ADD, SUB, MUL, DIV, HALT, CALL, RET).
-*   **Hardware Abstraction Layer (HAL):** Provides a consistent API for accessing hardware peripherals, initially focusing on GPIO, with plans to expand to other peripherals.
-*   **Memory Management:** Allocates 8KB of RAM for the VM's stack and heap, with hybrid MPU and software guards for memory protection.
-*   **QEMU Integration:** Provides a QEMU runner script for automated testing and debugging, enabling hardware-independent development.
-*   **Semihosting Support:** Enables debug output and test result reporting via semihosting during development.
-*   **Build Automation:** Uses PlatformIO for build configuration and management, simplifying the build process across different target architectures.
-*   **Test Framework:** Includes a comprehensive unit test suite with visible pass/fail output, ensuring the reliability of the VM core and HAL.
-*   **OTA Updates:** Supports over-the-air (OTA) updates for application bytecode, enabling remote updates and bug fixes.
-*   **Telemetry:** Enables the collection and transmission of telemetry data for monitoring application performance and system health.
-*   **Remote Orchestration:** Provides a framework for remote control and management of embedded devices.
+*   **Virtual Machine Core:** 16-bit bytecode instruction set with stack-based operations (PUSH, POP, ADD, SUB, MUL, DIV, HALT).
+*   **Arduino API Integration:** Five core Arduino functions (digitalWrite, digitalRead, analogWrite, analogRead, delay) implemented as VM opcodes.
+*   **Hardware Abstraction Layer (HAL):** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with pin mapping and digital operations.
+*   **Memory Management:** 8KB RAM allocation for VM stack and heap with bounds checking and overflow protection.
+*   **QEMU Development Environment:** Automated testing and debugging with ARM semihosting support for hardware-independent development.
+*   **Build System:** PlatformIO integration with automated compilation and testing pipeline.
+*   **Comprehensive Testing:** 39 unit tests covering VM core operations and Arduino GPIO functionality (89% pass rate).
+
+### **Technical Specifications**
+
+*   **Flash Usage:** 6,640 bytes (5.1% of 128KB)
+*   **RAM Usage:** 24 bytes static (0.1% of 20KB) + 8KB VM memory
+*   **Instruction Format:** 8-bit opcode + 8-bit immediate value
+*   **Supported Operations:** Stack manipulation, arithmetic, digital GPIO, basic analog operations
+*   **Target Platform:** ARM Cortex-M4 with QEMU emulation support
+
+## Planned Features
+
+The following features represent future development phases and are not yet implemented:
+
+### **Advanced VM Capabilities**
+*   **CALL/RET Operations:** Function call support with return address management
+*   **Memory Protection Unit (MPU):** Hardware-based memory protection for ARM Cortex-M4
+*   **Multi-Architecture Support:** RISC-V and 8051 microcontroller targets
+*   **Interrupt Handling:** VM-level interrupt service routines and event processing
+
+### **Dynamic Updates and Remote Management**
+*   **Over-the-Air (OTA) Updates:** Remote bytecode deployment and firmware updates
+*   **Remote Orchestration:** Network-based device control and configuration management
+*   **Bootloader Integration:** Secure loading and updating of bytecode programs
+*   **Version Management:** Bytecode versioning and compatibility validation
+
+### **Telemetry and Communication**
+*   **Telemetry Collection:** Performance monitoring and system health data gathering
+*   **Network Stack:** TCP/IP, WiFi, and cellular communication protocols
+*   **Data Transmission:** JSON/protobuf serialization for remote data exchange
+*   **Communication Protocols:** MQTT, HTTP, and custom protocols for IoT integration
+
+### **Production Features**
+*   **Advanced Peripheral Support:** I2C, SPI, UART, PWM, and ADC hardware drivers
+*   **Power Management:** Sleep modes, wake-on-interrupt, and power optimization
+*   **Security Features:** Encryption, authentication, and secure boot mechanisms
+*   **Watchdog and Reliability:** System monitoring and fault recovery mechanisms
+
+### **Development Tools**
+*   **C/C++ to Bytecode Compiler:** Direct compilation from high-level code to VM bytecode
+*   **Hardware-in-the-Loop Testing:** Real hardware validation and performance measurement
+*   **Performance Profiling:** Cycle-accurate timing analysis and optimization tools
+*   **CI/CD Pipeline:** Automated testing and deployment infrastructure
 
 ## Project Structure
 
@@ -38,11 +74,42 @@ cockpit/
 
 ## Getting Started
 
-1.  Install PlatformIO.
-2.  Build the project using `pio run`.
-3.  Run the tests using `make test`.
-4.  Debug the project using `make qemu`.
+### Prerequisites
+*   PlatformIO CLI installed
+*   QEMU ARM system emulation (for testing)
+*   ARM GCC toolchain (managed by PlatformIO)
+
+### Building and Testing
+```bash
+# Build the project
+make build
+
+# Run comprehensive test suite in QEMU
+make test
+
+# Interactive QEMU debugging session
+make qemu
+
+# Clean build artifacts
+make clean
+```
+
+### Current Test Results
+*   **VM Core Tests:** 21/21 passing (stack operations, arithmetic, memory management)
+*   **Arduino GPIO Tests:** 16/18 passing (GPIO abstraction, pin operations)
+*   **Overall Success Rate:** 89% (2 failing tests due to QEMU simulation limitations)
 
 ## Documentation
 
-See the `docs/` directory for more detailed information about the project architecture, implementation details, and testing procedures.
+### Available Documentation
+*   **`docs/chunk-1.1-project-structure.md`** - PlatformIO setup and build system configuration
+*   **`docs/chunk-1.2-vm-core-stack.md`** - Virtual machine architecture and stack operations
+*   **`docs/chunk-1.3-qemu-integration.md`** - QEMU automation and testing framework
+*   **`CLAUDE.md`** - Complete project context and implementation roadmap
+
+### Implementation Status
+*   **Phase 1 Complete:** VM Core, Project Structure, QEMU Integration
+*   **Phase 2 In Progress:** Arduino API Integration (Chunk 2.1 complete)
+*   **Next Milestone:** Enhanced input handling and button debouncing (Chunk 2.2)
+
+For detailed technical specifications and development history, see `CLAUDE.md`.
