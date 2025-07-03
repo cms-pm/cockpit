@@ -5,6 +5,7 @@
 
 #include <stdint.h>
 #include "../lib/vm_core/vm_core.h"
+#include "../lib/semihosting/semihosting.h"
 
 // Test function (defined in test_vm_core.c)
 int run_vm_tests(void);
@@ -47,26 +48,26 @@ void startup_init(void)
     }
 }
 
-// Reset handler - entry point after startup
+// Reset handler - entry point after startup  
 void Reset_Handler(void)
 {
     // Initialize memory sections
     startup_init();
     
+    debug_print("Embedded Hypervisor MVP Starting...");
+    debug_print("Phase 1, Chunk 1.3: QEMU Integration");
+    
     // Run VM core tests
     int test_result = run_vm_tests();
     
-    // Simple test result indication
+    // Report final result and exit
     if (test_result == 0) {
-        // All tests passed - could toggle GPIO here in future
-        while (1) {
-            // Success: infinite loop
-        }
+        debug_print("=== HYPERVISOR TESTS SUCCESSFUL ===");
+        semihost_exit(0);  // Exit with success code
     } else {
-        // Tests failed - different behavior for debugging
-        while (1) {
-            // Failure: infinite loop (could implement different pattern)
-        }
+        debug_print("=== HYPERVISOR TESTS FAILED ===");
+        debug_print_dec("Failed test count", test_result);
+        semihost_exit(1);  // Exit with failure code
     }
 }
 

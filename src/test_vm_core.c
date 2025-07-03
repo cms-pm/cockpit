@@ -1,9 +1,10 @@
 /*
- * VM Core Unit Tests
- * Phase 1, Chunk 1.2: Stack Operations Testing
+ * VM Core Unit Tests  
+ * Phase 1, Chunk 1.3: Enhanced with Semihosting Output
  */
 
 #include "../lib/vm_core/vm_core.h"
+#include "../lib/semihosting/semihosting.h"
 
 // Test result tracking
 typedef struct {
@@ -14,13 +15,18 @@ typedef struct {
 
 static test_results_t results = {0, 0, 0};
 
-// Simple test assertion macro
+// Enhanced test assertion macro with semihosting output
 #define TEST_ASSERT(condition, name) do { \
     results.total++; \
+    semihost_write_string("Test: "); \
+    semihost_write_string(name); \
+    semihost_write_string(" ... "); \
     if (condition) { \
         results.passed++; \
+        semihost_write_string("PASS\n"); \
     } else { \
         results.failed++; \
+        semihost_write_string("FAIL\n"); \
     } \
 } while(0)
 
@@ -182,6 +188,8 @@ int run_vm_tests(void) {
     results.failed = 0;
     results.total = 0;
     
+    debug_print("=== VM Core Unit Tests Starting ===");
+    
     // Run all tests
     test_vm_init();
     test_stack_push();
@@ -191,6 +199,18 @@ int run_vm_tests(void) {
     test_bytecode_execution();
     test_arithmetic_ops();
     test_division_by_zero();
+    
+    // Print summary
+    debug_print("=== Test Summary ===");
+    debug_print_dec("Total tests", results.total);
+    debug_print_dec("Passed", results.passed);
+    debug_print_dec("Failed", results.failed);
+    
+    if (results.failed == 0) {
+        debug_print("ALL TESTS PASSED!");
+    } else {
+        debug_print("SOME TESTS FAILED!");
+    }
     
     return results.failed; // Return 0 if all tests passed
 }
