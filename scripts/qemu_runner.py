@@ -25,22 +25,37 @@ class QEMURunner:
             "-semihosting-config", "enable=on,target=native"
         ]
     
-    def run_with_timeout(self, timeout_seconds=10):
-        """Run QEMU with specified timeout"""
+    def run_with_timeout(self, timeout_seconds=10, gpio_injection=None):
+        """Run QEMU with specified timeout and optional GPIO state injection"""
         print(f"Running: {' '.join(self.qemu_cmd)}")
         print(f"Timeout: {timeout_seconds}s")
+        if gpio_injection:
+            print(f"GPIO injection: {gpio_injection}")
         
         try:
+            # Add monitor interface for GPIO injection
+            cmd = self.qemu_cmd.copy()
+            if gpio_injection:
+                cmd.extend(["-monitor", "stdio", "-serial", "null"])
+            
             # Start QEMU process
             process = subprocess.Popen(
-                self.qemu_cmd,
+                cmd,
+                stdin=subprocess.PIPE if gpio_injection else None,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True
             )
             
-            # Wait for completion or timeout
-            stdout, stderr = process.communicate(timeout=timeout_seconds)
+            # Handle GPIO injection through monitor
+            if gpio_injection:
+                # Send GPIO injection commands then continue execution
+                monitor_input = self._build_gpio_injection_commands(gpio_injection)
+                monitor_input += "c\n"  # Continue execution
+                stdout, stderr = process.communicate(input=monitor_input, timeout=timeout_seconds)
+            else:
+                # Wait for completion or timeout
+                stdout, stderr = process.communicate(timeout=timeout_seconds)
             
             return {
                 'returncode': process.returncode,
@@ -98,14 +113,47 @@ class QEMURunner:
                 'command': command
             }
     
+    def _build_gpio_injection_commands(self, gpio_injection):
+        """Build monitor commands for GPIO state injection"""
+        commands = []
+        
+        # For LM3S6965EVB, GPIO base addresses:
+        # Port A: 0x40004000, Port B: 0x40005000, Port C: 0x40006000, etc.
+        # GPIO_DATA register offset: 0x000-0x3FC (bit-masked addressing)
+        # GPIO_DIR register offset: 0x400 (direction: 0=input, 1=output)
+        
+        for pin_config in gpio_injection:
+            port = pin_config.get('port', 'A')  # Default to Port A
+            pin = pin_config.get('pin', 0)
+            state = pin_config.get('state', 1)  # 1=HIGH, 0=LOW
+            
+            # Calculate GPIO base address
+            port_bases = {'A': 0x40004000, 'B': 0x40005000, 'C': 0x40006000}
+            base_addr = port_bases.get(port, 0x40004000)
+            
+            # For pullup simulation, we set the input value directly
+            # Use bit-masked addressing: GPIO_DATA + (1 << pin_number) * 4
+            data_addr = base_addr + ((1 << pin) * 4)
+            
+            # Set GPIO direction to input (0) for pullup testing
+            dir_addr = base_addr + 0x400
+            commands.append(f"x /w 0x{dir_addr:08x}")  # Read current direction
+            commands.append(f"set *0x{dir_addr:08x} = *0x{dir_addr:08x} & ~(1 << {pin})")  # Set as input
+            
+            # Set the input data value to simulate pullup
+            value = 0xFF if state else 0x00  # Full port value for bit-masked access
+            commands.append(f"set *0x{data_addr:08x} = 0x{value:02x}")
+            
+        return "\n".join(commands) + "\n"
+    
     def check_gpio_state(self, pin_number):
         """Check GPIO pin state via QEMU monitor"""
-        # This is a placeholder - actual GPIO monitoring depends on 
-        # QEMU machine implementation
-        result = self.run_monitor_command(f"info mtree")
+        # Use memory examination to check GPIO data register
+        result = self.run_monitor_command(f"x /w 0x40004000")  # GPIO Port A base
         
         if result['returncode'] == 0:
-            # Parse memory tree output to find GPIO controller
+            # Parse memory output to extract GPIO state
+            # This is simplified - real implementation would parse hex output
             return {
                 'pin': pin_number,
                 'state': 'unknown',  # Would parse from actual output
@@ -126,6 +174,7 @@ def main():
     parser.add_argument('--cpu', default='cortex-m4', help='CPU type')
     parser.add_argument('--monitor', help='Monitor command to execute')
     parser.add_argument('--check-gpio', type=int, help='Check GPIO pin state')
+    parser.add_argument('--gpio-pullup', help='Simulate GPIO pullup for testing (format: port:pin:state, e.g., A:2:1)')
     
     args = parser.parse_args()
     
@@ -134,6 +183,26 @@ def main():
         return 1
     
     runner = QEMURunner(args.firmware, args.machine, args.cpu)
+    
+    # Parse GPIO injection if specified
+    gpio_injection = None
+    if args.gpio_pullup:
+        try:
+            parts = args.gpio_pullup.split(':')
+            if len(parts) == 3:
+                port, pin, state = parts
+                gpio_injection = [{
+                    'port': port.upper(),
+                    'pin': int(pin),
+                    'state': int(state)
+                }]
+                print(f"GPIO injection configured: Port {port.upper()}, Pin {pin}, State {state}")
+            else:
+                print("Error: GPIO pullup format should be port:pin:state (e.g., A:2:1)")
+                return 1
+        except ValueError as e:
+            print(f"Error parsing GPIO pullup configuration: {e}")
+            return 1
     
     if args.monitor:
         result = runner.run_monitor_command(args.monitor, args.timeout)
@@ -150,7 +219,7 @@ def main():
         return 0 if gpio_state['available'] else 1
     
     else:
-        result = runner.run_with_timeout(args.timeout)
+        result = runner.run_with_timeout(args.timeout, gpio_injection)
         print(f"QEMU execution completed")
         print(f"Return code: {result['returncode']}")
         print(f"Timed out: {result['timed_out']}")

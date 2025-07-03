@@ -1,0 +1,176 @@
+/*
+ * Arduino Hardware Abstraction Layer Implementation
+ * Phase 2, Chunk 2.1: Digital GPIO Foundation
+ */
+
+#include "arduino_hal.h"
+#include "../semihosting/semihosting.h"
+
+// Pin mapping table for LM3S6965EVB
+// Maps Arduino pin numbers to GPIO ports and pin masks
+static const gpio_pin_map_t pin_map[] = {
+    // Pin 0-7: Port B
+    [0] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 0, false},
+    [1] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 1, false},
+    [2] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 2, false},  // Button pin
+    [3] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 3, false},
+    [4] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 4, false},
+    [5] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 5, false},
+    [6] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 6, false},
+    [7] = {(uint32_t*)GPIO_PORTB_BASE, 1 << 7, false},
+    
+    // Pin 8-12: Port C
+    [8] = {(uint32_t*)GPIO_PORTC_BASE, 1 << 0, false},
+    [9] = {(uint32_t*)GPIO_PORTC_BASE, 1 << 1, false},
+    [10] = {(uint32_t*)GPIO_PORTC_BASE, 1 << 2, false},
+    [11] = {(uint32_t*)GPIO_PORTC_BASE, 1 << 3, false},
+    [12] = {(uint32_t*)GPIO_PORTC_BASE, 1 << 4, false},
+    
+    // Pin 13: Port F (LED pin on many boards)
+    [13] = {(uint32_t*)GPIO_PORTF_BASE, 1 << 0, false}, // LED pin
+};
+
+#define PIN_MAP_SIZE (sizeof(pin_map) / sizeof(pin_map[0]))
+
+// Register access macros
+#define REG32(addr) (*(volatile uint32_t*)(addr))
+#define GPIO_DATA(base) REG32((uint32_t)(base) + GPIO_DATA_OFFSET + 0x3FC)
+#define GPIO_DIR(base) REG32((uint32_t)(base) + GPIO_DIR_OFFSET)
+#define GPIO_DEN(base) REG32((uint32_t)(base) + GPIO_DEN_OFFSET)
+#define GPIO_PUR(base) REG32((uint32_t)(base) + GPIO_PUR_OFFSET)
+
+// Initialize GPIO hardware
+void hal_gpio_init(void) {
+    // Enable GPIO clock for all ports
+    uint32_t *sysctl_rcgc2 = (uint32_t*)(SYSCTL_BASE + SYSCTL_RCGC2);
+    *sysctl_rcgc2 |= 0x7F; // Enable clocks for ports A-G
+    
+    // Small delay for clock stabilization
+    volatile int delay = 1000;
+    while (delay--);
+    
+    debug_print("GPIO HAL initialized");
+}
+
+// Get pin mapping
+static const gpio_pin_map_t* get_pin_map(uint8_t pin) {
+    if (pin >= PIN_MAP_SIZE) {
+        debug_print_dec("Invalid pin number", pin);
+        return NULL;
+    }
+    return &pin_map[pin];
+}
+
+// Enable GPIO port clock and basic setup
+void hal_gpio_port_enable(uint32_t port_base) {
+    // Enable digital function for the port
+    GPIO_DEN(port_base) = 0xFF; // Enable all pins as digital
+}
+
+// Set GPIO pin direction
+void hal_gpio_set_direction(uint32_t port_base, uint8_t pin_mask, bool output) {
+    if (output) {
+        GPIO_DIR(port_base) |= pin_mask;    // Set as output
+    } else {
+        GPIO_DIR(port_base) &= ~pin_mask;   // Set as input
+        GPIO_PUR(port_base) |= pin_mask;    // Enable pull-up for input
+    }
+}
+
+// Set GPIO pin high
+void hal_gpio_set_pin(uint32_t port_base, uint8_t pin_mask) {
+    GPIO_DATA(port_base) |= pin_mask;
+}
+
+// Clear GPIO pin (set low)
+void hal_gpio_clear_pin(uint32_t port_base, uint8_t pin_mask) {
+    GPIO_DATA(port_base) &= ~pin_mask;
+}
+
+// Read GPIO pin state
+bool hal_gpio_get_pin(uint32_t port_base, uint8_t pin_mask) {
+    return (GPIO_DATA(port_base) & pin_mask) != 0;
+}
+
+// Configure pin mode
+void hal_gpio_set_mode(uint8_t pin, pin_mode_t mode) {
+    const gpio_pin_map_t *pin_info = get_pin_map(pin);
+    if (!pin_info) return;
+    
+    // Enable port if not already done
+    hal_gpio_port_enable((uint32_t)pin_info->port_base);
+    
+    switch (mode) {
+        case PIN_MODE_OUTPUT:
+            hal_gpio_set_direction((uint32_t)pin_info->port_base, pin_info->pin_mask, true);
+            debug_print_dec("Pin configured as output", pin);
+            break;
+            
+        case PIN_MODE_INPUT:
+        case PIN_MODE_INPUT_PULLUP:
+            hal_gpio_set_direction((uint32_t)pin_info->port_base, pin_info->pin_mask, false);
+            debug_print_dec("Pin configured as input", pin);
+            break;
+    }
+}
+
+// Write to GPIO pin
+void hal_gpio_write(uint8_t pin, pin_state_t state) {
+    const gpio_pin_map_t *pin_info = get_pin_map(pin);
+    if (!pin_info) return;
+    
+    if (state == PIN_HIGH) {
+        hal_gpio_set_pin((uint32_t)pin_info->port_base, pin_info->pin_mask);
+        debug_print_dec("Pin set HIGH", pin);
+    } else {
+        hal_gpio_clear_pin((uint32_t)pin_info->port_base, pin_info->pin_mask);
+        debug_print_dec("Pin set LOW", pin);
+    }
+}
+
+// Read from GPIO pin
+pin_state_t hal_gpio_read(uint8_t pin) {
+    const gpio_pin_map_t *pin_info = get_pin_map(pin);
+    if (!pin_info) return PIN_LOW;
+    
+    bool state = hal_gpio_get_pin((uint32_t)pin_info->port_base, pin_info->pin_mask);
+    debug_print_dec("Pin read", pin);
+    debug_print_dec("State", state ? 1 : 0);
+    
+    return state ? PIN_HIGH : PIN_LOW;
+}
+
+// Arduino API implementations
+void arduino_pin_mode(uint8_t pin, pin_mode_t mode) {
+    hal_gpio_set_mode(pin, mode);
+}
+
+void arduino_digital_write(uint8_t pin, pin_state_t state) {
+    hal_gpio_write(pin, state);
+}
+
+pin_state_t arduino_digital_read(uint8_t pin) {
+    return hal_gpio_read(pin);
+}
+
+void arduino_analog_write(uint8_t pin, uint16_t value) {
+    // Simplified PWM - just treat as digital for now
+    arduino_digital_write(pin, (value > 512) ? PIN_HIGH : PIN_LOW);
+    debug_print_dec("Analog write (simplified)", pin);
+    debug_print_dec("Value", value);
+}
+
+uint16_t arduino_analog_read(uint8_t pin) {
+    // Simplified ADC - return fixed value for now
+    debug_print_dec("Analog read (simplified)", pin);
+    return 512; // Mid-range value
+}
+
+void arduino_delay(uint32_t milliseconds) {
+    // Simplified busy-wait delay
+    // In real implementation, this would use SysTick
+    volatile uint32_t cycles = milliseconds * 1000; // Rough approximation
+    while (cycles--);
+    
+    debug_print_dec("Delay complete (ms)", milliseconds);
+}

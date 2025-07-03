@@ -7,8 +7,9 @@
 #include "../lib/vm_core/vm_core.h"
 #include "../lib/semihosting/semihosting.h"
 
-// Test function (defined in test_vm_core.c)
-int run_vm_tests(void);
+// Test functions
+int run_vm_tests(void);           // VM core tests
+int run_arduino_gpio_tests(void); // Arduino GPIO tests
 
 // Vector table for ARM Cortex-M4
 extern uint32_t _stack_start;
@@ -55,18 +56,27 @@ void Reset_Handler(void)
     startup_init();
     
     debug_print("Embedded Hypervisor MVP Starting...");
-    debug_print("Phase 1, Chunk 1.3: QEMU Integration");
+    debug_print("Phase 2, Chunk 2.1: Arduino GPIO Foundation");
     
     // Run VM core tests
-    int test_result = run_vm_tests();
+    int vm_test_result = run_vm_tests();
+    
+    // Run Arduino GPIO tests  
+    int gpio_test_result = run_arduino_gpio_tests();
+    
+    // Combined test result
+    int total_failures = vm_test_result + gpio_test_result;
     
     // Report final result and exit
-    if (test_result == 0) {
-        debug_print("=== HYPERVISOR TESTS SUCCESSFUL ===");
+    if (total_failures == 0) {
+        debug_print("=== ALL HYPERVISOR TESTS SUCCESSFUL ===");
+        debug_print("VM Core + Arduino GPIO tests passed");
         semihost_exit(0);  // Exit with success code
     } else {
-        debug_print("=== HYPERVISOR TESTS FAILED ===");
-        debug_print_dec("Failed test count", test_result);
+        debug_print("=== SOME HYPERVISOR TESTS FAILED ===");
+        debug_print_dec("VM test failures", vm_test_result);
+        debug_print_dec("GPIO test failures", gpio_test_result);
+        debug_print_dec("Total failures", total_failures);
         semihost_exit(1);  // Exit with failure code
     }
 }

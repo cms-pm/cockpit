@@ -2,12 +2,12 @@
 # Phase 1, Chunk 1.3: QEMU Integration Foundation
 
 # Configuration
-PIO_PATH := $(shell which pio || echo "/home/chris/.platformio/penv/bin/pio")
+PIO_PATH := /home/chris/.platformio/penv/bin/pio
 FIRMWARE := .pio/build/qemu-lm3s6965evb/firmware.bin
 QEMU_RUNNER := ./scripts/qemu_runner.py
 
 # Ensure PlatformIO is in PATH
-export PATH := $(dir $(PIO_PATH)):$(PATH)
+export PATH := /home/chris/.platformio/penv/bin:$(PATH)
 
 .PHONY: all build test qemu clean help
 

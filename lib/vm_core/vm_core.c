@@ -4,6 +4,7 @@
  */
 
 #include "vm_core.h"
+#include "../arduino_hal/arduino_hal.h"
 
 // External memory region definitions (from linker script)
 extern uint32_t _vm_memory_start;
@@ -154,14 +155,51 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
             vm->running = false;
             break;
             
-        // Arduino functions - placeholder implementations
-        case OP_DIGITAL_WRITE:
-        case OP_DIGITAL_READ:
-        case OP_ANALOG_WRITE:
-        case OP_ANALOG_READ:
-        case OP_DELAY:
-            // TODO: Implement in later chunks
+        // Arduino API implementations
+        case OP_DIGITAL_WRITE: {
+            // immediate = pin number, pop state from stack
+            uint32_t state;
+            vm_error_t error = vm_pop(vm, &state);
+            if (error != VM_OK) return error;
+            
+            arduino_digital_write(instruction.immediate, (state != 0) ? PIN_HIGH : PIN_LOW);
             break;
+        }
+        
+        case OP_DIGITAL_READ: {
+            // immediate = pin number, push result to stack
+            pin_state_t state = arduino_digital_read(instruction.immediate);
+            return vm_push(vm, (state == PIN_HIGH) ? 1 : 0);
+        }
+        
+        case OP_ANALOG_WRITE: {
+            // immediate = pin number, pop value from stack
+            uint32_t value;
+            vm_error_t error = vm_pop(vm, &value);
+            if (error != VM_OK) return error;
+            
+            arduino_analog_write(instruction.immediate, (uint16_t)(value & 0xFFFF));
+            break;
+        }
+        
+        case OP_ANALOG_READ: {
+            // immediate = pin number, push result to stack
+            uint16_t value = arduino_analog_read(instruction.immediate);
+            return vm_push(vm, (uint32_t)value);
+        }
+        
+        case OP_DELAY: {
+            // immediate = milliseconds (0-255), or pop from stack for larger values
+            uint32_t milliseconds = instruction.immediate;
+            if (milliseconds == 0) {
+                // If immediate is 0, pop milliseconds from stack
+                vm_error_t error = vm_pop(vm, &milliseconds);
+                if (error != VM_OK) return error;
+            }
+            
+            arduino_delay(milliseconds);
+            break;
+        }
             
         default:
             return VM_ERROR_INVALID_OPCODE;

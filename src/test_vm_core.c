@@ -13,7 +13,7 @@ typedef struct {
     int total;
 } test_results_t;
 
-static test_results_t results = {0, 0, 0};
+static volatile test_results_t results = {0, 0, 0};
 
 // Enhanced test assertion macro with semihosting output
 #define TEST_ASSERT(condition, name) do { \
@@ -183,10 +183,16 @@ void test_division_by_zero(void) {
 
 // Main test runner
 int run_vm_tests(void) {
-    // Reset results
+    // Reset results with explicit memory barrier
     results.passed = 0;
     results.failed = 0;
     results.total = 0;
+    
+    // Verify clean slate
+    if (results.passed != 0 || results.failed != 0 || results.total != 0) {
+        debug_print("ERROR: Results structure corruption detected!");
+        return 1;
+    }
     
     debug_print("=== VM Core Unit Tests Starting ===");
     
@@ -206,11 +212,18 @@ int run_vm_tests(void) {
     debug_print_dec("Passed", results.passed);
     debug_print_dec("Failed", results.failed);
     
+    // Verify accounting integrity
+    if (results.total != (results.passed + results.failed)) {
+        debug_print("WARNING: Test accounting error detected!");
+        debug_print_dec("Expected total", results.passed + results.failed);
+    }
+    
     if (results.failed == 0) {
         debug_print("ALL TESTS PASSED!");
     } else {
         debug_print("SOME TESTS FAILED!");
     }
     
-    return results.failed; // Return 0 if all tests passed
+    // Return proper exit code (0 = success, 1 = failure)
+    return (results.failed > 0) ? 1 : 0;
 }
