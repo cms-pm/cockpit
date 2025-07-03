@@ -244,15 +244,26 @@ HALT                      // Stop execution
   - Performance optimization and validation
   - Hardware abstraction refinements
 
-### Phase 3: Complete API (Days 7-9)
-- **Chunk 3.1**: Analog Operations (8 hours) - PWM and ADC
-- **Chunk 3.2**: Delay Implementation (6 hours) - SysTick precision
-- **Chunk 3.3**: Complete API Integration (4 hours) - Performance validation
+### Phase 3: C-to-Bytecode Compiler (Days 7-9)
+**🚨 CRITICAL REQUIREMENT: Minimum 4 Pooled Question/Answer Cycles Before Implementation**
 
-### Phase 4: Parser & End-to-End (Days 10-12)
-- **Chunk 4.1**: Minimal Parser Core (8 hours) - C to bytecode
-- **Chunk 4.2**: Blink Pattern Implementation (6 hours) - Loop constructs
-- **Chunk 4.3**: SOS Pattern + Button Control (8 hours) - Final demo
+**Pre-Phase 3 Planning Requirements:**
+1. **Question Pool 1**: Compiler architecture decisions (hand-written vs tool-assisted)
+2. **Question Pool 2**: C language subset definition and syntax support scope
+3. **Question Pool 3**: Bytecode generation strategy and optimization approach
+4. **Question Pool 4**: Integration testing and validation methodology
+5. **Additional cycles as needed** until all ambiguities resolved
+
+**Phase 3 may be adjusted based on Phase 2 completion outcomes**
+
+- **Chunk 3.1**: Minimal C Parser Foundation (8 hours) - Lexer and basic syntax tree
+- **Chunk 3.2**: Arduino Function Mapping (6 hours) - C function to bytecode opcodes
+- **Chunk 3.3**: End-to-End Compilation Pipeline (6 hours) - C source to executable bytecode
+
+### Phase 4: Advanced API & Demo (Days 10-12)
+- **Chunk 4.1**: Advanced Arduino Operations (8 hours) - PWM, ADC, analog functions
+- **Chunk 4.2**: SysTick Precision Timing (6 hours) - Real-time delay implementation
+- **Chunk 4.3**: SOS Demo + Button Control (8 hours) - Final interactive demonstration
 
 ## Technical Architecture (Current)
 
@@ -342,6 +353,41 @@ cockpit/
 - **RTOS Integration**: Pre-emptive scheduling for real-time applications (medium priority)
 - **DMA Controller**: High-performance data transfer capabilities (medium priority)
 - **Rust Bytecode Support**: Safe systems programming with memory safety guarantees (medium priority)
+
+## Phase 3 Planning Methodology (MANDATORY)
+
+**🚨 Critical Success Factor**: Comprehensive pre-implementation planning through systematic question pooling
+
+### **Question Pool Framework for Phase 3**
+Following the proven 6-round feedback cycle approach used in initial project planning:
+
+1. **Pool 1 - Compiler Architecture**: 
+   - Hand-written recursive descent vs tool-assisted (ANTLR/Yacc)
+   - Single-pass vs multi-pass compilation strategy
+   - Memory management during compilation process
+   - Error handling and recovery mechanisms
+
+2. **Pool 2 - C Language Subset**:
+   - Supported data types (int, char, pointers?)
+   - Control flow constructs (if/else, while, for scope)
+   - Function definitions and call semantics
+   - Variable declaration and scoping rules
+
+3. **Pool 3 - Bytecode Generation**:
+   - Instruction selection and optimization
+   - Stack frame management for function calls
+   - Constant folding and dead code elimination
+   - Jump/branch target resolution
+
+4. **Pool 4 - Integration & Testing**:
+   - Unit testing strategy for compiler components
+   - End-to-end validation methodology
+   - Error message clarity and debugging support
+   - Performance benchmarking approach
+
+**Minimum 4 cycles required** - additional cycles until zero ambiguity achieved
+**Estimated planning time**: 2-3 hours total (30-45 minutes per cycle)
+**Success criteria**: Clear, unambiguous implementation roadmap before any code is written
 
 ## Context Notes
 - User emphasized KISS (Keep It Simple Stupid) principles throughout
