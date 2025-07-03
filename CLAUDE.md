@@ -338,6 +338,9 @@ cockpit/
 - **Resource Contention**: Peripheral sharing (deferred)
 - **Power Management**: Sleep modes and optimization (deferred)
 - **Hybrid Testing**: Unit + integration test framework (foundation ready)
+- **Cortex M0/M0+ Support**: Resource-constrained device targeting (medium priority)
+- **RTOS Integration**: Pre-emptive scheduling for real-time applications (medium priority)
+- **DMA Controller**: High-performance data transfer capabilities (medium priority)
 
 ## Context Notes
 - User emphasized KISS (Keep It Simple Stupid) principles throughout
