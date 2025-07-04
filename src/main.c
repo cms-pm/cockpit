@@ -12,6 +12,7 @@ int run_vm_tests(void);           // VM core tests
 int run_qemu_gpio_tests(void);    // QEMU-compatible GPIO tests
 int run_button_tests(void);       // Button input tests
 int run_arduino_function_tests(void); // Arduino function tests (Phase 2.3)
+int run_c_to_bytecode_tests(void);    // C-to-bytecode examples (Phase 2.3.4)
 
 // Vector table for ARM Cortex-M4
 extern uint32_t _stack_start;
@@ -72,13 +73,16 @@ void Reset_Handler(void)
     // Run Arduino function tests (Phase 2.3)
     int arduino_test_result = run_arduino_function_tests();
     
+    // Run C-to-bytecode examples (Phase 2.3.4)
+    int c2b_test_result = run_c_to_bytecode_tests();
+    
     // Combined test result
-    int total_failures = vm_test_result + gpio_test_result + button_test_result + arduino_test_result;
+    int total_failures = vm_test_result + gpio_test_result + button_test_result + arduino_test_result + c2b_test_result;
     
     // Report final result and exit
     if (total_failures == 0) {
         debug_print("=== ALL HYPERVISOR TESTS SUCCESSFUL ===");
-        debug_print("VM Core + GPIO + Button + Arduino Function tests passed");
+        debug_print("VM Core + GPIO + Button + Arduino Function + C-to-Bytecode tests passed");
         semihost_exit(0);  // Exit with success code
     } else {
         debug_print("=== SOME HYPERVISOR TESTS FAILED ===");
@@ -86,6 +90,7 @@ void Reset_Handler(void)
         debug_print_dec("GPIO test failures", gpio_test_result);
         debug_print_dec("Button test failures", button_test_result);
         debug_print_dec("Arduino function test failures", arduino_test_result);
+        debug_print_dec("C-to-bytecode test failures", c2b_test_result);
         debug_print_dec("Total failures", total_failures);
         semihost_exit(1);  // Exit with failure code
     }
