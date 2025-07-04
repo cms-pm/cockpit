@@ -1,122 +1,126 @@
 # 🚁 Cockpit Project
 
-[![Embedded](https://img.shields.io/badge/Platform-Embedded-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]() [![Planned](https://img.shields.io/badge/Planned-M0%2FG0%2BRTOS-yellow.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]()
+[![Embedded](https://img.shields.io/badge/Platform-Embedded-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]()
 
-> 🎯 **Lightweight embedded hypervisor bringing virtual machine flexibility to microcontrollers**
+> **Lightweight embedded hypervisor for ARM Cortex-M4 microcontrollers**
 
-Cockpit is an embedded hypervisor project that provides a lightweight virtual machine (VM) environment for running bytecode programs on microcontrollers. Currently targeting ARM Cortex-M4 platforms, with a focus on Arduino-compatible hardware abstraction.
+Cockpit is an embedded hypervisor that provides a stack-based virtual machine environment for running bytecode programs on microcontrollers. Currently targeting ARM Cortex-M4 platforms with Arduino-compatible hardware abstraction, designed for QEMU-to-hardware transition.
 
-## 🌟 Vision
+## ✅ Current Implementation Status
 
-The Cockpit project aims to create a versatile platform for embedded applications, enabling hardware abstraction and simplified embedded development through a stack-based virtual machine.
+**Phase 2.3.2 Complete** - printf() with Semihosting Bridge implemented and tested
 
-## ✅ Current Implementation (Phase 2.3.1 Complete)
+### **🔧 Technical Achievements**
 
-### **🔧 Core Features Implemented**
+*   **🖥️ Virtual Machine Core:** 16-bit bytecode instruction set with stack-based operations (PUSH, POP, ADD, SUB, MUL, DIV, HALT)
+*   **🔌 Arduino API Integration:** Complete Arduino functions (digitalWrite, digitalRead, analogWrite, analogRead, delay, pinMode, millis, micros) implemented as VM opcodes
+*   **🎛️ Button Input System:** Debounced button handling with event queue and VM opcodes for press/release detection
+*   **📄 Printf Implementation:** Format string support (%d, %s, %x, %c) with semihosting bridge for debug output
+*   **⚙️ Hardware Abstraction Layer:** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with comprehensive testing
+*   **🧠 Memory Management:** 8KB RAM allocation with stack/heap separation, bounds checking, and overflow protection
+*   **🖥️ QEMU Development Environment:** Automated testing with ARM semihosting, virtual time synchronization
+*   **🏗️ Build System:** PlatformIO integration with automated compilation and reliable test execution
 
-*   **🖥️ Virtual Machine Core:** 16-bit bytecode instruction set with stack-based operations (PUSH, POP, ADD, SUB, MUL, DIV, HALT).
-*   **🔌 Arduino API Integration:** Complete Arduino functions (digitalWrite, digitalRead, analogWrite, analogRead, delay, pinMode) + timing (millis, micros) implemented as VM opcodes.
-*   **🎛️ Button Input System:** KISS-compliant button debouncing with event queue, virtual timing integration, and VM opcodes for press/release detection.
-*   **⚙️ Hardware Abstraction Layer (HAL):** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with pin mapping, mode configuration, and mock testing layer.
-*   **🧠 Memory Management:** 8KB RAM allocation for VM stack and heap with bounds checking, overflow protection, and embedded memory arrays.
-*   **🖥️ QEMU Development Environment:** Automated testing and debugging with ARM semihosting support, virtual time synchronization, and hardware-independent development.
-*   **🏗️ Build System:** PlatformIO integration with automated compilation, testing pipeline, and reliable exit code parsing.
-*   **🧪 Comprehensive Testing:** 73 unit tests covering VM core, Arduino GPIO, button input, and Arduino function integration (100% pass rate).
+### **📊 Current Specifications**
 
-### **📊 Technical Specifications**
-
-*   **💾 Flash Usage:** 12,640 bytes (9.6% of 128KB)
+*   **💾 Flash Usage:** 15,704 bytes (12.0% of 128KB)
 *   **🧮 RAM Usage:** 188 bytes static (0.9% of 20KB) + 8KB VM memory
 *   **📝 Instruction Format:** 8-bit opcode + 8-bit immediate value
-*   **⚡ Supported Operations:** Stack manipulation, arithmetic, digital GPIO, analog operations, timing functions, button input
-*   **🎯 Target Platform:** ARM Cortex-M4 with QEMU emulation support
-*   **🔧 VM Opcodes:** 12 Arduino functions + 6 core operations + comparison operations (planned)
+*   **🧪 Test Coverage:** 75 tests total, 100% pass rate
+*   **🎯 Target Platform:** ARM Cortex-M4 with QEMU emulation
+*   **🔧 VM Opcodes:** 15 Arduino functions + 6 core operations + printf
 
-## 📈 Development Progress
+### **🧪 Test Results (Latest)**
+*   **VM Core Tests:** 21/21 passing (stack operations, arithmetic, memory)
+*   **GPIO Tests:** 15/15 passing (digital I/O, HAL abstraction)
+*   **Button Tests:** 20/20 passing (debouncing, event handling)
+*   **Arduino Function Tests:** 19/19 passing (pinMode, timing, printf)
+*   **Overall Success Rate:** 100% (75/75 tests)
 
-### **Phase 1: VM Foundation** ✅ **COMPLETED**
-- ✅ **1.1** Project Structure Setup (PlatformIO + QEMU)
-- ✅ **1.2** VM Core Stack Operations (8 opcodes, testing framework)
-- ✅ **1.3** QEMU Integration Foundation (semihosting, automation)
+## 📈 MVP Development Roadmap
 
-### **Phase 2: Arduino Integration** 🚧 **IN PROGRESS** 
+### **Phase 2: Arduino Integration** 🔄 **IN PROGRESS**
 - ✅ **2.1** Arduino Digital GPIO Foundation (HAL + 5 Arduino functions)
 - ✅ **2.2** Arduino Input + Button (debouncing, event queue, button opcodes)
 - ✅ **2.3.1** pinMode + Timing Functions (pinMode, millis, micros opcodes)
-- 🔄 **2.3.2** printf() with Semihosting (%d %s %x %c formats) - **CURRENT**
-- 📋 **2.3.3** Comparison Operations (EQ/NE/LT/GT/LE/GE opcodes)
+- ✅ **2.3.2** printf() with Semihosting (%d %s %x %c formats)
+- 🔄 **2.3.3** Comparison Operations (EQ/NE/LT/GT/LE/GE opcodes) - **CURRENT**
 - 📋 **2.3.4** C-to-Bytecode Examples (Phase 3 preparation)
 - 📋 **2.3.5** Documentation + Architecture Validation
 
 ### **Phase 3: C Compiler** 📋 **PLANNED**
-- 📋 **3.1** Minimal C Parser Foundation (8 hours)
-- 📋 **3.2** Arduino Function Mapping (6 hours) 
-- 📋 **3.3** End-to-End Compilation Pipeline (6 hours)
-- ⚠️ **Mandatory**: 4+ Question/Answer cycles before implementation
+- 📋 **3.1** Minimal C Parser Foundation (function parsing, variable handling)
+- 📋 **3.2** Arduino Function Mapping (C calls to VM opcodes)
+- 📋 **3.3** End-to-End Compilation Pipeline (C source to executable bytecode)
+- ⚠️ **Mandatory**: 4+ Question/Answer planning cycles before implementation
 
-### **Phase 4: Demo + Advanced Features** 📋 **PLANNED**
-- 📋 **4.1** Advanced Arduino Operations (PWM, ADC refinements)
-- 📋 **4.2** SysTick Precision Timing (real-time implementation)
+### **Phase 4: Hardware Transition** 📋 **MVP TARGET**
+- 📋 **4.1** Real Hardware Validation (STM32 or similar Cortex-M4)
+- 📋 **4.2** Timing Precision Implementation (SysTick integration)
 - 📋 **4.3** SOS Demo + Button Control (interactive demonstration)
 
-**Current Status**: 73 tests passing | 12.6KB flash | Phase 2.3.2 active development
+**MVP Goal**: C-compiled bytecode running on real ARM Cortex-M4 hardware, demonstrating hypervisor independence from QEMU
 
-## 🚀 Planned Features
+## 🏗️ Architecture Overview
 
-> 📅 **Future development phases - roadmap for enhanced capabilities**
-
-### **🧠 Advanced VM Capabilities**
-*   **📞 CALL/RET Operations:** Function call support with return address management
-*   **🛡️ Memory Protection Unit (MPU):** Hardware-based memory protection for ARM Cortex-M4
-*   **🔄 Multi-Architecture Support:** ARM Cortex-M0/M0+, RISC-V and 8051 microcontroller targets
-*   **⚡ Interrupt Handling:** VM-level interrupt service routines and event processing
-*   **🔀 RTOS Integration:** Pre-emptive scheduling for real-time applications
-
-### **📡 Dynamic Updates and Remote Management**
-*   **🔄 Over-the-Air (OTA) Updates:** Remote bytecode deployment and firmware updates
-*   **🎛️ Remote Orchestration:** Network-based device control and configuration management
-*   **🥾 Bootloader Integration:** Secure loading and updating of bytecode programs
-*   **📦 Version Management:** Bytecode versioning and compatibility validation
-
-### **📊 Telemetry and Communication**
-*   **📈 Telemetry Collection:** Performance monitoring and system health data gathering
-*   **🌐 Network Stack:** TCP/IP, WiFi, and cellular communication protocols
-*   **📤 Data Transmission:** JSON/protobuf serialization for remote data exchange
-*   **🔗 Communication Protocols:** MQTT, HTTP, and custom protocols for IoT integration
-
-### **🏭 Production Features**
-*   **🚀 Advanced Peripheral Support:** I2C, SPI, UART, PWM, ADC, and DMA hardware drivers
-*   **🔋 Power Management:** Sleep modes, wake-on-interrupt, and power optimization
-*   **🔒 Security Features:** Encryption, authentication, and secure boot mechanisms
-*   **🐕 Watchdog and Reliability:** System monitoring and fault recovery mechanisms
-
-### **🛠️ Development Tools**
-*   **⚙️ C/C++ to Bytecode Compiler:** Direct compilation from high-level code to VM bytecode
-*   **🦀 Rust Bytecode Support:** Safe systems programming with memory safety guarantees
-*   **🔬 Hardware-in-the-Loop Testing:** Real hardware validation and performance measurement
-*   **📊 Performance Profiling:** Cycle-accurate timing analysis and optimization tools
-*   **🔄 CI/CD Pipeline:** Automated testing and deployment infrastructure
-
-## 📁 Project Structure
-
-```
-cockpit/
-├── src/           # Main application code
-├── lib/           # Custom libraries (VM core, parser, HAL)
-├── test/          # Unit and integration tests
-├── docs/          # Project documentation artifacts
-├── platformio.ini # Build configuration
-└── linker_script.ld # Memory layout definition
+### **Bytecode Format**
+```c
+// 16-bit instructions: 8-bit opcode + 8-bit immediate
+typedef struct {
+    uint8_t opcode;     // Operation to perform
+    uint8_t immediate;  // Pin number, value, or parameter
+} vm_instruction_t;
 ```
 
-## 🚀 Getting Started
+### **Arduino API Integration**
+```c
+// Arduino functions mapped to VM opcodes
+arduino_digital_write(PIN_13, PIN_HIGH);    // OP_DIGITAL_WRITE
+arduino_digital_read(PIN_2);                // OP_DIGITAL_READ  
+arduino_analog_write(PIN_13, 128);          // OP_ANALOG_WRITE
+arduino_analog_read(0);                     // OP_ANALOG_READ
+arduino_delay(1000);                        // OP_DELAY
+```
 
-### 📋 Prerequisites
+### **VM Execution Example**
+```c
+// Bytecode program: Blink LED
+uint16_t blink_program[] = {
+    (OP_PUSH << 8) | 1,          // Push OUTPUT mode
+    (OP_PIN_MODE << 8) | 13,     // pinMode(13, OUTPUT)
+    (OP_PUSH << 8) | 1,          // Push HIGH state
+    (OP_DIGITAL_WRITE << 8) | 13, // digitalWrite(13, HIGH)
+    (OP_PUSH << 8) | 123,        // Push argument
+    (OP_PUSH << 8) | 1,          // Push arg count
+    (OP_PRINTF << 8) | 6,        // printf("Printf working: %d", 123)
+    (OP_HALT << 8) | 0           // Stop execution
+};
+```
+
+### **Memory Layout**
+```
+VM Memory (8KB):
+┌─────────────┐ ← 0x20000000 + 8KB (stack_top)
+│    Stack    │   4KB (grows downward)
+│ (unused)    │
+├─────────────┤ ← stack pointer (current)
+│             │
+│  Available  │
+│             │
+├─────────────┤ ← heap pointer (current)  
+│    Heap     │   4KB (grows upward)
+│  (program)  │
+└─────────────┘ ← 0x20000000 (heap_base)
+```
+
+## 🛠️ Getting Started
+
+### **Prerequisites**
 *   PlatformIO CLI installed
 *   QEMU ARM system emulation (for testing)
 *   ARM GCC toolchain (managed by PlatformIO)
 
-### 🔨 Building and Testing
+### **Building and Testing**
 ```bash
 # Build the project
 make build
@@ -131,22 +135,54 @@ make qemu
 make clean
 ```
 
-### 📊 Current Test Results
-*   **VM Core Tests:** 21/21 passing (stack operations, arithmetic, memory management)
-*   **Arduino GPIO Tests:** 16/18 passing (GPIO abstraction, pin operations)
-*   **Overall Success Rate:** 89% (2 failing tests due to QEMU simulation limitations)
+### **Expected Output**
+```
+Embedded Hypervisor MVP Starting...
+=== VM Core Unit Tests Starting ===
+...
+=== ALL HYPERVISOR TESTS SUCCESSFUL ===
+VM Core + GPIO + Button + Arduino Function tests passed
+```
 
-## 📚 Documentation
+## 📁 Project Structure
 
-### 📖 Available Documentation
-*   **`docs/chunk-1.1-project-structure.md`** - PlatformIO setup and build system configuration
-*   **`docs/chunk-1.2-vm-core-stack.md`** - Virtual machine architecture and stack operations
-*   **`docs/chunk-1.3-qemu-integration.md`** - QEMU automation and testing framework
-*   **`CLAUDE.md`** - Complete project context and implementation roadmap
+```
+cockpit/
+├── src/                      # Main application and test code
+│   ├── main.c               # Test orchestration and entry point
+│   ├── test_vm_core.c       # VM core unit tests (21 tests)
+│   ├── test_qemu_gpio.c     # QEMU GPIO tests (15 tests)  
+│   ├── test_button_input.c  # Button system tests (20 tests)
+│   └── test_arduino_functions.c # Arduino API tests (19 tests)
+├── lib/                      # Custom libraries
+│   ├── vm_core/             # Stack-based VM implementation
+│   ├── arduino_hal/         # Arduino hardware abstraction
+│   ├── button_input/        # Button debouncing system
+│   └── semihosting/         # ARM semihosting for debug
+├── scripts/                  # Build and test automation
+│   └── qemu_runner.py       # QEMU execution and monitoring
+├── docs/                     # Documentation
+│   ├── VISION.md            # Long-term project vision
+│   └── *.md                 # Implementation documentation
+├── Makefile                  # Build automation
+├── platformio.ini            # Build configuration
+└── linker_script.ld          # Memory layout definition
+```
 
-### 🎯 Implementation Status
-*   **Phase 1 Complete:** VM Core, Project Structure, QEMU Integration
-*   **Phase 2 In Progress:** Arduino API Integration (Chunk 2.1 complete)
-*   **Next Milestone:** Enhanced input handling and button debouncing (Chunk 2.2)
+## 🎯 Next Steps
 
-For detailed technical specifications and development history, see `CLAUDE.md`.
+### **Immediate (Phase 2.3.3)**
+Implement comparison operations (OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE) to complete the Arduino API foundation needed for conditional logic in the C compiler.
+
+### **MVP Completion**
+1. **Complete Phase 2.3**: Finish Arduino API integration with comparison operations
+2. **Plan Phase 3**: Systematic question/answer cycles for C compiler design  
+3. **Implement C Compiler**: Hand-written minimal parser for Arduino function subset
+4. **Hardware Validation**: Deploy to real ARM Cortex-M4 hardware
+5. **Demo Creation**: Interactive SOS morse code with button control
+
+**Target**: Demonstrate C-compiled bytecode running independently on ARM Cortex-M4 hardware
+
+---
+
+For long-term vision and advanced features, see [`docs/VISION.md`](docs/VISION.md).
