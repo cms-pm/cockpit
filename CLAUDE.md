@@ -778,4 +778,193 @@ When comparison operations encounter edge cases, should they:
 
 **Estimated Time**: 1-2 hours implementation + testing
 
-**Ready for User Decision on Pool Questions to Proceed with Phase 2.3.3**
+## Phase 2.3.3 DESIGN DECISIONS - FINALIZED ✅
+
+**Status**: All design decisions made, ready for implementation
+
+### **Pool Question Results (5 Primary + 3 Extended Questions)**
+
+**Question 1: Stack Operation Semantics**
+- **Selected**: **B** - Flags register for comparison semantics
+- **Rationale**: Industry standard approach, enables efficient conditional branching in Phase 3
+- **Implementation**: Single flags register with comparison result storage
+
+**Question 2: Comparison Result Representation**
+- **Selected**: **A** - C-style boolean (0 for false, 1 for true)
+- **Rationale**: Standard C semantics, predictable behavior, clear debugging
+- **Implementation**: FLAG_ZERO bit in flags register represents comparison result
+
+**Question 3: Type Handling Strategy**
+- **Selected**: **B** - Signed/unsigned distinction with opcode variants
+- **Rationale**: Arduino uses mix of signed int and unsigned long, Phase 3 C compiler needs correct semantics
+- **Implementation**: 12 opcodes total (6 unsigned + 6 signed variants)
+
+**Question 4: Test Strategy Scope**
+- **Selected**: **C** - Comprehensive coverage (arithmetic + integration + Phase 3 prep)
+- **Rationale**: Critical opcodes for Phase 3 compiler, mathematical correctness essential
+- **Implementation**: ~15-20 test functions covering all edge cases and integration patterns
+
+**Question 5: Error Handling Approach**
+- **Selected**: **B** - Debug output + continue execution (with TO-DO: debug toggle switch)
+- **Rationale**: Maintains execution flow, follows established printf pattern, visible debugging
+- **Implementation**: Detailed debug messages, default to 0 for missing operands
+
+**Question 6: Flags Register Implementation**
+- **Selected**: **B** - Multi-bit flags register (future-ready)
+- **Rationale**: Industry standard, extensible for floating point and arithmetic overflow
+- **Implementation**: uint8_t flags with FLAG_ZERO (0x01) for current needs, expandable
+
+**Question 7: Conditional Branch Opcodes**
+- **Selected**: **C** - Defer branch opcodes to Phase 3
+- **Rationale**: KISS principle for current phase, Phase 3 will add when needed
+- **Implementation**: Only comparison opcodes in Phase 2.3.3
+
+**Question 8: Test Strategy Focus**
+- **Selected**: **C** - Both signed and unsigned comprehensive testing
+- **Rationale**: Ensures mathematical correctness for both type variants
+- **Implementation**: Separate test suites for signed/unsigned edge cases
+
+**Question 9: Phase 3 Preparation Level**
+- **Selected**: **C** - Extensive preparation
+- **Rationale**: Minimize Phase 3 refactoring, document integration patterns
+- **Implementation**: Phase 3 documentation, example bytecode patterns, opcode layout planning
+
+### **Opcode Address Organization (Final)**
+
+**Range Allocation:**
+```c
+// Semantic opcode organization established
+// 0x00-0x0F: Core VM operations (PUSH, POP, ADD, SUB, etc.)
+// 0x10-0x1F: Arduino functions (digitalWrite, analogRead, printf, etc.)  
+// 0x20-0x2F: Comparison and logic operations (NEW)
+// 0x30-0x3F: Control flow operations (reserved for Phase 3)
+```
+
+**Comparison Opcodes Layout (Grouped by Type):**
+```c
+// Unsigned Comparisons (0x20-0x25)
+OP_EQ = 0x20,     // a == b (unsigned)
+OP_NE = 0x21,     // a != b (unsigned)
+OP_LT = 0x22,     // a < b (unsigned)
+OP_GT = 0x23,     // a > b (unsigned)
+OP_LE = 0x24,     // a <= b (unsigned)
+OP_GE = 0x25,     // a >= b (unsigned)
+
+// Signed Comparisons (0x26-0x2B)
+OP_EQ_S = 0x26,   // a == b (signed)
+OP_NE_S = 0x27,   // a != b (signed)
+OP_LT_S = 0x28,   // a < b (signed)
+OP_GT_S = 0x29,   // a > b (signed)
+OP_LE_S = 0x2A,   // a <= b (signed)
+OP_GE_S = 0x2B,   // a >= b (signed)
+
+// Future Logic Operations (0x2C-0x2F available)
+// OP_AND, OP_OR, OP_XOR, OP_NOT
+```
+
+**Organization Rationale:**
+- **Grouped by type**: Clear semantic separation of unsigned vs signed
+- **Future expansion**: Clean space for bitwise operations (0x2C-0x2F)
+- **Phase 3 friendly**: Simple mapping for C compiler type-based selection
+- **Debugger friendly**: Easy to identify opcode ranges at a glance
+
+### **Implementation Architecture**
+
+**VM State Extensions:**
+```c
+typedef struct {
+    // ... existing fields ...
+    uint8_t flags;              // Multi-bit flags register
+    // Removed: bool comparison_result (replaced by flags)
+} vm_state_t;
+
+// Flag definitions (expandable)
+#define FLAG_ZERO 0x01          // Comparison result (1=true, 0=false)
+// Future: FLAG_NEGATIVE, FLAG_CARRY, FLAG_OVERFLOW, etc.
+```
+
+**Code Organization Strategy:**
+```c
+// Helper function to reduce duplication across 12 opcodes
+static void vm_compare(vm_state_t *vm, vm_opcode_t opcode, uint32_t a, uint32_t b);
+
+// Single case statement handling all 12 comparison opcodes
+case OP_EQ: case OP_NE: case OP_LT: case OP_GT: case OP_LE: case OP_GE:
+case OP_EQ_S: case OP_NE_S: case OP_LT_S: case OP_GT_S: case OP_LE_S: case OP_GE_S:
+```
+
+**Error Handling Pattern:**
+```c
+// Consistent across all comparison operations
+if (vm_pop(vm, &b) != VM_OK) {
+    debug_print_dec("Comparison: missing operand B, using default", 0);
+    b = 0;  // Continue with default value
+}
+// TO-DO: Add debug output toggle switch for production use
+```
+
+### **Testing Strategy (Comprehensive)**
+
+**Mathematical Completeness Tests:**
+- `test_unsigned_comparisons()` - Boundary cases, MAX_UINT, zero
+- `test_signed_comparisons()` - Negative numbers, INT_MIN/MAX, overflow
+- `test_mixed_sign_scenarios()` - Cross-type edge cases  
+- `test_equal_value_edge_cases()` - All operations with a == b
+- `test_comparison_boundary_values()` - 0, 1, MAX-1, MAX values
+
+**Integration Tests:**
+- `test_comparison_with_arduino()` - sensor thresholds, timing comparisons
+- `test_comparison_printf_integration()` - conditional debug output
+- `test_comparison_stack_management()` - error handling validation
+
+**Phase 3 Preparation Tests:**
+- `test_c_if_statement_patterns()` - Expected C compiler bytecode patterns
+- `test_c_loop_condition_patterns()` - while/for loop comparisons
+- `test_comparison_flag_register()` - Flag state validation
+
+### **Phase 3 Integration Documentation**
+
+**Expected C Compiler Patterns:**
+```c
+// C Code: if (analogRead(0) > 512)
+// Generated Bytecode:
+//   OP_ANALOG_READ 0     // Push sensor value (unsigned)
+//   OP_PUSH 512         // Push threshold
+//   OP_GT               // Unsigned comparison, sets flags
+//   OP_BRANCH_TRUE 5    // Phase 3 opcode, checks FLAG_ZERO
+
+// C Code: if ((int)temperature < -10)  
+// Generated Bytecode:
+//   OP_PUSH temperature // Push sensor value
+//   OP_PUSH 0xFFFFFFF6 // Push -10 as unsigned representation
+//   OP_LT_S            // Signed comparison, sets flags
+//   OP_BRANCH_TRUE 3   // Phase 3 opcode
+```
+
+### **KISS vs Completeness Trade-off Analysis**
+
+**Complexity Added:**
+- 12 opcodes instead of 6 (signed/unsigned variants)
+- Multi-bit flags register instead of simple boolean
+- Comprehensive test suite (15-20 functions vs 6 basic)
+- Phase 3 preparation documentation
+
+**MVP Benefits Gained:**
+- Mathematical correctness for Arduino's signed/unsigned mix
+- Industry-standard flag register approach (future-ready)
+- Phase 3 C compiler can generate correct type-specific opcodes
+- Comprehensive validation builds production confidence
+- No major refactoring needed for Phase 3 conditional branches
+
+**Final Assessment**: Complexity justified by MVP goals and Phase 3 requirements
+
+### **Implementation Plan (Ready for Execution)**
+
+**Estimated Time**: 2-3 hours total
+1. **VM Core Extensions** (30 min) - Add flags register, 12 opcodes to vm_core.h
+2. **Comparison Implementation** (45 min) - vm_compare helper + opcode cases in vm_core.c  
+3. **Comprehensive Test Suite** (60 min) - 15-20 test functions in test_arduino_functions.c
+4. **Phase 3 Documentation** (30 min) - Create docs/phase3-comparison-integration.md
+5. **Integration & Validation** (15 min) - Build, test, commit with proper branching
+
+**Ready for Implementation - All Design Decisions Documented and Finalized**
