@@ -17,11 +17,11 @@ Cockpit is an embedded hypervisor that provides a stack-based virtual machine en
 *   **🎛️ Button Input System:** Debounced button handling with event queue and VM opcodes for press/release detection
 *   **📄 Printf Implementation:** Format string support (%d, %s, %x, %c) with semihosting bridge for debug output
 *   **⚙️ Hardware Abstraction Layer:** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with comprehensive testing
-*   **🧠 Memory Management:** 8KB RAM allocation with stack/heap separation, bounds checking, and overflow protection
+*   **🧠 Memory Management:** Mocked 8KB RAM allocation with stack/heap separation, bounds checking, and overflow protection
 *   **🖥️ QEMU Development Environment:** Automated testing with ARM semihosting, virtual time synchronization
 *   **🏗️ Build System:** PlatformIO integration with automated compilation and reliable test execution
 
-### **📊 Current Specifications**
+### **📊 Current Specifications (based on current emulated target specs)**
 
 *   **💾 Flash Usage:** 15,704 bytes (12.0% of 128KB)
 *   **🧮 RAM Usage:** 188 bytes static (0.9% of 20KB) + 8KB VM memory
