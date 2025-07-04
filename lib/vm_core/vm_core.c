@@ -252,6 +252,33 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
             uint32_t micros = qemu_get_virtual_time_ms() * 1000;
             return vm_push(vm, micros);
         }
+        
+        case OP_PRINTF: {
+            // immediate = format string address, pop arg count from stack
+            uint32_t arg_count;
+            vm_error_t error = vm_pop(vm, &arg_count);
+            if (error != VM_OK) return error;
+            
+            // Validate argument count (max 8 for KISS)
+            if (arg_count > 8) {
+                debug_print_dec("Too many printf args", arg_count);
+                arg_count = 8;  // Clamp to maximum
+            }
+            
+            // Pop arguments into local array (best effort)
+            uint32_t args[8] = {0};  // Initialize to zeros for padding
+            for (uint32_t i = 0; i < arg_count && i < 8; i++) {
+                error = vm_pop(vm, &args[i]);
+                if (error != VM_OK) {
+                    debug_print_dec("Printf arg pop failed at", i);
+                    break;  // Stop on stack underflow, use zeros for remaining
+                }
+            }
+            
+            // Call printf implementation
+            vm_printf(instruction.immediate, args, arg_count);
+            break;
+        }
             
         default:
             return VM_ERROR_INVALID_OPCODE;
@@ -283,4 +310,148 @@ void vm_dump_state(vm_state_t *vm) {
     // Note: In real embedded system, this would use semihosting or UART
     // For now, placeholder that could be called from debugger
     (void)vm; // Suppress unused parameter warning
+}
+
+// Helper function: Output decimal number character by character
+static void output_decimal(uint32_t value) {
+    if (value == 0) {
+        semihost_write_char('0');
+        return;
+    }
+    
+    // Convert to string in reverse order
+    char digits[12];  // Max digits for 32-bit number
+    int digit_count = 0;
+    
+    while (value > 0) {
+        digits[digit_count++] = '0' + (value % 10);
+        value /= 10;
+    }
+    
+    // Output digits in correct order
+    for (int i = digit_count - 1; i >= 0; i--) {
+        semihost_write_char(digits[i]);
+    }
+}
+
+// Helper function: Output hexadecimal number character by character
+static void output_hex(uint32_t value) {
+    const char hex_chars[] = "0123456789abcdef";
+    
+    if (value == 0) {
+        semihost_write_char('0');
+        return;
+    }
+    
+    // Convert to hex string in reverse order
+    char hex_digits[9];  // Max 8 hex digits + null
+    int digit_count = 0;
+    
+    while (value > 0) {
+        hex_digits[digit_count++] = hex_chars[value & 0xF];
+        value >>= 4;
+    }
+    
+    // Output digits in correct order
+    for (int i = digit_count - 1; i >= 0; i--) {
+        semihost_write_char(hex_digits[i]);
+    }
+}
+
+// Mock string table for testing (will be replaced by program memory in Phase 3)
+static const char* test_string_table[] = {
+    "Hello World",                    // ID 0
+    "Value: %d",                     // ID 1
+    "Char: %c",                      // ID 2
+    "Hex: %x",                       // ID 3
+    "Multiple: %d %c %x",            // ID 4
+    "Test complete",                 // ID 5
+    "Printf working: %d",            // ID 6
+    "String: %s",                    // ID 7
+    "Error in format"                // ID 8 (fallback)
+};
+
+#define TEST_STRING_TABLE_SIZE (sizeof(test_string_table) / sizeof(test_string_table[0]))
+#define STRING_TABLE_BASE 0x8000  // Mock base address for testing
+
+// Get string from mock table (for testing phase)
+static const char* get_format_string(uint32_t format_addr) {
+    // For testing: treat format_addr as string table index
+    if (format_addr < STRING_TABLE_BASE) {
+        // Direct address mode (Phase 3 will use this)
+        return (const char*)format_addr;
+    } else {
+        // Mock table mode (current testing)
+        uint32_t index = format_addr - STRING_TABLE_BASE;
+        if (index < TEST_STRING_TABLE_SIZE) {
+            return test_string_table[index];
+        } else {
+            return test_string_table[TEST_STRING_TABLE_SIZE - 1];  // Error fallback
+        }
+    }
+}
+
+// Printf implementation with minimal format parsing
+void vm_printf(uint32_t format_addr, uint32_t *args, uint32_t arg_count) {
+    const char *format = get_format_string(format_addr);
+    if (!format) {
+        semihost_write_string("Printf: Invalid format string");
+        return;
+    }
+    
+    uint32_t arg_index = 0;
+    
+    // Single-pass format parsing with direct output
+    for (const char *p = format; *p; p++) {
+        if (*p == '%' && *(p + 1)) {
+            p++;  // Skip %
+            switch (*p) {
+                case 'd':
+                    if (arg_index < arg_count) {
+                        output_decimal(args[arg_index++]);
+                    } else {
+                        semihost_write_char('0');  // Pad missing arg
+                    }
+                    break;
+                    
+                case 'x':
+                    if (arg_index < arg_count) {
+                        output_hex(args[arg_index++]);
+                    } else {
+                        semihost_write_char('0');  // Pad missing arg
+                    }
+                    break;
+                    
+                case 'c':
+                    if (arg_index < arg_count) {
+                        semihost_write_char((char)(args[arg_index++] & 0xFF));
+                    } else {
+                        semihost_write_char('?');  // Pad missing arg
+                    }
+                    break;
+                    
+                case 's':
+                    if (arg_index < arg_count) {
+                        const char *str = get_format_string(args[arg_index++]);
+                        if (str) {
+                            semihost_write_string(str);
+                        } else {
+                            semihost_write_string("(null)");
+                        }
+                    } else {
+                        semihost_write_string("(null)");  // Pad missing arg
+                    }
+                    break;
+                    
+                default:
+                    // Unknown format - print literally (silent error handling)
+                    semihost_write_char('%');
+                    semihost_write_char(*p);
+                    break;
+            }
+        } else {
+            // Regular character - output directly
+            semihost_write_char(*p);
+        }
+    }
 }

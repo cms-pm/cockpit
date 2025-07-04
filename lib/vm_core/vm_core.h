@@ -92,4 +92,7 @@ bool vm_stack_bounds_check(vm_state_t *vm, uint32_t *address);
 // Debugging
 void vm_dump_state(vm_state_t *vm);
 
+// Printf implementation
+void vm_printf(uint32_t format_addr, uint32_t *args, uint32_t arg_count);
+
 #endif // VM_CORE_H

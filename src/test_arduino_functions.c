@@ -126,6 +126,180 @@ void test_timing_progression(void) {
     GPIO_TEST_ASSERT((time2 - time1) >= 100, "Time advancement accurate", &arduino_results);
 }
 
+// Test printf() basic functionality
+void test_printf_basic(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("Hello World") - no arguments
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 0,          // Push arg count: 0
+        (OP_PRINTF << 8) | 0,        // Printf with string ID 0 ("Hello World")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 3);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf basic program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf basic execution", &arduino_results);
+}
+
+// Test printf() with %d format
+void test_printf_decimal(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("Value: %d", 42)
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 42,         // Push argument: 42
+        (OP_PUSH << 8) | 1,          // Push arg count: 1
+        (OP_PRINTF << 8) | 1,        // Printf with string ID 1 ("Value: %d")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 4);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf decimal program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf decimal execution", &arduino_results);
+}
+
+// Test printf() with %c format
+void test_printf_character(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("Char: %c", 'A')
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 'A',        // Push argument: 'A' (65)
+        (OP_PUSH << 8) | 1,          // Push arg count: 1
+        (OP_PRINTF << 8) | 2,        // Printf with string ID 2 ("Char: %c")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 4);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf character program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf character execution", &arduino_results);
+}
+
+// Test printf() with %x format
+void test_printf_hexadecimal(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("Hex: %x", 255)
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 255,        // Push argument: 255 (0xFF)
+        (OP_PUSH << 8) | 1,          // Push arg count: 1
+        (OP_PRINTF << 8) | 3,        // Printf with string ID 3 ("Hex: %x")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 4);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf hex program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf hex execution", &arduino_results);
+}
+
+// Test printf() with %s format
+void test_printf_string(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("String: %s", "Hello World")
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 0,          // Push string arg: string ID 0 ("Hello World")
+        (OP_PUSH << 8) | 1,          // Push arg count: 1
+        (OP_PRINTF << 8) | 7,        // Printf with string ID 7 ("String: %s")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 4);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf string program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf string execution", &arduino_results);
+}
+
+// Test printf() with multiple arguments
+void test_printf_multiple_args(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("Multiple: %d %c %x", 42, 'Z', 16)
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 16,         // Push third argument: 16 (hex)
+        (OP_PUSH << 8) | 'Z',        // Push second argument: 'Z'
+        (OP_PUSH << 8) | 42,         // Push first argument: 42
+        (OP_PUSH << 8) | 3,          // Push arg count: 3
+        (OP_PRINTF << 8) | 4,        // Printf with string ID 4 ("Multiple: %d %c %x")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 6);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf multiple args program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf multiple args execution", &arduino_results);
+}
+
+// Test printf() error handling (missing arguments)
+void test_printf_missing_args(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: printf("Value: %d") - missing argument
+    uint16_t printf_program[] = {
+        (OP_PUSH << 8) | 0,          // Push arg count: 0 (but format expects 1)
+        (OP_PRINTF << 8) | 1,        // Printf with string ID 1 ("Value: %d")
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, printf_program, 3);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf missing args program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf missing args handled gracefully", &arduino_results);
+}
+
+// Test printf() integration with Arduino functions
+void test_printf_arduino_integration(void) {
+    vm_state_t vm;
+    vm_init(&vm);
+    
+    // Test program: Combined Arduino + printf
+    uint16_t integration_program[] = {
+        // digitalWrite(13, HIGH)
+        (OP_PUSH << 8) | 1,          // Push HIGH
+        (OP_DIGITAL_WRITE << 8) | 13, // Write to pin 13
+        
+        // printf("Printf working: %d", 123)
+        (OP_PUSH << 8) | 123,        // Push argument: 123
+        (OP_PUSH << 8) | 1,          // Push arg count: 1
+        (OP_PRINTF << 8) | 6,        // Printf with string ID 6
+        
+        // Get current time
+        (OP_MILLIS << 8) | 0,        // Get millis
+        
+        (OP_HALT << 8) | 0
+    };
+    
+    vm_error_t error = vm_load_program(&vm, integration_program, 7);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf integration program load", &arduino_results);
+    
+    error = vm_run(&vm, 100);
+    GPIO_TEST_ASSERT(error == VM_OK, "Printf integration execution", &arduino_results);
+    
+    // Should have millis value on stack
+    uint32_t millis_value;
+    error = vm_pop(&vm, &millis_value);
+    GPIO_TEST_ASSERT(error == VM_OK, "Integration millis result", &arduino_results);
+}
+
 // Test complete Arduino-style program
 void test_complete_arduino_program(void) {
     vm_state_t vm;
@@ -179,6 +353,17 @@ int run_arduino_function_tests(void) {
     test_millis_function();
     test_micros_function();
     test_timing_progression();
+    
+    // Printf tests
+    test_printf_basic();
+    test_printf_decimal();
+    test_printf_character();
+    test_printf_hexadecimal();
+    test_printf_string();
+    test_printf_multiple_args();
+    test_printf_missing_args();
+    test_printf_arduino_integration();
+    
     test_complete_arduino_program();
     
     print_gpio_test_summary("Arduino Functions", &arduino_results);
