@@ -10,25 +10,56 @@ Cockpit is an embedded hypervisor project that provides a lightweight virtual ma
 
 The Cockpit project aims to create a versatile platform for embedded applications, enabling hardware abstraction and simplified embedded development through a stack-based virtual machine.
 
-## ✅ Current Implementation (Phase 2.1 Complete)
+## ✅ Current Implementation (Phase 2.3.1 Complete)
 
 ### **🔧 Core Features Implemented**
 
 *   **🖥️ Virtual Machine Core:** 16-bit bytecode instruction set with stack-based operations (PUSH, POP, ADD, SUB, MUL, DIV, HALT).
-*   **🔌 Arduino API Integration:** Five core Arduino functions (digitalWrite, digitalRead, analogWrite, analogRead, delay) implemented as VM opcodes.
-*   **⚙️ Hardware Abstraction Layer (HAL):** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with pin mapping and digital operations.
-*   **🧠 Memory Management:** 8KB RAM allocation for VM stack and heap with bounds checking and overflow protection.
-*   **🖥️ QEMU Development Environment:** Automated testing and debugging with ARM semihosting support for hardware-independent development.
-*   **🏗️ Build System:** PlatformIO integration with automated compilation and testing pipeline.
-*   **🧪 Comprehensive Testing:** 39 unit tests covering VM core operations and Arduino GPIO functionality (89% pass rate).
+*   **🔌 Arduino API Integration:** Complete Arduino functions (digitalWrite, digitalRead, analogWrite, analogRead, delay, pinMode) + timing (millis, micros) implemented as VM opcodes.
+*   **🎛️ Button Input System:** KISS-compliant button debouncing with event queue, virtual timing integration, and VM opcodes for press/release detection.
+*   **⚙️ Hardware Abstraction Layer (HAL):** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with pin mapping, mode configuration, and mock testing layer.
+*   **🧠 Memory Management:** 8KB RAM allocation for VM stack and heap with bounds checking, overflow protection, and embedded memory arrays.
+*   **🖥️ QEMU Development Environment:** Automated testing and debugging with ARM semihosting support, virtual time synchronization, and hardware-independent development.
+*   **🏗️ Build System:** PlatformIO integration with automated compilation, testing pipeline, and reliable exit code parsing.
+*   **🧪 Comprehensive Testing:** 73 unit tests covering VM core, Arduino GPIO, button input, and Arduino function integration (100% pass rate).
 
 ### **📊 Technical Specifications**
 
-*   **💾 Flash Usage:** 6,640 bytes (5.1% of 128KB)
-*   **🧮 RAM Usage:** 24 bytes static (0.1% of 20KB) + 8KB VM memory
+*   **💾 Flash Usage:** 12,640 bytes (9.6% of 128KB)
+*   **🧮 RAM Usage:** 188 bytes static (0.9% of 20KB) + 8KB VM memory
 *   **📝 Instruction Format:** 8-bit opcode + 8-bit immediate value
-*   **⚡ Supported Operations:** Stack manipulation, arithmetic, digital GPIO, basic analog operations
+*   **⚡ Supported Operations:** Stack manipulation, arithmetic, digital GPIO, analog operations, timing functions, button input
 *   **🎯 Target Platform:** ARM Cortex-M4 with QEMU emulation support
+*   **🔧 VM Opcodes:** 12 Arduino functions + 6 core operations + comparison operations (planned)
+
+## 📈 Development Progress
+
+### **Phase 1: VM Foundation** ✅ **COMPLETED**
+- ✅ **1.1** Project Structure Setup (PlatformIO + QEMU)
+- ✅ **1.2** VM Core Stack Operations (8 opcodes, testing framework)
+- ✅ **1.3** QEMU Integration Foundation (semihosting, automation)
+
+### **Phase 2: Arduino Integration** 🚧 **IN PROGRESS** 
+- ✅ **2.1** Arduino Digital GPIO Foundation (HAL + 5 Arduino functions)
+- ✅ **2.2** Arduino Input + Button (debouncing, event queue, button opcodes)
+- ✅ **2.3.1** pinMode + Timing Functions (pinMode, millis, micros opcodes)
+- 🔄 **2.3.2** printf() with Semihosting (%d %s %x %c formats) - **CURRENT**
+- 📋 **2.3.3** Comparison Operations (EQ/NE/LT/GT/LE/GE opcodes)
+- 📋 **2.3.4** C-to-Bytecode Examples (Phase 3 preparation)
+- 📋 **2.3.5** Documentation + Architecture Validation
+
+### **Phase 3: C Compiler** 📋 **PLANNED**
+- 📋 **3.1** Minimal C Parser Foundation (8 hours)
+- 📋 **3.2** Arduino Function Mapping (6 hours) 
+- 📋 **3.3** End-to-End Compilation Pipeline (6 hours)
+- ⚠️ **Mandatory**: 4+ Question/Answer cycles before implementation
+
+### **Phase 4: Demo + Advanced Features** 📋 **PLANNED**
+- 📋 **4.1** Advanced Arduino Operations (PWM, ADC refinements)
+- 📋 **4.2** SysTick Precision Timing (real-time implementation)
+- 📋 **4.3** SOS Demo + Button Control (interactive demonstration)
+
+**Current Status**: 73 tests passing | 12.6KB flash | Phase 2.3.2 active development
 
 ## 🚀 Planned Features
 
