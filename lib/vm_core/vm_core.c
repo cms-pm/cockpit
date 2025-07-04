@@ -30,6 +30,7 @@ vm_error_t vm_init(vm_state_t *vm) {
     vm->program_size = 0;
     vm->running = false;
     vm->cycle_count = 0;
+    vm->flags = 0;  // Initialize flags register
     
     return VM_OK;
 }
@@ -81,6 +82,44 @@ vm_error_t vm_pop(vm_state_t *vm, uint32_t *value) {
     vm->stack++;
     
     return VM_OK;
+}
+
+// Helper function for comparison operations
+static void vm_compare(vm_state_t *vm, vm_opcode_t opcode, uint32_t a, uint32_t b) {
+    bool result = false;
+    
+    switch (opcode) {
+        // Unsigned comparisons
+        case OP_EQ:  result = (a == b); break;
+        case OP_NE:  result = (a != b); break;
+        case OP_LT:  result = (a < b); break;
+        case OP_GT:  result = (a > b); break;
+        case OP_LE:  result = (a <= b); break;
+        case OP_GE:  result = (a >= b); break;
+        
+        // Signed comparisons (cast to signed for comparison)
+        case OP_EQ_S: result = ((int32_t)a == (int32_t)b); break;
+        case OP_NE_S: result = ((int32_t)a != (int32_t)b); break;
+        case OP_LT_S: result = ((int32_t)a < (int32_t)b); break;
+        case OP_GT_S: result = ((int32_t)a > (int32_t)b); break;
+        case OP_LE_S: result = ((int32_t)a <= (int32_t)b); break;
+        case OP_GE_S: result = ((int32_t)a >= (int32_t)b); break;
+        
+        default:
+            debug_print_dec("Unknown comparison opcode", opcode);
+            result = false;
+            break;
+    }
+    
+    // Set flags register (FLAG_ZERO bit: 1=true, 0=false)
+    if (result) {
+        vm->flags |= FLAG_ZERO;
+    } else {
+        vm->flags &= ~FLAG_ZERO;
+    }
+    
+    // Push result to stack for immediate use (C-style boolean)
+    vm_push(vm, result ? 1 : 0);
 }
 
 // Execute single instruction
@@ -277,6 +316,31 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
             
             // Call printf implementation
             vm_printf(instruction.immediate, args, arg_count);
+            break;
+        }
+        
+        // Comparison operations (all 12 opcodes)
+        case OP_EQ: case OP_NE: case OP_LT: case OP_GT: case OP_LE: case OP_GE:
+        case OP_EQ_S: case OP_NE_S: case OP_LT_S: case OP_GT_S: case OP_LE_S: case OP_GE_S: {
+            uint32_t a, b;
+            vm_error_t error;
+            
+            // Pop second operand (top of stack)
+            error = vm_pop(vm, &b);
+            if (error != VM_OK) {
+                debug_print_dec("Comparison: missing operand B, using default", 0);
+                b = 0;  // Continue with default value
+            }
+            
+            // Pop first operand  
+            error = vm_pop(vm, &a);
+            if (error != VM_OK) {
+                debug_print_dec("Comparison: missing operand A, using default", 0);
+                a = 0;  // Continue with default value
+            }
+            
+            // Perform comparison (sets flags and pushes result)
+            vm_compare(vm, instruction.opcode, a, b);
             break;
         }
             

@@ -8,7 +8,7 @@ Cockpit is an embedded hypervisor that provides a stack-based virtual machine en
 
 ## ✅ Current Implementation Status
 
-**Phase 2.3.2 Complete** - printf() with Semihosting Bridge implemented and tested
+**Phase 2.3.3 Complete** - Comparison Operations (EQ/NE/LT/GT/LE/GE) implemented and tested
 
 ### **🔧 Technical Achievements**
 
@@ -16,6 +16,7 @@ Cockpit is an embedded hypervisor that provides a stack-based virtual machine en
 *   **🔌 Arduino API Integration:** Complete Arduino functions (digitalWrite, digitalRead, analogWrite, analogRead, delay, pinMode, millis, micros) implemented as VM opcodes
 *   **🎛️ Button Input System:** Debounced button handling with event queue and VM opcodes for press/release detection
 *   **📄 Printf Implementation:** Format string support (%d, %s, %x, %c) with semihosting bridge for debug output
+*   **🔍 Comparison Operations:** Full comparison opcode set (EQ/NE/LT/GT/LE/GE) with signed/unsigned variants and flags register
 *   **⚙️ Hardware Abstraction Layer:** GPIO abstraction for ARM Cortex-M4 (Stellaris LM3S6965EVB) with comprehensive testing
 *   **🧠 Memory Management:** Mocked 8KB RAM allocation with stack/heap separation, bounds checking, and overflow protection
 *   **🖥️ QEMU Development Environment:** Automated testing with ARM semihosting, virtual time synchronization
@@ -23,19 +24,19 @@ Cockpit is an embedded hypervisor that provides a stack-based virtual machine en
 
 ### **📊 Current Specifications (based on current emulated target specs)**
 
-*   **💾 Flash Usage:** 15,704 bytes (12.0% of 128KB)
+*   **💾 Flash Usage:** 20,200 bytes (15.4% of 128KB)
 *   **🧮 RAM Usage:** 188 bytes static (0.9% of 20KB) + 8KB VM memory
 *   **📝 Instruction Format:** 8-bit opcode + 8-bit immediate value
-*   **🧪 Test Coverage:** 75 tests total, 100% pass rate
+*   **🧪 Test Coverage:** 92 tests total, 100% pass rate
 *   **🎯 Target Platform:** ARM Cortex-M4 with QEMU emulation
-*   **🔧 VM Opcodes:** 15 Arduino functions + 6 core operations + printf
+*   **🔧 VM Opcodes:** 15 Arduino functions + 6 core operations + printf + 12 comparison ops
 
 ### **🧪 Test Results (Latest)**
 *   **VM Core Tests:** 21/21 passing (stack operations, arithmetic, memory)
 *   **GPIO Tests:** 15/15 passing (digital I/O, HAL abstraction)
 *   **Button Tests:** 20/20 passing (debouncing, event handling)
-*   **Arduino Function Tests:** 19/19 passing (pinMode, timing, printf)
-*   **Overall Success Rate:** 100% (75/75 tests)
+*   **Arduino Function Tests:** 36/36 passing (pinMode, timing, printf, comparisons)
+*   **Overall Success Rate:** 100% (92/92 tests)
 
 ## 📈 MVP Development Roadmap
 
@@ -44,8 +45,8 @@ Cockpit is an embedded hypervisor that provides a stack-based virtual machine en
 - ✅ **2.2** Arduino Input + Button (debouncing, event queue, button opcodes)
 - ✅ **2.3.1** pinMode + Timing Functions (pinMode, millis, micros opcodes)
 - ✅ **2.3.2** printf() with Semihosting (%d %s %x %c formats)
-- 🔄 **2.3.3** Comparison Operations (EQ/NE/LT/GT/LE/GE opcodes) - **CURRENT**
-- 📋 **2.3.4** C-to-Bytecode Examples (Phase 3 preparation)
+- ✅ **2.3.3** Comparison Operations (EQ/NE/LT/GT/LE/GE opcodes)
+- 🔄 **2.3.4** C-to-Bytecode Examples (Phase 3 preparation) - **CURRENT**
 - 📋 **2.3.5** Documentation + Architecture Validation
 
 ### **Phase 3: C Compiler** 📋 **PLANNED**
@@ -171,11 +172,11 @@ cockpit/
 
 ## 🎯 Next Steps
 
-### **Immediate (Phase 2.3.3)**
-Implement comparison operations (OP_EQ, OP_NE, OP_LT, OP_GT, OP_LE, OP_GE) to complete the Arduino API foundation needed for conditional logic in the C compiler.
+### **Immediate (Phase 2.3.4)**
+Create C-to-bytecode compilation examples and integration tests to prepare for Phase 3 C compiler implementation.
 
 ### **MVP Completion**
-1. **Complete Phase 2.3**: Finish Arduino API integration with comparison operations
+1. **Complete Phase 2.3**: Finish Arduino API integration with C-to-bytecode examples
 2. **Plan Phase 3**: Systematic question/answer cycles for C compiler design  
 3. **Implement C Compiler**: Hand-written minimal parser for Arduino function subset
 4. **Hardware Validation**: Deploy to real ARM Cortex-M4 hardware

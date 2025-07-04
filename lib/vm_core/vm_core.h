@@ -47,9 +47,14 @@ typedef enum {
     OP_MILLIS        = 0x19,     // Get milliseconds since boot
     OP_MICROS        = 0x1A,     // Get microseconds since boot
     // Comparison operations (0x20-0x2F reserved)  
+    // Unsigned comparisons (0x20-0x25)
     OP_EQ = 0x20,  OP_NE = 0x21, // Equal, Not Equal
     OP_LT = 0x22,  OP_GT = 0x23, // Less Than, Greater Than
     OP_LE = 0x24,  OP_GE = 0x25, // Less/Greater or Equal
+    // Signed comparisons (0x26-0x2B)  
+    OP_EQ_S = 0x26, OP_NE_S = 0x27, // Equal, Not Equal (signed)
+    OP_LT_S = 0x28, OP_GT_S = 0x29, // Less Than, Greater Than (signed)
+    OP_LE_S = 0x2A, OP_GE_S = 0x2B, // Less/Greater or Equal (signed)
     OP_HALT          = 0xFF
 } vm_opcode_t;
 
@@ -66,6 +71,7 @@ typedef struct {
     uint32_t program_size;     // Program size in instructions
     bool     running;          // VM execution state
     uint32_t cycle_count;      // Instruction cycle counter
+    uint8_t  flags;            // Multi-bit flags register
 } vm_state_t;
 
 // VM error codes
@@ -94,5 +100,8 @@ void vm_dump_state(vm_state_t *vm);
 
 // Printf implementation
 void vm_printf(uint32_t format_addr, uint32_t *args, uint32_t arg_count);
+
+// Flag definitions
+#define FLAG_ZERO 0x01  // Comparison result (1=true, 0=false)
 
 #endif // VM_CORE_H
