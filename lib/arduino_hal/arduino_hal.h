@@ -74,4 +74,11 @@ bool hal_gpio_get_pin(uint32_t port_base, uint8_t pin_mask);
 #define SYSCTL_BASE         0x400FE000
 #define SYSCTL_RCGC2        0x108       // GPIO Run Mode Clock Gating
 
+// Test mocking support
+#ifdef TESTING
+void hal_enable_mock_mode(void);
+void hal_set_mock_pin_state(uint8_t pin, pin_state_t state);
+pin_state_t hal_get_mock_pin_state(uint8_t pin);
+#endif
+
 #endif // ARDUINO_HAL_H

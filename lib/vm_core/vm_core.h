@@ -40,11 +40,23 @@ typedef enum {
     OP_ANALOG_WRITE  = 0x12,
     OP_ANALOG_READ   = 0x13,
     OP_DELAY         = 0x14,
+    OP_BUTTON_PRESSED = 0x15,    // Check if button pressed since last check
+    OP_BUTTON_RELEASED = 0x16,   // Check if button released since last check
+    OP_PIN_MODE      = 0x17,     // Set pin mode (INPUT, OUTPUT, INPUT_PULLUP)
+    OP_PRINTF        = 0x18,     // Print formatted string to semihosting
+    OP_MILLIS        = 0x19,     // Get milliseconds since boot
+    OP_MICROS        = 0x1A,     // Get microseconds since boot
+    // Comparison operations (0x20-0x2F reserved)  
+    OP_EQ = 0x20,  OP_NE = 0x21, // Equal, Not Equal
+    OP_LT = 0x22,  OP_GT = 0x23, // Less Than, Greater Than
+    OP_LE = 0x24,  OP_GE = 0x25, // Less/Greater or Equal
     OP_HALT          = 0xFF
 } vm_opcode_t;
 
 // VM state structure
 typedef struct {
+    uint32_t stack_memory[VM_STACK_SIZE / sizeof(uint32_t)];  // Actual stack memory
+    uint32_t heap_memory[VM_HEAP_SIZE / sizeof(uint32_t)];    // Actual heap memory
     uint32_t *stack;           // Stack pointer
     uint32_t *stack_base;      // Base of stack
     uint32_t *stack_top;       // Top of stack (max address)

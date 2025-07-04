@@ -20,11 +20,14 @@ build:
 	$(PIO_PATH) run
 	@echo "Build complete: $(FIRMWARE)"
 
-# Run unit tests in QEMU with semihosting output
+# Run QEMU-compatible tests in QEMU with semihosting output
 test: build
-	@echo "Running VM core tests in QEMU..."
+	@echo "Running QEMU-compatible VM and GPIO tests..."
 	python3 $(QEMU_RUNNER) $(FIRMWARE) --timeout 15
 	@echo "Test execution complete"
+
+# Alias for running QEMU tests specifically
+test-qemu: test
 
 # Run QEMU with manual monitoring
 qemu: build

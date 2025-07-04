@@ -229,8 +229,18 @@ def main():
         if result['stderr']:
             print(f"Error:\n{result['stderr']}")
         
-        # Success if it ran without crashing (timeout is expected for infinite loop)
-        return 0 if result['timed_out'] or result['returncode'] == 0 else 1
+        # Parse test output to determine success (workaround for semihosting exit issues)
+        if result['timed_out']:
+            return 0  # Timeout expected for infinite loop programs
+        
+        # Check for test success in output
+        output = result['stderr'] if result['stderr'] else ""
+        if "ALL HYPERVISOR TESTS SUCCESSFUL" in output:
+            return 0  # All tests passed
+        elif "SOME HYPERVISOR TESTS FAILED" in output:
+            return 1  # Some tests failed
+        else:
+            return result['returncode']  # Fall back to QEMU exit code
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -140,6 +140,36 @@ pin_state_t hal_gpio_read(uint8_t pin) {
     return state ? PIN_HIGH : PIN_LOW;
 }
 
+// Test mocking support
+#ifdef TESTING
+static pin_state_t mock_pin_states[PIN_MAP_SIZE];
+static bool mock_enabled = false;
+
+void hal_enable_mock_mode(void) {
+    mock_enabled = true;
+    // Initialize all pins to HIGH (pullup default)
+    for (int i = 0; i < PIN_MAP_SIZE; i++) {
+        mock_pin_states[i] = PIN_HIGH;
+    }
+    debug_print("Mock mode enabled");
+}
+
+void hal_set_mock_pin_state(uint8_t pin, pin_state_t state) {
+    if (pin < PIN_MAP_SIZE) {
+        mock_pin_states[pin] = state;
+        debug_print_dec("Mock pin set", pin);
+        debug_print_dec("State", state);
+    }
+}
+
+pin_state_t hal_get_mock_pin_state(uint8_t pin) {
+    if (pin < PIN_MAP_SIZE) {
+        return mock_pin_states[pin];
+    }
+    return PIN_LOW;
+}
+#endif
+
 // Arduino API implementations
 void arduino_pin_mode(uint8_t pin, pin_mode_t mode) {
     hal_gpio_set_mode(pin, mode);
@@ -150,6 +180,11 @@ void arduino_digital_write(uint8_t pin, pin_state_t state) {
 }
 
 pin_state_t arduino_digital_read(uint8_t pin) {
+#ifdef TESTING
+    if (mock_enabled) {
+        return hal_get_mock_pin_state(pin);
+    }
+#endif
     return hal_gpio_read(pin);
 }
 
@@ -161,9 +196,17 @@ void arduino_analog_write(uint8_t pin, uint16_t value) {
 }
 
 uint16_t arduino_analog_read(uint8_t pin) {
-    // Simplified ADC - return fixed value for now
-    debug_print_dec("Analog read (simplified)", pin);
-    return 512; // Mid-range value
+    // Pin-dependent mock values for testing
+    debug_print_dec("Analog read (mock)", pin);
+    
+    // Return different fixed values per analog pin for testing
+    switch(pin) {
+        case 0: return 256;  // A0: 1/4 range
+        case 1: return 512;  // A1: 1/2 range  
+        case 2: return 768;  // A2: 3/4 range
+        case 3: return 1023; // A3: Full range
+        default: return 512; // Default mid-range
+    }
 }
 
 void arduino_delay(uint32_t milliseconds) {

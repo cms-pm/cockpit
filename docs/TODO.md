@@ -31,6 +31,18 @@
 ### **Infrastructure**
 - **Implement CI/CD pipeline** - Automated testing and deployment infrastructure (foundation ready)
 
+### **Hardware-In-Loop/Software-In-Loop (HIL/SIL) Testing (Post-MVP)**
+- **Implement GPIO injection simulation** - Enhanced QEMU GPIO state injection for pullup behavior testing
+- **Add hardware-specific analog testing** - Real ADC behavior validation with varying input ranges
+- **Implement button debouncing validation** - Hardware pullup resistor behavior and timing verification  
+- **Add precise timing validation** - Cycle-accurate timing tests for real-time applications
+- **Create HIL test framework** - Real hardware integration via USB-Serial bridge for critical path validation
+- **Implement SIL shadow state tracking** - Parallel GPIO state tracker for expected vs actual hardware behavior
+- **Implement behavioral models for analog simulation** - Realistic ADC/DAC simulation with noise, linearity, and timing characteristics
+- **Add QEMU_CLOCK_VIRTUAL integration** - Virtual time synchronization for behavioral models and event timing
+- **Create mock button physical simulation** - Switch bounce, contact resistance, and mechanical timing models
+- **Integrate QEMU Clock API for analog behavior simulation** - Replace simple virtual counter with proper QEMU time domains for realistic analog signal timing, ADC conversion periods, and sensor response modeling
+
 ## 🔵 Low Priority Items (Polish & Enhancement)
 
 ### **Testing Framework**

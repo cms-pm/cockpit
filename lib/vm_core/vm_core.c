@@ -5,6 +5,8 @@
 
 #include "vm_core.h"
 #include "../arduino_hal/arduino_hal.h"
+#include "../button_input/button_input.h"
+#include "../semihosting/semihosting.h"
 
 // External memory region definitions (from linker script)
 extern uint32_t _vm_memory_start;
@@ -14,13 +16,13 @@ extern uint32_t _vm_memory_size;
 vm_error_t vm_init(vm_state_t *vm) {
     if (!vm) return VM_ERROR_INVALID_ADDRESS;
     
-    // Initialize stack (grows downward from high addresses)
-    vm->stack_base = (uint32_t*)VM_STACK_BASE;
+    // Initialize stack using VM's own memory (grows downward from high addresses)
+    vm->stack_base = vm->stack_memory;
     vm->stack_top = vm->stack_base + (VM_STACK_SIZE / sizeof(uint32_t));
     vm->stack = vm->stack_top; // Empty stack starts at top
     
-    // Initialize heap (grows upward from low addresses)
-    vm->heap = (uint32_t*)VM_HEAP_BASE;
+    // Initialize heap using VM's own memory (grows upward from low addresses)
+    vm->heap = vm->heap_memory;
     
     // Initialize program state
     vm->program = NULL;
@@ -199,6 +201,56 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
             
             arduino_delay(milliseconds);
             break;
+        }
+        
+        case OP_BUTTON_PRESSED: {
+            // immediate = pin number, push 1 if pressed, 0 if not
+            bool pressed = button_pressed(instruction.immediate);
+            return vm_push(vm, pressed ? 1 : 0);
+        }
+        
+        case OP_BUTTON_RELEASED: {
+            // immediate = pin number, push 1 if released, 0 if not  
+            bool released = button_released(instruction.immediate);
+            return vm_push(vm, released ? 1 : 0);
+        }
+        
+        case OP_PIN_MODE: {
+            // immediate = pin number, pop mode from stack
+            uint32_t mode;
+            vm_error_t error = vm_pop(vm, &mode);
+            if (error != VM_OK) return error;
+            
+            // Validate pin and mode
+            if (instruction.immediate > 50) {  // Basic pin validation
+                debug_print_dec("Invalid pin number", instruction.immediate);
+                return VM_OK;  // Continue execution
+            }
+            
+            pin_mode_t pin_mode;
+            switch (mode) {
+                case 0: pin_mode = PIN_MODE_INPUT; break;
+                case 1: pin_mode = PIN_MODE_OUTPUT; break;
+                case 2: pin_mode = PIN_MODE_INPUT_PULLUP; break;
+                default:
+                    debug_print_dec("Invalid pin mode", mode);
+                    return VM_OK;  // Continue execution
+            }
+            
+            arduino_pin_mode(instruction.immediate, pin_mode);
+            break;
+        }
+        
+        case OP_MILLIS: {
+            // Push current milliseconds since boot to stack
+            uint32_t millis = qemu_get_virtual_time_ms();
+            return vm_push(vm, millis);
+        }
+        
+        case OP_MICROS: {
+            // Push current microseconds since boot to stack (millis * 1000)
+            uint32_t micros = qemu_get_virtual_time_ms() * 1000;
+            return vm_push(vm, micros);
         }
             
         default:

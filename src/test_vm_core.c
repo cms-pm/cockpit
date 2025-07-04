@@ -183,16 +183,10 @@ void test_division_by_zero(void) {
 
 // Main test runner
 int run_vm_tests(void) {
-    // Reset results with explicit memory barrier
+    // Reset results
     results.passed = 0;
     results.failed = 0;
     results.total = 0;
-    
-    // Verify clean slate
-    if (results.passed != 0 || results.failed != 0 || results.total != 0) {
-        debug_print("ERROR: Results structure corruption detected!");
-        return 1;
-    }
     
     debug_print("=== VM Core Unit Tests Starting ===");
     
