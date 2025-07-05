@@ -1,17 +1,20 @@
 # 📋 Cockpit Project TODO List
 
-> **Current Status**: Phase 2 in progress - Arduino API Integration
+> **Current Status**: Phase 2 Complete - Ready for Phase 3 C Compiler Development
 
 ## 🔥 High Priority Items (Active Development)
 
-### **Phase 2 Continuation**
-- **Phase 2, Chunk 2.2: Arduino Input + Button (6 hours)** - Enhanced input handling and button debouncing
-- **Phase 2, Chunk 2.3: Complete Arduino Function Integration (6 hours)** - Performance optimization and validation
+### **Phase 3: C Compiler Implementation (CURRENT)**
+- **Phase 3, Chunk 3.1: Minimal C Parser Foundation (8 hours)** - ANTLR grammar + C++ visitor pattern
+- **Phase 3, Chunk 3.2: Essential Control Flow (6 hours)** - if/else, while with jump resolution
+- **Phase 3, Chunk 3.3: Basic Functions (6 hours)** - User-defined functions with parameters
 
-### **Phase 3 Pre-Planning (MANDATORY)**
-- **🚨 CRITICAL: 4+ Question/Answer Cycles Required Before Phase 3 Implementation**
-- **Planning Topics**: Compiler architecture, C language subset, bytecode generation, testing methodology
-- **Success Criteria**: Zero ambiguity in implementation approach before any coding begins
+### **Phase 3 Architecture Decisions (FINALIZED)**
+- ✅ **ANTLR Grammar**: Incremental complexity per chunk
+- ✅ **C++ Implementation**: Leverage OOP patterns for clean architecture
+- ✅ **Linear Symbol Table**: Simple O(n) lookup for Arduino-scale programs
+- ✅ **Visitor Pattern**: Clean separation of parsing and code generation
+- ✅ **Two-Pass Compilation**: Robust jump resolution with backpatching
 
 ## 🎯 Medium Priority Items (Future Phases)
 
@@ -20,10 +23,20 @@
 - **Implement RTOS pre-emptive scheduling** - Real-time application support with deterministic timing
 - **Add DMA controller integration** - High-performance data transfer capabilities for advanced peripherals
 
-### **Compiler Development (Phase 3)**
-- **Phase 3, Chunk 3.1: Minimal C Parser Foundation (8 hours)** - Lexer and basic syntax tree
-- **Phase 3, Chunk 3.2: Arduino Function Mapping (6 hours)** - C function to bytecode opcodes  
-- **Phase 3, Chunk 3.3: End-to-End Compilation Pipeline (6 hours)** - C source to executable bytecode
+### **Phase 3 Expansion Options (Deferred)**
+- **Hash-Based Symbol Tables** - O(1) lookup performance for large programs
+- **Advanced Scope Management** - Nested block scoping with scope stacks
+- **Template-Based Code Generation** - Pattern-matching bytecode templates
+- **Comprehensive Debug Infrastructure** - Professional-grade compilation debugging
+- **Extended VM Memory Layout** - Global/local/call stack separation
+
+### **Phase 4 Features (Deferred from Phase 3)**
+- **Array Support** - Array declarations, indexing, and bounds checking
+- **Complex Expressions** - Operator precedence, ternary operators, complex arithmetic
+- **for Loops and break/continue** - Enhanced control flow constructs
+- **Multiple Data Types** - char, unsigned long, pointers with type checking
+- **Global Variable Initialization** - Static initialization of global variables
+- **Advanced Function Features** - Function overloading, default parameters, recursion
 
 ### **Language Support (Future)**
 - **Add Rust bytecode support** - Safe systems programming with memory safety guarantees and zero-cost abstractions
@@ -57,6 +70,12 @@
 
 ### **Arduino Integration (Phase 2)**
 - ✅ **Phase 2, Chunk 2.1: Arduino Digital GPIO Foundation** - Arduino HAL with VM integration
+- ✅ **Phase 2, Chunk 2.2: Arduino Input + Button** - Debouncing, event queue, button opcodes
+- ✅ **Phase 2, Chunk 2.3.1: pinMode + Timing Functions** - pinMode, millis, micros opcodes
+- ✅ **Phase 2, Chunk 2.3.2: printf() with Semihosting** - %d %s %x %c format support
+- ✅ **Phase 2, Chunk 2.3.3: Comparison Operations** - EQ/NE/LT/GT/LE/GE opcodes
+- ✅ **Phase 2, Chunk 2.3.4: C-to-Bytecode Examples** - Phase 3 preparation and integration tests
+- ✅ **Phase 2, Chunk 2.3.5: Documentation + Architecture Validation** - Complete Phase 2 validation
 - ✅ **Implement QEMU GPIO pullup test solution** - Hardware simulation compatibility
 - ✅ **Fix VM core test framework accounting bug** - Memory corruption resolved
 
