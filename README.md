@@ -50,11 +50,10 @@ Cockpit is an embedded hypervisor that provides a stack-based virtual machine en
 - ✅ **2.3.4** C-to-Bytecode Examples (Phase 3 preparation)
 - ✅ **2.3.5** Documentation + Architecture Validation
 
-### **Phase 3: C Compiler** 📋 **PLANNED**
-- 📋 **3.1** Minimal C Parser Foundation (function parsing, variable handling)
-- 📋 **3.2** Arduino Function Mapping (C calls to VM opcodes)
+### **Phase 3: C Compiler** 🔄 **IN PROGRESS**
+- ✅ **3.1** Minimal C Parser Foundation (function parsing, variable handling)
+- 🔄 **3.2** Arduino Function Mapping (C calls to VM opcodes) **CURRENT**
 - 📋 **3.3** End-to-End Compilation Pipeline (C source to executable bytecode)
-- ⚠️ **Mandatory**: 4+ Question/Answer planning cycles before implementation
 
 ### **Phase 4: Hardware Transition** 📋 **MVP TARGET**
 - 📋 **4.1** Real Hardware Validation (STM32 or similar Cortex-M4)
