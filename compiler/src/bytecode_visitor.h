@@ -140,6 +140,11 @@ public:
     antlrcpp::Any visitReturnStatement(ArduinoCParser::ReturnStatementContext *ctx) override;
     antlrcpp::Any visitArithmeticExpression(ArduinoCParser::ArithmeticExpressionContext *ctx) override;
     
+    // Logical expression visitor methods
+    antlrcpp::Any visitLogicalOrExpression(ArduinoCParser::LogicalOrExpressionContext *ctx) override;
+    antlrcpp::Any visitLogicalAndExpression(ArduinoCParser::LogicalAndExpressionContext *ctx) override;
+    antlrcpp::Any visitLogicalNotExpression(ArduinoCParser::LogicalNotExpressionContext *ctx) override;
+    
     // Result access
     const std::vector<Instruction>& getBytecode() const { return bytecode; }
     const std::vector<std::string>& getStringLiterals() const { return stringLiterals; }

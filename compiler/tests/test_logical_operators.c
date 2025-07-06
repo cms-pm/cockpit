@@ -1,28 +1,69 @@
-// Test logical operators with short-circuit evaluation
+/*
+ * Test program for logical operators (&&, ||, !)
+ * Tests short-circuit evaluation and precedence
+ */
+
+int a;
+int b;
+int result;
+
 void setup() {
-    int a = 5;
-    int b = 10;
-    int c = 0;
-    
     // Test logical AND (&&)
-    if (a > 0 && b > 5) {
-        digitalWrite(13, 1);  // Should execute
-    }
+    a = 1;
+    b = 1;
+    result = a && b;  // Should be 1 (true)
+    printf("1 && 1 = %d\n", result);
     
-    // Test logical OR (||)  
-    if (c == 0 || a < 0) {
-        digitalWrite(12, 1);  // Should execute (short-circuit)
-    }
+    a = 1;
+    b = 0;
+    result = a && b;  // Should be 0 (false)
+    printf("1 && 0 = %d\n", result);
+    
+    a = 0;
+    b = 1;
+    result = a && b;  // Should be 0 (false, short-circuit)
+    printf("0 && 1 = %d\n", result);
+    
+    // Test logical OR (||)
+    a = 0;
+    b = 0;
+    result = a || b;  // Should be 0 (false)
+    printf("0 || 0 = %d\n", result);
+    
+    a = 1;
+    b = 0;
+    result = a || b;  // Should be 1 (true, short-circuit)
+    printf("1 || 0 = %d\n", result);
+    
+    a = 0;
+    b = 1;
+    result = a || b;  // Should be 1 (true)
+    printf("0 || 1 = %d\n", result);
     
     // Test logical NOT (!)
-    if (!c) {
-        digitalWrite(11, 1);  // Should execute (c is 0, !0 is true)
-    }
+    a = 1;
+    result = !a;  // Should be 0 (false)
+    printf("!1 = %d\n", result);
     
-    // Test complex logical expression
-    if ((a > 0 && b > 0) || !c) {
-        digitalWrite(10, 1);  // Should execute
-    }
+    a = 0;
+    result = !a;  // Should be 1 (true)
+    printf("!0 = %d\n", result);
     
-    printf("Logical operators test complete\n");
+    // Test compound logical expressions
+    a = 1;
+    b = 0;
+    result = a && !b;  // Should be 1 (true)
+    printf("1 && !0 = %d\n", result);
+    
+    result = !a || b;  // Should be 0 (false)
+    printf("!1 || 0 = %d\n", result);
+    
+    // Test precedence: ! has higher precedence than && and ||
+    a = 1;
+    b = 0;
+    result = !a && b;  // Should be 0 (!1 = 0, 0 && 0 = 0)
+    printf("!1 && 0 = %d\n", result);
+    
+    result = a || !b;  // Should be 1 (1 || !0 = 1 || 1 = 1)
+    printf("1 || !0 = %d\n", result);
 }

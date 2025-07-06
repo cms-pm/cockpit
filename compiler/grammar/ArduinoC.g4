@@ -52,12 +52,28 @@ expressionStatement
 
 expression
     : assignment
+    | logicalOrExpression
     | conditionalExpression
     | arithmeticExpression
     | functionCall
     | IDENTIFIER
     | INTEGER
     | STRING
+    ;
+
+logicalOrExpression
+    : logicalAndExpression ('||' logicalAndExpression)*
+    ;
+
+logicalAndExpression
+    : logicalNotExpression ('&&' logicalNotExpression)*
+    ;
+
+logicalNotExpression
+    : '!' logicalNotExpression
+    | conditionalExpression
+    | arithmeticExpression
+    | primaryExpression
     ;
 
 conditionalExpression

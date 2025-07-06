@@ -269,6 +269,12 @@ antlrcpp::Any BytecodeVisitor::visitFunctionCall(ArduinoCParser::FunctionCallCon
 antlrcpp::Any BytecodeVisitor::visitExpression(ArduinoCParser::ExpressionContext *ctx) {
     if (ctx->assignment()) {
         return visit(ctx->assignment());
+    } else if (ctx->logicalOrExpression()) {
+        return visit(ctx->logicalOrExpression());
+    } else if (ctx->conditionalExpression()) {
+        return visit(ctx->conditionalExpression());
+    } else if (ctx->arithmeticExpression()) {
+        return visit(ctx->arithmeticExpression());
     } else if (ctx->functionCall()) {
         return visit(ctx->functionCall());
     } else if (ctx->IDENTIFIER()) {
@@ -552,6 +558,115 @@ antlrcpp::Any BytecodeVisitor::visitArithmeticExpression(ArduinoCParser::Arithme
         emitInstruction(VMOpcode::OP_MOD);
     } else {
         reportError("Unknown arithmetic operator: " + operator_);
+    }
+    
+    return nullptr;
+}
+
+// Logical expression visitor methods
+antlrcpp::Any BytecodeVisitor::visitLogicalOrExpression(ArduinoCParser::LogicalOrExpressionContext *ctx) {
+    std::cout << "Compiling logical OR expression" << std::endl;
+    
+    // For short-circuit evaluation of OR (a || b):
+    // If 'a' is true, result is true (skip evaluation of 'b')
+    // If 'a' is false, evaluate 'b' and use its result
+    
+    auto andExpressions = ctx->logicalAndExpression();
+    
+    if (andExpressions.size() == 1) {
+        // Single operand, just visit it
+        visit(andExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with OR operators
+    std::string true_label = generateLabel("or_true");
+    std::string end_label = generateLabel("or_end");
+    
+    for (size_t i = 0; i < andExpressions.size(); i++) {
+        // Evaluate current operand
+        visit(andExpressions[i]);
+        
+        if (i < andExpressions.size() - 1) {
+            // Not the last operand
+            // If current operand is true, jump to true result
+            emitJump(VMOpcode::OP_JMP_TRUE, true_label);
+            // Otherwise, continue to next operand (current false value still on stack)
+        }
+    }
+    
+    // If we reach here, last operand result is on stack
+    emitJump(VMOpcode::OP_JMP, end_label);
+    
+    // True label: push true result
+    placeLabel(true_label);
+    emitInstruction(VMOpcode::OP_POP);  // Remove last operand result
+    emitPushConstant(1);  // Push true
+    
+    placeLabel(end_label);
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitLogicalAndExpression(ArduinoCParser::LogicalAndExpressionContext *ctx) {
+    std::cout << "Compiling logical AND expression" << std::endl;
+    
+    // For short-circuit evaluation of AND (a && b):
+    // If 'a' is false, result is false (skip evaluation of 'b')
+    // If 'a' is true, evaluate 'b' and use its result
+    
+    auto notExpressions = ctx->logicalNotExpression();
+    
+    if (notExpressions.size() == 1) {
+        // Single operand, just visit it
+        visit(notExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with AND operators
+    std::string false_label = generateLabel("and_false");
+    std::string end_label = generateLabel("and_end");
+    
+    for (size_t i = 0; i < notExpressions.size(); i++) {
+        // Evaluate current operand
+        visit(notExpressions[i]);
+        
+        if (i < notExpressions.size() - 1) {
+            // Not the last operand
+            // If current operand is false, jump to false result
+            emitJump(VMOpcode::OP_JMP_FALSE, false_label);
+            // Otherwise, continue to next operand (current true value still on stack)
+        }
+    }
+    
+    // If we reach here, last operand result is on stack
+    emitJump(VMOpcode::OP_JMP, end_label);
+    
+    // False label: push false result
+    placeLabel(false_label);
+    emitInstruction(VMOpcode::OP_POP);  // Remove last operand result
+    emitPushConstant(0);  // Push false
+    
+    placeLabel(end_label);
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitLogicalNotExpression(ArduinoCParser::LogicalNotExpressionContext *ctx) {
+    std::cout << "Compiling logical NOT expression" << std::endl;
+    
+    if (ctx->getText().substr(0, 1) == "!") {
+        // This is a NOT expression, recursively visit the nested expression
+        visit(ctx->logicalNotExpression());
+        // Emit NOT instruction to invert the result
+        emitInstruction(VMOpcode::OP_NOT);
+    } else {
+        // Not a NOT expression, visit one of the alternative expressions
+        if (ctx->conditionalExpression()) {
+            visit(ctx->conditionalExpression());
+        } else if (ctx->arithmeticExpression()) {
+            visit(ctx->arithmeticExpression());
+        } else if (ctx->primaryExpression()) {
+            visit(ctx->primaryExpression());
+        }
     }
     
     return nullptr;
