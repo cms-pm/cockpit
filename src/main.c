@@ -13,6 +13,7 @@ int run_qemu_gpio_tests(void);    // QEMU-compatible GPIO tests
 int run_button_tests(void);       // Button input tests
 int run_arduino_function_tests(void); // Arduino function tests (Phase 2.3)
 int run_c_to_bytecode_tests(void);    // C-to-bytecode examples (Phase 2.3.4)
+void run_sos_demo_tests(void);    // SOS demo tests (Phase 3.4.3)
 
 // Vector table for ARM Cortex-M4
 extern uint32_t _stack_start;
@@ -76,13 +77,17 @@ void Reset_Handler(void)
     // Run C-to-bytecode examples (Phase 2.3.4)
     int c2b_test_result = run_c_to_bytecode_tests();
     
+    // Run SOS demo tests (Phase 3.4.3)
+    debug_print("Running SOS Demo Tests...");
+    run_sos_demo_tests();
+    
     // Combined test result
     int total_failures = vm_test_result + gpio_test_result + button_test_result + arduino_test_result + c2b_test_result;
     
     // Report final result and exit
     if (total_failures == 0) {
         debug_print("=== ALL HYPERVISOR TESTS SUCCESSFUL ===");
-        debug_print("VM Core + GPIO + Button + Arduino Function + C-to-Bytecode tests passed");
+        debug_print("VM Core + GPIO + Button + Arduino Function + C-to-Bytecode + SOS Demo tests passed");
         semihost_exit(0);  // Exit with success code
     } else {
         debug_print("=== SOME HYPERVISOR TESTS FAILED ===");
