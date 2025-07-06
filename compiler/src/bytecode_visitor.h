@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <map>
 
 // VM Opcodes (from existing VM implementation)
 enum class VMOpcode : uint8_t {
@@ -16,9 +17,10 @@ enum class VMOpcode : uint8_t {
     OP_SUB = 0x04,
     OP_MUL = 0x05,
     OP_DIV = 0x06,
-    OP_CALL = 0x07,
-    OP_RET = 0x08,
-    OP_HALT = 0x09,
+    OP_MOD = 0x07,
+    OP_CALL = 0x08,
+    OP_RET = 0x09,
+    OP_HALT = 0x0A,
     
     // Arduino functions (0x10-0x1F)
     OP_DIGITAL_WRITE = 0x10,
@@ -41,11 +43,21 @@ enum class VMOpcode : uint8_t {
     OP_LE = 0x24,
     OP_GE = 0x25,
     
+    // Control flow operations (0x30-0x3F)
+    OP_JMP = 0x30,
+    OP_JMP_TRUE = 0x31,
+    OP_JMP_FALSE = 0x32,
+    
+    // Logical operations (0x40-0x4F)
+    OP_AND = 0x40,
+    OP_OR = 0x41,
+    OP_NOT = 0x42,
+    
     // Memory operations (custom for compiler)
-    OP_LOAD_GLOBAL = 0x40,
-    OP_STORE_GLOBAL = 0x41,
-    OP_LOAD_LOCAL = 0x42,
-    OP_STORE_LOCAL = 0x43
+    OP_LOAD_GLOBAL = 0x50,
+    OP_STORE_GLOBAL = 0x51,
+    OP_LOAD_LOCAL = 0x52,
+    OP_STORE_LOCAL = 0x53
 };
 
 struct Instruction {
@@ -59,6 +71,15 @@ struct Instruction {
     }
 };
 
+// Jump placeholder for backpatching
+struct JumpPlaceholder {
+    size_t instruction_index;  // Where to patch the offset
+    std::string target_label;  // Label to resolve
+    
+    JumpPlaceholder(size_t index, const std::string& label) 
+        : instruction_index(index), target_label(label) {}
+};
+
 class BytecodeVisitor : public ArduinoCBaseVisitor {
 private:
     SymbolTable symbolTable;
@@ -67,12 +88,33 @@ private:
     bool hasErrors;
     std::vector<std::string> errorMessages;
     
+    // Jump resolution system
+    std::vector<JumpPlaceholder> jumpPlaceholders;
+    std::map<std::string, size_t> labels;
+    int labelCounter;
+    
+    // Function resolution system
+    std::map<std::string, size_t> functionAddresses;
+    std::vector<JumpPlaceholder> functionCallPlaceholders;
+    
     void emitInstruction(VMOpcode opcode, uint8_t immediate = 0);
     void emitPushConstant(int32_t value);
     void emitLoadVariable(const std::string& name);
     void emitStoreVariable(const std::string& name);
     VMOpcode getArduinoOpcode(const std::string& functionName);
     int addStringLiteral(const std::string& str);
+    
+    // Jump and label management
+    std::string generateLabel(const std::string& prefix);
+    void emitJump(VMOpcode jumpOpcode, const std::string& targetLabel);
+    void placeLabel(const std::string& label);
+    void resolveJumps();
+    VMOpcode getComparisonOpcode(const std::string& operator_);
+    
+    // Function address management
+    void registerFunction(const std::string& functionName, size_t address);
+    void emitFunctionCall(const std::string& functionName);
+    void resolveFunctionCalls();
     
     void reportError(const std::string& message);
     
@@ -88,6 +130,15 @@ public:
     antlrcpp::Any visitAssignment(ArduinoCParser::AssignmentContext *ctx) override;
     antlrcpp::Any visitFunctionCall(ArduinoCParser::FunctionCallContext *ctx) override;
     antlrcpp::Any visitExpression(ArduinoCParser::ExpressionContext *ctx) override;
+    
+    // Control flow visitor methods
+    antlrcpp::Any visitIfStatement(ArduinoCParser::IfStatementContext *ctx) override;
+    antlrcpp::Any visitWhileStatement(ArduinoCParser::WhileStatementContext *ctx) override;
+    antlrcpp::Any visitConditionalExpression(ArduinoCParser::ConditionalExpressionContext *ctx) override;
+    
+    // Function and expression visitor methods
+    antlrcpp::Any visitReturnStatement(ArduinoCParser::ReturnStatementContext *ctx) override;
+    antlrcpp::Any visitArithmeticExpression(ArduinoCParser::ArithmeticExpressionContext *ctx) override;
     
     // Result access
     const std::vector<Instruction>& getBytecode() const { return bytecode; }

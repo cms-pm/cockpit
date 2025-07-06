@@ -6,7 +6,7 @@ program
     ;
 
 declaration
-    : type IDENTIFIER ';'
+    : type IDENTIFIER ('=' expression)? ';'
     ;
 
 functionDefinition
@@ -29,6 +29,21 @@ statement
     : expressionStatement
     | compoundStatement
     | declaration
+    | ifStatement
+    | whileStatement
+    | returnStatement
+    ;
+
+returnStatement
+    : 'return' expression? ';'
+    ;
+
+ifStatement
+    : 'if' '(' expression ')' statement ('else' statement)?
+    ;
+
+whileStatement
+    : 'while' '(' expression ')' statement
     ;
 
 expressionStatement
@@ -37,14 +52,54 @@ expressionStatement
 
 expression
     : assignment
+    | conditionalExpression
+    | arithmeticExpression
     | functionCall
     | IDENTIFIER
     | INTEGER
     | STRING
     ;
 
+conditionalExpression
+    : primaryExpression comparisonOperator primaryExpression
+    ;
+
+arithmeticExpression
+    : primaryExpression arithmeticOperator primaryExpression
+    ;
+
+primaryExpression
+    : functionCall
+    | IDENTIFIER
+    | INTEGER
+    | STRING
+    | '(' expression ')'
+    ;
+
+arithmeticOperator
+    : '+'
+    | '-'
+    | '*'
+    | '/'
+    | '%'
+    ;
+
+comparisonOperator
+    : '=='
+    | '!='
+    | '<'
+    | '>'
+    | '<='
+    | '>='
+    ;
+
 assignment
     : IDENTIFIER '=' expression
+    | IDENTIFIER '+=' expression
+    | IDENTIFIER '-=' expression
+    | IDENTIFIER '*=' expression
+    | IDENTIFIER '/=' expression
+    | IDENTIFIER '%=' expression
     ;
 
 functionCall

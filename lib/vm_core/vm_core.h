@@ -32,8 +32,9 @@ typedef enum {
     OP_SUB    = 0x04,
     OP_MUL    = 0x05,
     OP_DIV    = 0x06,
-    OP_CALL   = 0x07,
-    OP_RET    = 0x08,
+    OP_MOD    = 0x07,
+    OP_CALL   = 0x08,
+    OP_RET    = 0x09,
     // Arduino function opcodes (0x10-0x1F reserved)
     OP_DIGITAL_WRITE = 0x10,
     OP_DIGITAL_READ  = 0x11,
@@ -55,6 +56,14 @@ typedef enum {
     OP_EQ_S = 0x26, OP_NE_S = 0x27, // Equal, Not Equal (signed)
     OP_LT_S = 0x28, OP_GT_S = 0x29, // Less Than, Greater Than (signed)
     OP_LE_S = 0x2A, OP_GE_S = 0x2B, // Less/Greater or Equal (signed)
+    // Control flow operations (0x30-0x3F reserved)
+    OP_JMP = 0x30,       // Unconditional jump by signed immediate offset
+    OP_JMP_TRUE = 0x31,  // Jump if FLAG_ZERO == 1 (comparison result true)
+    OP_JMP_FALSE = 0x32, // Jump if FLAG_ZERO == 0 (comparison result false)
+    // Logical operations (0x40-0x4F reserved)
+    OP_AND = 0x40,       // Logical AND (&&) - implements short-circuit evaluation
+    OP_OR = 0x41,        // Logical OR (||) - implements short-circuit evaluation
+    OP_NOT = 0x42,       // Logical NOT (!)
     OP_HALT          = 0xFF
 } vm_opcode_t;
 
@@ -81,7 +90,11 @@ typedef enum {
     VM_ERROR_STACK_UNDERFLOW,
     VM_ERROR_INVALID_OPCODE,
     VM_ERROR_INVALID_ADDRESS,
-    VM_ERROR_DIVISION_BY_ZERO
+    VM_ERROR_DIVISION_BY_ZERO,
+    VM_ERROR_INVALID_JUMP,
+    VM_ERROR_STACK_CORRUPTION,
+    VM_ERROR_HEAP_CORRUPTION,
+    VM_ERROR_MEMORY_PROTECTION
 } vm_error_t;
 
 // Core VM functions
@@ -103,5 +116,14 @@ void vm_printf(uint32_t format_addr, uint32_t *args, uint32_t arg_count);
 
 // Flag definitions
 #define FLAG_ZERO 0x01  // Comparison result (1=true, 0=false)
+
+// Memory protection constants
+#define STACK_CANARY_MAGIC 0xDEADBEEF
+#define HEAP_GUARD_MAGIC   0xFEEDFACE
+
+// Memory protection functions
+vm_error_t vm_check_stack_canaries(vm_state_t *vm);
+vm_error_t vm_check_heap_guards(vm_state_t *vm);
+vm_error_t vm_init_memory_protection(vm_state_t *vm);
 
 #endif // VM_CORE_H

@@ -192,6 +192,66 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
             return vm_push(vm, a / b);
         }
         
+        case OP_MOD: {
+            uint32_t a, b;
+            vm_error_t error;
+            if ((error = vm_pop(vm, &b)) != VM_OK) return error;
+            if ((error = vm_pop(vm, &a)) != VM_OK) return error;
+            if (b == 0) return VM_ERROR_DIVISION_BY_ZERO;
+            return vm_push(vm, a % b);
+        }
+        
+        case OP_CALL: {
+            // RTOS-Ready function call with full frame state saving
+            // immediate = function address/index
+            
+            // Save complete caller context for RTOS evolution
+            uint16_t *return_pc = vm->program;  // PC after this instruction
+            uint32_t *caller_stack = vm->stack;
+            uint8_t caller_flags = vm->flags;
+            
+            // Push frame state in extensible format (RTOS-ready)
+            vm_error_t error;
+            if ((error = vm_push(vm, (uint32_t)return_pc)) != VM_OK) return error;
+            if ((error = vm_push(vm, (uint32_t)caller_stack)) != VM_OK) return error;
+            if ((error = vm_push(vm, (uint32_t)caller_flags)) != VM_OK) return error;
+            
+            // Jump to function (immediate contains function address offset)
+            uint8_t function_offset = instruction.immediate;
+            uint16_t *function_address = vm->program_base + function_offset;
+            
+            // Bounds checking for function address
+            if (function_address < vm->program_base || 
+                function_address >= vm->program_base + vm->program_size) {
+                return VM_ERROR_INVALID_ADDRESS;
+            }
+            
+            vm->program = function_address;
+            break;
+        }
+        
+        case OP_RET: {
+            // RTOS-Ready function return with full frame state restoration
+            
+            // Restore caller context (reverse of OP_CALL)
+            uint32_t caller_flags_val;
+            uint32_t caller_stack_val;  
+            uint32_t return_pc_val;
+            vm_error_t error;
+            
+            // Pop frame state in reverse order
+            if ((error = vm_pop(vm, &caller_flags_val)) != VM_OK) return error;
+            if ((error = vm_pop(vm, &caller_stack_val)) != VM_OK) return error;
+            if ((error = vm_pop(vm, &return_pc_val)) != VM_OK) return error;
+            
+            // Restore VM state
+            vm->flags = (uint8_t)caller_flags_val;
+            vm->stack = (uint32_t*)caller_stack_val;
+            vm->program = (uint16_t*)return_pc_val;
+            
+            break;
+        }
+        
         case OP_HALT:
             vm->running = false;
             break;
@@ -341,6 +401,109 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
             
             // Perform comparison (sets flags and pushes result)
             vm_compare(vm, instruction.opcode, a, b);
+            break;
+        }
+        
+        case OP_JMP: {
+            // Unconditional jump by signed immediate offset
+            int8_t offset = (int8_t)instruction.immediate;
+            uint16_t *new_pc = vm->program + offset;
+            
+            // Bounds checking: ensure jump target is within program bounds
+            if (new_pc < vm->program_base || new_pc >= vm->program_base + vm->program_size) {
+                return VM_ERROR_INVALID_JUMP;
+            }
+            
+            vm->program = new_pc;
+            break;
+        }
+        
+        case OP_JMP_TRUE: {
+            // Jump if FLAG_ZERO == 1 (comparison result true)
+            if (vm->flags & FLAG_ZERO) {
+                int8_t offset = (int8_t)instruction.immediate;
+                uint16_t *new_pc = vm->program + offset;
+                
+                // Bounds checking
+                if (new_pc < vm->program_base || new_pc >= vm->program_base + vm->program_size) {
+                    return VM_ERROR_INVALID_JUMP;
+                }
+                
+                vm->program = new_pc;
+            }
+            break;
+        }
+        
+        case OP_JMP_FALSE: {
+            // Jump if FLAG_ZERO == 0 (comparison result false)
+            if (!(vm->flags & FLAG_ZERO)) {
+                int8_t offset = (int8_t)instruction.immediate;
+                uint16_t *new_pc = vm->program + offset;
+                
+                // Bounds checking
+                if (new_pc < vm->program_base || new_pc >= vm->program_base + vm->program_size) {
+                    return VM_ERROR_INVALID_JUMP;
+                }
+                
+                vm->program = new_pc;
+            }
+            break;
+        }
+        
+        // Logical operations (short-circuit evaluation handled by compiler)
+        case OP_AND: {
+            // Logical AND (&&): simple boolean AND of two operands
+            uint32_t a, b;
+            vm_error_t error;
+            if ((error = vm_pop(vm, &b)) != VM_OK) return error;
+            if ((error = vm_pop(vm, &a)) != VM_OK) return error;
+            
+            uint32_t result = (a && b) ? 1 : 0;
+            vm_push(vm, result);
+            
+            // Set flags register
+            if (result) {
+                vm->flags |= FLAG_ZERO;
+            } else {
+                vm->flags &= ~FLAG_ZERO;
+            }
+            break;
+        }
+        
+        case OP_OR: {
+            // Logical OR (||): simple boolean OR of two operands
+            uint32_t a, b;
+            vm_error_t error;
+            if ((error = vm_pop(vm, &b)) != VM_OK) return error;
+            if ((error = vm_pop(vm, &a)) != VM_OK) return error;
+            
+            uint32_t result = (a || b) ? 1 : 0;
+            vm_push(vm, result);
+            
+            // Set flags register
+            if (result) {
+                vm->flags |= FLAG_ZERO;
+            } else {
+                vm->flags &= ~FLAG_ZERO;
+            }
+            break;
+        }
+        
+        case OP_NOT: {
+            // Logical NOT (!): pop operand and invert truthiness
+            uint32_t operand;
+            vm_error_t error = vm_pop(vm, &operand);
+            if (error != VM_OK) return error;
+            
+            uint32_t result = (!operand) ? 1 : 0;
+            vm_push(vm, result);
+            
+            // Set flags register
+            if (result) {
+                vm->flags |= FLAG_ZERO;
+            } else {
+                vm->flags &= ~FLAG_ZERO;
+            }
             break;
         }
             

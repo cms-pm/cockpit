@@ -3,7 +3,7 @@
 #include <iostream>
 #include <unordered_map>
 
-BytecodeVisitor::BytecodeVisitor() : hasErrors(false) {
+BytecodeVisitor::BytecodeVisitor() : hasErrors(false), labelCounter(0) {
 }
 
 void BytecodeVisitor::emitInstruction(VMOpcode opcode, uint8_t immediate) {
@@ -70,8 +70,9 @@ VMOpcode BytecodeVisitor::getArduinoOpcode(const std::string& functionName) {
         return it->second;
     }
     
-    reportError("Unknown Arduino function: " + functionName);
-    return VMOpcode::OP_HALT; // Default fallback
+    // Not an Arduino function - return sentinel value without error
+    // Let the caller handle user-defined function resolution
+    return VMOpcode::OP_HALT; // Sentinel: not found
 }
 
 int BytecodeVisitor::addStringLiteral(const std::string& str) {
@@ -93,6 +94,10 @@ antlrcpp::Any BytecodeVisitor::visitProgram(ArduinoCParser::ProgramContext *ctx)
         visit(child);
     }
     
+    // Resolve all jump targets and function calls
+    resolveJumps();
+    resolveFunctionCalls();
+    
     // Add halt instruction at the end
     emitInstruction(VMOpcode::OP_HALT);
     
@@ -110,6 +115,17 @@ antlrcpp::Any BytecodeVisitor::visitDeclaration(ArduinoCParser::DeclarationConte
         reportError("Variable already declared: " + varName);
     } else {
         std::cout << "Declared variable: " << varName << " (" << typeName << ")" << std::endl;
+        
+        // Handle initialization if present
+        if (ctx->expression()) {
+            std::cout << "Initializing variable: " << varName << std::endl;
+            
+            // Evaluate the initialization expression
+            visit(ctx->expression());
+            
+            // Store the result in the variable
+            emitStoreVariable(varName);
+        }
     }
     
     return nullptr;
@@ -121,12 +137,41 @@ antlrcpp::Any BytecodeVisitor::visitFunctionDefinition(ArduinoCParser::FunctionD
     
     std::cout << "Compiling function: " << funcName << std::endl;
     
-    // Enter function scope
+    // Register function address before generating body
+    size_t function_address = bytecode.size();
+    registerFunction(funcName, function_address);
+    
+    // Declare function in symbol table
+    DataType dataType = (returnType == "int") ? DataType::INT : DataType::VOID;
+    symbolTable.declareSymbol(funcName, SymbolType::FUNCTION, dataType);
+    
+    // Enter function scope for parameters and local variables
     symbolTable.enterScope();
     symbolTable.resetStackOffset();
     
+    // Process parameters if any
+    if (ctx->parameterList()) {
+        auto params = ctx->parameterList()->parameter();
+        for (auto param : params) {
+            std::string paramType = param->type()->getText();
+            std::string paramName = param->IDENTIFIER()->getText();
+            DataType paramDataType = (paramType == "int") ? DataType::INT : DataType::VOID;
+            
+            symbolTable.declareSymbol(paramName, SymbolType::PARAMETER, paramDataType);
+            std::cout << "Function parameter: " << paramName << " (" << paramType << ")" << std::endl;
+        }
+    }
+    
     // Process function body
     visit(ctx->compoundStatement());
+    
+    // Generate return instruction if not void function
+    if (returnType == "void") {
+        emitInstruction(VMOpcode::OP_RET);
+    } else {
+        // For non-void functions, assume return value is on stack
+        emitInstruction(VMOpcode::OP_RET);
+    }
     
     // Exit function scope
     symbolTable.exitScope();
@@ -151,46 +196,73 @@ antlrcpp::Any BytecodeVisitor::visitExpressionStatement(ArduinoCParser::Expressi
 
 antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext *ctx) {
     std::string varName = ctx->IDENTIFIER()->getText();
+    std::string assignmentText = ctx->getText();
     
-    // Generate code for the right-hand side expression
-    visit(ctx->expression());
+    // Check for compound assignment operators
+    if (assignmentText.find("+=") != std::string::npos) {
+        // Compound addition: var += expr -> var = var + expr
+        emitLoadVariable(varName);  // Load current value
+        visit(ctx->expression());   // Evaluate right-hand side
+        emitInstruction(VMOpcode::OP_ADD);  // Add them
+        emitStoreVariable(varName); // Store result
+        std::cout << "Generated compound assignment: " << varName << " += <expression>" << std::endl;
+        
+    } else if (assignmentText.find("-=") != std::string::npos) {
+        // Compound subtraction: var -= expr -> var = var - expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_SUB);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " -= <expression>" << std::endl;
+        
+    } else if (assignmentText.find("*=") != std::string::npos) {
+        // Compound multiplication: var *= expr -> var = var * expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_MUL);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " *= <expression>" << std::endl;
+        
+    } else if (assignmentText.find("/=") != std::string::npos) {
+        // Compound division: var /= expr -> var = var / expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_DIV);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " /= <expression>" << std::endl;
+        
+    } else if (assignmentText.find("%=") != std::string::npos) {
+        // Compound modulo: var %= expr -> var = var % expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_MOD);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " %= <expression>" << std::endl;
+        
+    } else {
+        // Regular assignment: var = expr
+        visit(ctx->expression());
+        emitStoreVariable(varName);
+        std::cout << "Generated assignment: " << varName << " = <expression>" << std::endl;
+    }
     
-    // Store the result in the variable
-    emitStoreVariable(varName);
-    
-    std::cout << "Generated assignment: " << varName << " = <expression>" << std::endl;
     return nullptr;
 }
 
 antlrcpp::Any BytecodeVisitor::visitFunctionCall(ArduinoCParser::FunctionCallContext *ctx) {
     std::string funcName = ctx->IDENTIFIER()->getText();
     
-    // Process arguments first (push them onto stack)
+    // Process arguments first (push them onto stack in reverse order for correct parameter order)
     if (ctx->argumentList()) {
-        for (auto arg : ctx->argumentList()->expression()) {
+        auto args = ctx->argumentList()->expression();
+        for (auto arg : args) {
             visit(arg);
         }
     }
     
-    // Generate appropriate instruction
-    if (funcName == "analogRead" || funcName == "digitalRead" || 
-        funcName == "millis" || funcName == "micros") {
-        // Functions that return values
-        VMOpcode opcode = getArduinoOpcode(funcName);
-        emitInstruction(opcode);
-    } else {
-        // Functions that don't return values or are more complex
-        if (funcName == "printf") {
-            // Handle printf specially - need string literal handling
-            VMOpcode opcode = getArduinoOpcode(funcName);
-            emitInstruction(opcode);
-        } else {
-            VMOpcode opcode = getArduinoOpcode(funcName);
-            emitInstruction(opcode);
-        }
-    }
+    // Use our unified function call system
+    emitFunctionCall(funcName);
     
-    std::cout << "Generated function call: " << funcName << std::endl;
     return nullptr;
 }
 
@@ -240,3 +312,248 @@ void BytecodeVisitor::printBytecode() const {
 void BytecodeVisitor::printSymbolTable() const {
     symbolTable.printSymbols();
 }
+
+// Jump and label management methods
+std::string BytecodeVisitor::generateLabel(const std::string& prefix) {
+    return prefix + "_" + std::to_string(labelCounter++);
+}
+
+void BytecodeVisitor::emitJump(VMOpcode jumpOpcode, const std::string& targetLabel) {
+    // Emit jump instruction with placeholder offset (0 for now)
+    size_t instruction_index = bytecode.size();
+    emitInstruction(jumpOpcode, 0);
+    
+    // Add to jump placeholders for later resolution
+    jumpPlaceholders.emplace_back(instruction_index, targetLabel);
+}
+
+void BytecodeVisitor::placeLabel(const std::string& label) {
+    labels[label] = bytecode.size();
+}
+
+void BytecodeVisitor::resolveJumps() {
+    for (const auto& placeholder : jumpPlaceholders) {
+        const std::string& label = placeholder.target_label;
+        
+        // Find the label
+        auto labelIt = labels.find(label);
+        if (labelIt == labels.end()) {
+            reportError("Undefined label: " + label);
+            continue;
+        }
+        
+        // Calculate jump offset (relative to instruction after the jump)
+        size_t jump_instruction_index = placeholder.instruction_index;
+        size_t target_index = labelIt->second;
+        int32_t offset = static_cast<int32_t>(target_index) - static_cast<int32_t>(jump_instruction_index + 1);
+        
+        // Check if offset fits in signed 8-bit range
+        if (offset < -128 || offset > 127) {
+            reportError("Jump offset out of range (-128 to 127): " + std::to_string(offset));
+            continue;
+        }
+        
+        // Patch the jump instruction
+        bytecode[jump_instruction_index].immediate = static_cast<uint8_t>(static_cast<int8_t>(offset));
+    }
+    
+    // Clear placeholders after resolution
+    jumpPlaceholders.clear();
+}
+
+VMOpcode BytecodeVisitor::getComparisonOpcode(const std::string& operator_) {
+    if (operator_ == "==") return VMOpcode::OP_EQ;
+    if (operator_ == "!=") return VMOpcode::OP_NE;
+    if (operator_ == "<") return VMOpcode::OP_LT;
+    if (operator_ == ">") return VMOpcode::OP_GT;
+    if (operator_ == "<=") return VMOpcode::OP_LE;
+    if (operator_ == ">=") return VMOpcode::OP_GE;
+    
+    reportError("Unknown comparison operator: " + operator_);
+    return VMOpcode::OP_EQ; // Default fallback
+}
+
+// Function address management methods
+void BytecodeVisitor::registerFunction(const std::string& functionName, size_t address) {
+    functionAddresses[functionName] = address;
+    std::cout << "Registered function: " << functionName << " at address " << address << std::endl;
+}
+
+void BytecodeVisitor::emitFunctionCall(const std::string& functionName) {
+    // Check if it's an Arduino API function first
+    VMOpcode arduinoOpcode = getArduinoOpcode(functionName);
+    if (arduinoOpcode != VMOpcode::OP_HALT) {
+        // It's an Arduino function, emit the dedicated opcode
+        emitInstruction(arduinoOpcode);
+        return;
+    }
+    
+    // It's a user-defined function, emit OP_CALL with placeholder
+    size_t instruction_index = bytecode.size();
+    emitInstruction(VMOpcode::OP_CALL, 0);  // Address = 0 (placeholder)
+    
+    // Add to function call placeholders for later resolution
+    functionCallPlaceholders.emplace_back(instruction_index, functionName);
+    std::cout << "Generated function call: " << functionName << " (placeholder)" << std::endl;
+}
+
+void BytecodeVisitor::resolveFunctionCalls() {
+    for (const auto& placeholder : functionCallPlaceholders) {
+        const std::string& funcName = placeholder.target_label;
+        
+        // Find the function address
+        auto funcIt = functionAddresses.find(funcName);
+        if (funcIt == functionAddresses.end()) {
+            reportError("Undefined function: " + funcName);
+            continue;
+        }
+        
+        // Calculate function address offset
+        size_t function_address = funcIt->second;
+        
+        // Check if offset fits in 8-bit range
+        if (function_address > 255) {
+            reportError("Function address out of range (0-255): " + std::to_string(function_address));
+            continue;
+        }
+        
+        // Patch the function call instruction
+        bytecode[placeholder.instruction_index].immediate = static_cast<uint8_t>(function_address);
+        std::cout << "Resolved function call: " << funcName << " to address " << function_address << std::endl;
+    }
+    
+    // Clear placeholders after resolution
+    functionCallPlaceholders.clear();
+}
+
+// Control flow visitor methods
+antlrcpp::Any BytecodeVisitor::visitIfStatement(ArduinoCParser::IfStatementContext *ctx) {
+    std::cout << "Compiling if statement" << std::endl;
+    
+    // Generate labels for control flow
+    std::string else_label = generateLabel("else");
+    std::string end_label = generateLabel("end_if");
+    
+    // Visit condition expression
+    visit(ctx->expression());
+    
+    // Jump to else block if condition is false
+    if (ctx->statement().size() > 1) {  // Check if else clause exists
+        emitJump(VMOpcode::OP_JMP_FALSE, else_label);
+        
+        // Visit then statement
+        visit(ctx->statement(0));
+        
+        // Jump past else block
+        emitJump(VMOpcode::OP_JMP, end_label);
+        
+        // Place else label
+        placeLabel(else_label);
+        
+        // Visit else statement  
+        visit(ctx->statement(1));
+        
+        // Place end label
+        placeLabel(end_label);
+    } else {
+        // No else clause - just jump to end if condition is false
+        emitJump(VMOpcode::OP_JMP_FALSE, end_label);
+        
+        // Visit then statement
+        visit(ctx->statement(0));
+        
+        // Place end label
+        placeLabel(end_label);
+    }
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitWhileStatement(ArduinoCParser::WhileStatementContext *ctx) {
+    std::cout << "Compiling while statement" << std::endl;
+    
+    // Generate labels for loop control
+    std::string loop_start = generateLabel("while_start");
+    std::string loop_end = generateLabel("while_end");
+    
+    // Place loop start label
+    placeLabel(loop_start);
+    
+    // Visit condition expression
+    visit(ctx->expression());
+    
+    // Jump to end if condition is false
+    emitJump(VMOpcode::OP_JMP_FALSE, loop_end);
+    
+    // Visit loop body
+    visit(ctx->statement());
+    
+    // Jump back to start
+    emitJump(VMOpcode::OP_JMP, loop_start);
+    
+    // Place end label
+    placeLabel(loop_end);
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitConditionalExpression(ArduinoCParser::ConditionalExpressionContext *ctx) {
+    std::cout << "Compiling conditional expression" << std::endl;
+    
+    // Visit left operand
+    visit(ctx->primaryExpression(0));
+    
+    // Visit right operand
+    visit(ctx->primaryExpression(1));
+    
+    // Get comparison operator and emit corresponding instruction
+    std::string operator_ = ctx->comparisonOperator()->getText();
+    VMOpcode compareOp = getComparisonOpcode(operator_);
+    emitInstruction(compareOp);
+    
+    return nullptr;
+}
+
+// Function and expression visitor methods
+antlrcpp::Any BytecodeVisitor::visitReturnStatement(ArduinoCParser::ReturnStatementContext *ctx) {
+    std::cout << "Compiling return statement" << std::endl;
+    
+    // If there's an expression, evaluate it and leave result on stack
+    if (ctx->expression()) {
+        visit(ctx->expression());
+    }
+    
+    // Generate return instruction (OP_RET will handle the value on stack)
+    emitInstruction(VMOpcode::OP_RET);
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitArithmeticExpression(ArduinoCParser::ArithmeticExpressionContext *ctx) {
+    std::cout << "Compiling arithmetic expression" << std::endl;
+    
+    // Visit left operand
+    visit(ctx->primaryExpression(0));
+    
+    // Visit right operand  
+    visit(ctx->primaryExpression(1));
+    
+    // Get arithmetic operator and emit corresponding instruction
+    std::string operator_ = ctx->arithmeticOperator()->getText();
+    if (operator_ == "+") {
+        emitInstruction(VMOpcode::OP_ADD);
+    } else if (operator_ == "-") {
+        emitInstruction(VMOpcode::OP_SUB);
+    } else if (operator_ == "*") {
+        emitInstruction(VMOpcode::OP_MUL);
+    } else if (operator_ == "/") {
+        emitInstruction(VMOpcode::OP_DIV);
+    } else if (operator_ == "%") {
+        emitInstruction(VMOpcode::OP_MOD);
+    } else {
+        reportError("Unknown arithmetic operator: " + operator_);
+    }
+    
+    return nullptr;
+}
+
