@@ -4,7 +4,7 @@
 #include "antlr4-runtime.h"
 #include "ArduinoCLexer.h"
 #include "ArduinoCParser.h"
-#include "bytecode_visitor.h"
+#include "../src/bytecode_visitor.h"
 
 using namespace antlr4;
 

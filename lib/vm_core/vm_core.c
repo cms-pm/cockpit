@@ -16,10 +16,7 @@ extern uint32_t _vm_memory_size;
 vm_error_t vm_init(vm_state_t *vm) {
     if (!vm) return VM_ERROR_INVALID_ADDRESS;
     
-    // Initialize stack using VM's own memory (grows downward from high addresses)
-    vm->stack_base = vm->stack_memory;
-    vm->stack_top = vm->stack_base + (VM_STACK_SIZE / sizeof(uint32_t));
-    vm->stack = vm->stack_top; // Empty stack starts at top
+    // Stack initialization will be done by memory protection init
     
     // Initialize heap using VM's own memory (grows upward from low addresses)
     vm->heap = vm->heap_memory;
@@ -31,6 +28,10 @@ vm_error_t vm_init(vm_state_t *vm) {
     vm->running = false;
     vm->cycle_count = 0;
     vm->flags = 0;  // Initialize flags register
+    
+    // Initialize memory protection
+    vm_error_t protect_error = vm_init_memory_protection(vm);
+    if (protect_error != VM_OK) return protect_error;
     
     return VM_OK;
 }
@@ -56,7 +57,10 @@ bool vm_stack_bounds_check(vm_state_t *vm, uint32_t *address) {
 vm_error_t vm_push(vm_state_t *vm, uint32_t value) {
     if (!vm) return VM_ERROR_INVALID_ADDRESS;
     
+    // Skip expensive canary checks on every operation for performance
+    
     // Check for stack overflow (stack grows downward)
+    // vm->stack_base already accounts for bottom canary
     if (vm->stack <= vm->stack_base) {
         return VM_ERROR_STACK_OVERFLOW;
     }
@@ -72,7 +76,10 @@ vm_error_t vm_push(vm_state_t *vm, uint32_t value) {
 vm_error_t vm_pop(vm_state_t *vm, uint32_t *value) {
     if (!vm || !value) return VM_ERROR_INVALID_ADDRESS;
     
+    // Skip expensive canary checks on every operation for performance
+    
     // Check for stack underflow
+    // vm->stack_top already accounts for top canary
     if (vm->stack >= vm->stack_top) {
         return VM_ERROR_STACK_UNDERFLOW;
     }
@@ -132,6 +139,15 @@ vm_error_t vm_execute_instruction(vm_state_t *vm) {
     if ((vm->program - vm->program_base) >= vm->program_size) {
         vm->running = false;
         return VM_OK; // End of program
+    }
+    
+    // Periodic memory protection check (every 16 instructions for performance)
+    if ((vm->cycle_count & 0x0F) == 0) {
+        vm_error_t canary_error = vm_check_stack_canaries(vm);
+        if (canary_error != VM_OK) return canary_error;
+        
+        vm_error_t heap_error = vm_check_heap_guards(vm);
+        if (heap_error != VM_OK) return heap_error;
     }
     
     // Fetch instruction (16-bit)
@@ -681,4 +697,78 @@ void vm_printf(uint32_t format_addr, uint32_t *args, uint32_t arg_count) {
             semihost_write_char(*p);
         }
     }
+}
+
+// Memory protection implementation
+vm_error_t vm_init_memory_protection(vm_state_t *vm) {
+    if (!vm) return VM_ERROR_INVALID_ADDRESS;
+    
+    // Initialize stack canaries at boundaries
+    // Place canaries outside the usable stack region
+    uint32_t *stack_start = vm->stack_memory;
+    uint32_t *stack_end = vm->stack_memory + (VM_STACK_SIZE / sizeof(uint32_t)) - 1;
+    
+    // Bottom canary (at start of stack memory, low address)
+    // This protects against underflow beyond the bottom
+    stack_start[0] = STACK_CANARY_MAGIC;
+    
+    // Top canary (at end of stack memory, high address)  
+    // This protects against overflow beyond the top
+    stack_end[0] = STACK_CANARY_MAGIC;
+    
+    // Adjust usable stack to avoid canaries
+    // Stack grows downward from top-1 to bottom+1
+    vm->stack_base = vm->stack_memory + 1;  // Skip bottom canary
+    vm->stack_top = vm->stack_memory + (VM_STACK_SIZE / sizeof(uint32_t)) - 1;  // Stop before top canary
+    vm->stack = vm->stack_top;  // Start at top of usable area
+    
+    // Initialize heap guards around heap region
+    uint32_t *heap_start = vm->heap_memory;
+    uint32_t *heap_end = vm->heap_memory + (VM_HEAP_SIZE / sizeof(uint32_t)) - 1;
+    
+    // Bottom guard (at start of heap memory)
+    heap_start[0] = HEAP_GUARD_MAGIC;
+    
+    // Top guard (at end of heap memory)
+    heap_end[0] = HEAP_GUARD_MAGIC;
+    
+    return VM_OK;
+}
+
+vm_error_t vm_check_stack_canaries(vm_state_t *vm) {
+    if (!vm) return VM_ERROR_INVALID_ADDRESS;
+    
+    uint32_t *stack_start = vm->stack_memory;
+    uint32_t *stack_end = vm->stack_memory + (VM_STACK_SIZE / sizeof(uint32_t)) - 1;
+    
+    // Check bottom canary
+    if (stack_start[0] != STACK_CANARY_MAGIC) {
+        return VM_ERROR_STACK_CORRUPTION;
+    }
+    
+    // Check top canary
+    if (stack_end[0] != STACK_CANARY_MAGIC) {
+        return VM_ERROR_STACK_CORRUPTION;
+    }
+    
+    return VM_OK;
+}
+
+vm_error_t vm_check_heap_guards(vm_state_t *vm) {
+    if (!vm) return VM_ERROR_INVALID_ADDRESS;
+    
+    uint32_t *heap_start = vm->heap_memory;
+    uint32_t *heap_end = vm->heap_memory + (VM_HEAP_SIZE / sizeof(uint32_t)) - 1;
+    
+    // Check bottom guard
+    if (heap_start[0] != HEAP_GUARD_MAGIC) {
+        return VM_ERROR_HEAP_CORRUPTION;
+    }
+    
+    // Check top guard
+    if (heap_end[0] != HEAP_GUARD_MAGIC) {
+        return VM_ERROR_HEAP_CORRUPTION;
+    }
+    
+    return VM_OK;
 }

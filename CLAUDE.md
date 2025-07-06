@@ -17,15 +17,16 @@
 
 ```yaml
 # Technical State
-BUILD: {flash: 24784, ram: 200, vm_mem: 8192, tests: 125, pass_rate: 100}
+BUILD: {flash: 25072, ram: 200, vm_mem: 8192, tests: 181, pass_rate: 100}
 OPCODES: {
   vm: [0x01-0x08: PUSH,POP,ADD,SUB,MUL,DIV,CALL,RET,HALT],
   arduino: [0x10-0x1F: DIGITAL_WRITE,DIGITAL_READ,ANALOG_WRITE,ANALOG_READ,DELAY,BUTTON_PRESSED,BUTTON_RELEASED,PIN_MODE,PRINTF,MILLIS,MICROS],
   compare: [0x20-0x2F: EQ,NE,LT,GT,LE,GE + signed variants],
-  control: [0x30-0x3F: reserved for Phase 3 JMP opcodes]
+  control: [0x30-0x3F: JMP,JMP_TRUE,JMP_FALSE + reserved]
 }
 MEMORY: {stack: 4096, heap: 4096, globals: 256, total: 8448}
 ARDUINO_API: [digitalWrite,digitalRead,analogWrite,analogRead,delay,pinMode,millis,micros,printf,buttonPressed,buttonReleased]
+COMPILER: {antlr4_grammar: complete, function_calls: working, control_flow: working, user_functions: working}
 ```
 
 ## Phase 2.3+ Recent Decisions
@@ -40,102 +41,94 @@ TIMING_SYSTEM: {base: qemu_virtual_time, precision: millisecond, integration: bu
 C_TO_BYTECODE: {examples: complete, validation: 33_tests, patterns: documented}
 ```
 
-## Phase 3 Implementation Context
+## Phase 3.3+ Recent Decisions
 
-### Final Architecture Decisions (Pool Questions Complete)
-
-**Core Technologies:**
-- ✅ **ANTLR 4.x Grammar**: Incremental complexity, robust parsing, professional quality
-- ✅ **C++ Implementation**: OOP patterns for clean architecture, visitor pattern support
-- ✅ **Linear Symbol Table**: O(n) lookup for Arduino-scale programs (~50 symbols max)
-- ✅ **Two-Pass Compilation**: Robust jump resolution with backpatching for control flow
-- ✅ **Visitor Pattern**: Clean separation of parsing and bytecode generation
-
-**Memory Management:**
-- ✅ **Minimal VM Extensions**: Existing 8KB stack + 64 global slots (256 bytes)
-- ✅ **Compile-Time Resolution**: Symbols resolved during compilation, not runtime
-- ✅ **Simple Scope Tracking**: Hierarchical scope IDs with depth-based resolution
-
-**Feature Scope (MVP):**
-- ✅ **Data Types**: int only (32-bit stack values)
-- ✅ **Control Flow**: if/else, while statements
-- ✅ **Functions**: User-defined functions with parameters and return values
-- ✅ **Arduino API**: All existing opcodes (digitalWrite, analogRead, printf, etc.)
-
-### Implementation Roadmap (Ready for Execution)
-
-#### **Chunk 3.1: Minimal C Parser Foundation (8 hours)**
-**Goal**: ANTLR-based parser with visitor pattern generating basic bytecode
-
-**Technical Stack:**
-- ANTLR 4.x grammar for Arduino C subset
-- C++ visitor implementation with bytecode emission
-- Linear symbol table with scope depth tracking
-- Direct bytecode generation for assignments and Arduino calls
-
-**Validation Program:**
-```c
-int sensorValue;
-void setup() {
-    pinMode(13, OUTPUT);
-    sensorValue = analogRead(0);
-    digitalWrite(13, HIGH);
-    printf("Sensor: %d\n", sensorValue);
-}
+```yaml
+# Phase 3.3 Completed Architecture
+FUNCTION_SYSTEM: {approach: unified_resolution, addresses: 8bit_immediate, calls: stack_based}
+RTOS_FRAME_MGMT: {context_save: full_state, pc_stack_flags: saved, evolution_ready: true}
+BACKPATCHING: {jumps: working, functions: working, resolution: two_pass}
+USER_FUNCTIONS: {parameters: stack_based, returns: stack_based, calling_convention: c_style}
+GRAMMAR_EXTENSIONS: {return_stmt: working, arithmetic_expr: working, var_init: working}
+ERROR_RESOLUTION: {false_errors: eliminated, clean_output: achieved}
 ```
 
-#### **Chunk 3.2: Essential Control Flow (6 hours)**
-**Goal**: Add if/else and while statements with jump resolution
-
-**Technical Implementation:**
-- Extended ANTLR grammar for control structures
-- Two-pass compilation with jump target placeholders
-- Backpatching system for forward/backward jumps
-- Visitor methods for control flow constructs
-
-#### **Chunk 3.3: Basic Functions (6 hours)**
-**Goal**: User-defined functions with parameters and return values
-
-**Development Infrastructure:**
-- **Build System**: CMake for C++ compilation with ANTLR integration
-- **Testing**: Progressive test suite validating each chunk
-- **Debugging**: Compilation tracing and bytecode inspection
-
-**Project Structure:**
-```
-cockpit/
-├── compiler/
-│   ├── grammar/ArduinoC.g4              # ANTLR grammar definition
-│   ├── src/{visitor,symbol_table,code_generator,main}.cpp
-│   ├── tests/{test_parser,test_codegen,validation_programs}/
-│   └── CMakeLists.txt
-├── src/                                 # Existing VM implementation
-├── lib/                                 # Existing VM libraries
-└── docs/                                # Archived historical content
-```
-
-## Current Project Status
+## Current Phase Status
 
 ### Phase Completion Summary
 - ✅ **Phase 1**: VM Core foundation complete (21 tests, 100% pass)
 - ✅ **Phase 2**: Arduino Integration complete (125 tests, 100% pass, 24.8KB flash)
-- ✅ **Phase 3 Planning**: 4+ pool question cycles completed, architecture finalized
 - ✅ **Phase 3.1**: Minimal C Parser Foundation complete (ANTLR compiler working)
-- 🚀 **Next**: Begin Phase 3.2 implementation (Essential Control Flow)
+- ✅ **Phase 3.2**: Essential Control Flow complete (if/else, while with jump instructions)
+- ✅ **Phase 3.3**: Basic Functions complete (user-defined functions with parameters/returns)
+- 🚀 **Next**: Begin Phase 3.4 planning (Advanced Expressions and Optimization)
 
 ### Current Technical Status
-- **Build System**: Working (24,784 bytes flash, 200 bytes + 8KB VM RAM)
-- **Test Success**: 100% pass rate (125/125 VM tests)
+- **Build System**: Working (25,072 bytes flash, 200 bytes + 8KB VM RAM)
+- **Test Success**: 100% pass rate (181/181 VM tests + 5/5 function compilation tests)
 - **Arduino API**: 15 functions integrated with VM opcodes including printf
 - **QEMU Integration**: Automated testing and debugging functional
-- **C Compiler**: ANTLR-based compiler generating VM bytecode (Phase 3.1 complete)
+- **C Compiler**: Full ANTLR-based compiler with functions, control flow, expressions
+- **Function Resolution**: Multi-function address resolution (0, 7, 10, 21, 23) working
+- **RTOS Architecture**: Full frame state saving implemented for future evolution
 - **Repository**: Clean main branch with comprehensive documentation
 
 ### Current Memory Usage
-- **Flash**: 24,784 bytes (18.9% of 128KB)
+- **Flash**: 25,072 bytes (19.1% of 128KB)
 - **RAM**: 200 bytes static + 8KB VM memory allocation
 - **VM Memory**: Stack + heap unified space with bounds checking
-- **Performance**: All operations within target cycle counts
+- **Performance**: Function calls 7 cycles round-trip, all operations within target counts
+
+### Current Compiler Capabilities
+```c
+// Complete working example from Phase 3.3 stress test
+void initializeLED() {
+    pinMode(13, 1);
+    digitalWrite(13, 0);
+}
+
+int getCurrentTime() {
+    return millis();
+}
+
+void blinkPattern(int pin, int duration) {
+    digitalWrite(pin, 1);
+    delay(duration);
+    digitalWrite(pin, 0);
+}
+
+int calculateAverage(int value1, int value2) {
+    return value1 + value2;
+}
+
+void setup() {
+    initializeLED();
+    int startTime = getCurrentTime();
+    blinkPattern(13, 100);
+    int sum = calculateAverage(10, 20);
+    int average = sum / 2;
+    
+    if (getCurrentTime() > startTime) {
+        blinkPattern(13, 50);
+    }
+    
+    printf("Average: %d, Time: %d\n", average, getCurrentTime());
+}
+```
+
+### Immediate Next Steps Priority
+1. **Begin Phase 3.4 Planning**: Advanced expression parsing and optimization
+2. **Logical Operators**: &&, ||, ! implementation with short-circuit evaluation
+3. **Operator Precedence**: Proper precedence handling in arithmetic expressions
+4. **Expression Optimization**: Constant folding and dead code elimination
+5. **Testing and Validation**: Complex expression validation programs
+
+### Success Criteria for Phase 3.4
+- [ ] Logical operators compile with short-circuit evaluation
+- [ ] Operator precedence correctly implemented
+- [ ] Complex nested expressions work properly
+- [ ] Generated expressions execute correctly in VM
+- [ ] Expression optimization opportunities identified
 
 ## Development Workflow
 
@@ -162,20 +155,10 @@ cockpit/
 - **Testing Evolution**: Comprehensive test history in docs/TESTING_HISTORY.md
 - **Architecture Evolution**: Design decision timeline in docs/ARCHITECTURE_EVOLUTION.md
 - **Phase 3.1 QA Report**: Complete testing validation in docs/PHASE_3_1_QA_REPORT.md
-
-### Immediate Next Steps Priority
-1. **Begin Phase 3.2**: Extend ANTLR grammar for if/else and while statements
-2. **Two-Pass Compilation**: Jump target resolution with backpatching system
-3. **Control Flow Visitor Methods**: if/else and while loop compilation
-4. **Jump Instructions**: OP_JMP, OP_JMP_TRUE, OP_JMP_FALSE implementation
-5. **Testing and Validation**: Control flow validation program compilation
-
-### Success Criteria for Phase 3.2
-- [ ] Control flow statements compile to correct jump sequences
-- [ ] Two-pass compilation resolves all jump targets
-- [ ] Nested control structures work properly
-- [ ] Generated control flow executes correctly in VM
-- [ ] Jump optimization opportunities identified
+- **Phase 3.2 Implementation**: Control flow with jump instructions in docs/PHASE_3_2_IMPLEMENTATION.md
+- **Phase 3.3 QA Report**: Complete function system validation in docs/PHASE_3_3_QA_REPORT.md
+- **Backpatching Deep Dive**: Comprehensive learning document in docs/BACKPATCHING_DEEP_DIVE.md
+- **RTOS Architecture**: RTOS-evolutionary design decisions in docs/RTOS_EVOLUTIONARY_ARCHITECTURE.md
 
 ### Memory Constraints (Arduino-Compatible)
 - **Compiler Memory**: <1MB for compilation process
@@ -196,4 +179,4 @@ cockpit/
 
 **Context Preservation**: All design decisions documented, pool question results preserved, KISS principle guidelines maintained, memory constraint validation completed.
 
-**The project is ready for Phase 3 implementation with comprehensive planning, validated architecture, and clear execution roadmap.**
+**Phase 3.3 is complete with comprehensive function system, RTOS-ready architecture, and 100% test validation. The project is ready for Phase 3.4 advanced expression handling and optimization.**
