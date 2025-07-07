@@ -147,6 +147,7 @@ public:
     // Function and expression visitor methods
     antlrcpp::Any visitReturnStatement(ArduinoCParser::ReturnStatementContext *ctx) override;
     antlrcpp::Any visitArithmeticExpression(ArduinoCParser::ArithmeticExpressionContext *ctx) override;
+    antlrcpp::Any visitMultiplicativeExpression(ArduinoCParser::MultiplicativeExpressionContext *ctx) override;
     
     // Logical expression visitor methods
     antlrcpp::Any visitLogicalOrExpression(ArduinoCParser::LogicalOrExpressionContext *ctx) override;

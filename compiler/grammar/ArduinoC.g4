@@ -95,8 +95,13 @@ shiftExpression
     : arithmeticExpression (('<<' | '>>') arithmeticExpression)*
     ;
 
+// Proper arithmetic expression hierarchy with left-recursion for operator chaining
 arithmeticExpression
-    : primaryExpression arithmeticOperator primaryExpression
+    : multiplicativeExpression (('+'|'-') multiplicativeExpression)*
+    ;
+
+multiplicativeExpression 
+    : primaryExpression (('*'|'/'|'%') primaryExpression)*
     ;
 
 primaryExpression
@@ -107,13 +112,7 @@ primaryExpression
     | '(' expression ')'
     ;
 
-arithmeticOperator
-    : '+'
-    | '-'
-    | '*'
-    | '/'
-    | '%'
-    ;
+// Removed arithmeticOperator rule - using direct tokens in expressions for clarity
 
 comparisonOperator
     : '=='

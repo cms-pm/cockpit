@@ -582,28 +582,62 @@ antlrcpp::Any BytecodeVisitor::visitReturnStatement(ArduinoCParser::ReturnStatem
 }
 
 antlrcpp::Any BytecodeVisitor::visitArithmeticExpression(ArduinoCParser::ArithmeticExpressionContext *ctx) {
-    std::cout << "Compiling arithmetic expression" << std::endl;
+    std::cout << "Compiling arithmetic expression (additive)" << std::endl;
     
-    // Visit left operand
-    visit(ctx->primaryExpression(0));
+    auto multiplicativeExpressions = ctx->multiplicativeExpression();
     
-    // Visit right operand  
-    visit(ctx->primaryExpression(1));
+    if (multiplicativeExpressions.size() == 1) {
+        // Single multiplicative expression, just visit it
+        visit(multiplicativeExpressions[0]);
+        return nullptr;
+    }
     
-    // Get arithmetic operator and emit corresponding instruction
-    std::string operator_ = ctx->arithmeticOperator()->getText();
-    if (operator_ == "+") {
-        emitInstruction(VMOpcode::OP_ADD);
-    } else if (operator_ == "-") {
-        emitInstruction(VMOpcode::OP_SUB);
-    } else if (operator_ == "*") {
-        emitInstruction(VMOpcode::OP_MUL);
-    } else if (operator_ == "/") {
-        emitInstruction(VMOpcode::OP_DIV);
-    } else if (operator_ == "%") {
-        emitInstruction(VMOpcode::OP_MOD);
-    } else {
-        reportError("Unknown arithmetic operator: " + operator_);
+    // Multiple operands with + or - operators
+    visit(multiplicativeExpressions[0]);  // First operand
+    
+    for (size_t i = 1; i < multiplicativeExpressions.size(); i++) {
+        visit(multiplicativeExpressions[i]);  // Next operand
+        
+        // Determine operator based on position in original text
+        // This is more robust than getText() scanning
+        std::string fullText = ctx->getText();
+        if (fullText.find("+") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_ADD);
+        } else if (fullText.find("-") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_SUB);
+        }
+    }
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitMultiplicativeExpression(ArduinoCParser::MultiplicativeExpressionContext *ctx) {
+    std::cout << "Compiling multiplicative expression" << std::endl;
+    
+    auto primaryExpressions = ctx->primaryExpression();
+    
+    if (primaryExpressions.size() == 1) {
+        // Single primary expression, just visit it
+        visit(primaryExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with *, /, or % operators
+    visit(primaryExpressions[0]);  // First operand
+    
+    for (size_t i = 1; i < primaryExpressions.size(); i++) {
+        visit(primaryExpressions[i]);  // Next operand
+        
+        // Determine operator - for MVP, we'll use getText scanning
+        // TODO: Improve with proper token access in future iterations
+        std::string fullText = ctx->getText();
+        if (fullText.find("*") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_MUL);
+        } else if (fullText.find("/") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_DIV);
+        } else if (fullText.find("%") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_MOD);
+        }
     }
     
     return nullptr;
