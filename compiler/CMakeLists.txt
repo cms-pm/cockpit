@@ -59,3 +59,10 @@ add_executable(test_compiler
 )
 
 target_link_libraries(test_compiler antlr4-runtime)
+
+# Comprehensive test runner
+add_executable(test_runner
+    tests/test_runner.c
+)
+
+target_include_directories(test_runner PRIVATE tests/)
