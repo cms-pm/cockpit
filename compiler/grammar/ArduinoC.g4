@@ -6,7 +6,7 @@ program
     ;
 
 declaration
-    : type IDENTIFIER ('=' expression)? ';'
+    : type IDENTIFIER ('[' INTEGER ']')? ('=' expression)? ';'
     ;
 
 functionDefinition
@@ -106,7 +106,7 @@ multiplicativeExpression
 
 primaryExpression
     : functionCall
-    | IDENTIFIER
+    | IDENTIFIER ('[' expression ']')?
     | INTEGER
     | '-' INTEGER  // Support for negative numbers
     | STRING
@@ -126,6 +126,7 @@ comparisonOperator
 
 assignment
     : IDENTIFIER '=' expression
+    | IDENTIFIER '[' expression ']' '=' expression
     | IDENTIFIER '+=' expression
     | IDENTIFIER '-=' expression
     | IDENTIFIER '*=' expression

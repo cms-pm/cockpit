@@ -12,11 +12,11 @@ public:
     ~ComponentVM() noexcept;
     
     // Core VM execution
-    bool execute_program(const VMInstruction* program, size_t program_size) noexcept;
+    bool execute_program(const VM::Instruction* program, size_t program_size) noexcept;
     bool execute_single_step() noexcept;
     
     // Program management
-    bool load_program(const VMInstruction* program, size_t program_size) noexcept;
+    bool load_program(const VM::Instruction* program, size_t program_size) noexcept;
     void reset_vm() noexcept;
     
     // Component access (for testing and debugging)

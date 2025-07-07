@@ -22,7 +22,7 @@ ComponentVM::~ComponentVM() noexcept
     // 3. engine_.~ExecutionEngine()   (first constructed, last destroyed)
 }
 
-bool ComponentVM::execute_program(const Instruction* program, size_t program_size) noexcept
+bool ComponentVM::execute_program(const VM::Instruction* program, size_t program_size) noexcept
 {
     if (!load_program(program, program_size)) {
         return false;
@@ -65,7 +65,7 @@ bool ComponentVM::execute_single_step() noexcept
     return success;
 }
 
-bool ComponentVM::load_program(const Instruction* program, size_t program_size) noexcept
+bool ComponentVM::load_program(const VM::Instruction* program, size_t program_size) noexcept
 {
     if (program == nullptr || program_size == 0) {
         set_error(VMError::PROGRAM_NOT_LOADED);

@@ -4,11 +4,13 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <cstdint>
 
 enum class SymbolType {
     VARIABLE,
     FUNCTION,
-    PARAMETER
+    PARAMETER,
+    ARRAY
 };
 
 enum class DataType {
@@ -22,12 +24,17 @@ struct Symbol {
     DataType dataType;
     int scopeDepth;
     int stackOffset;      // For local variables
-    int globalIndex;      // For global variables
+    int globalIndex;      // For global variables/arrays
     bool isGlobal;
+    
+    // Array-specific fields
+    size_t arraySize;     // For arrays only
+    uint8_t arrayId;      // Array identifier for VM
     
     Symbol(const std::string& n, SymbolType st, DataType dt, int scope)
         : name(n), symbolType(st), dataType(dt), scopeDepth(scope)
-        , stackOffset(-1), globalIndex(-1), isGlobal(scope == 0) {}
+        , stackOffset(-1), globalIndex(-1), isGlobal(scope == 0)
+        , arraySize(0), arrayId(0) {}
 };
 
 class SymbolTable {
@@ -36,6 +43,7 @@ private:
     int currentScope;
     int nextGlobalIndex;
     int currentStackOffset;
+    uint8_t nextArrayId;
     
 public:
     SymbolTable();
@@ -47,6 +55,7 @@ public:
     
     // Symbol operations
     bool declareSymbol(const std::string& name, SymbolType type, DataType dataType);
+    bool declareArray(const std::string& name, DataType dataType, size_t size);
     Symbol* lookupSymbol(const std::string& name);
     bool isSymbolDeclared(const std::string& name) const;
     

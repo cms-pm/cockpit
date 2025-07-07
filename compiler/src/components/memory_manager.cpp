@@ -61,7 +61,7 @@ bool MemoryManager::load_global(uint8_t index, int32_t& value) const noexcept
 
 bool MemoryManager::create_array(uint8_t array_id, size_t size) noexcept
 {
-    if (array_id >= MAX_ARRAYS || size == 0) {
+    if (array_id >= MAX_ARRAYS || size == 0 || size > MAX_ARRAY_SIZE) {
         return false;
     }
     
@@ -122,6 +122,34 @@ bool MemoryManager::get_array_size(uint8_t array_id, size_t& size) const noexcep
     
     size = arrays_[array_id].size;
     return true;
+}
+
+int32_t* MemoryManager::get_array_base(uint8_t array_id) const noexcept
+{
+    if (!is_valid_array_id(array_id)) {
+        return nullptr;
+    }
+    
+    const ArrayDescriptor& desc = arrays_[array_id];
+    if (!desc.active) {
+        return nullptr;
+    }
+    
+    return const_cast<int32_t*>(&array_pool_[desc.offset]);
+}
+
+uint16_t MemoryManager::get_array_size_direct(uint8_t array_id) const noexcept
+{
+    if (!is_valid_array_id(array_id)) {
+        return 0;
+    }
+    
+    const ArrayDescriptor& desc = arrays_[array_id];
+    if (!desc.active) {
+        return 0;
+    }
+    
+    return static_cast<uint16_t>(desc.size);
 }
 
 void MemoryManager::reset() noexcept

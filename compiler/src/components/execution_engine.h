@@ -30,7 +30,7 @@ public:
     
     // State management
     void reset() noexcept;
-    void set_program(const VMInstruction* program, size_t size) noexcept;
+    void set_program(const VM::Instruction* program, size_t size) noexcept;
     
     // Stack operations
     bool push(int32_t value) noexcept;
@@ -51,7 +51,7 @@ private:
     std::array<int32_t, STACK_SIZE> stack_;
     size_t sp_;                      // Stack pointer
     size_t pc_;                      // Program counter
-    const VMInstruction* program_;     // Program memory
+    const VM::Instruction* program_;     // Program memory
     size_t program_size_;           // Program size in instructions
     bool halted_;                   // Execution halt flag
     
@@ -67,6 +67,11 @@ private:
                           MemoryManager& memory) noexcept;
     bool execute_io_op(uint8_t opcode, uint8_t flags, uint16_t immediate,
                       IOController& io) noexcept;
+    
+    // Array operations (hybrid approach)
+    bool execute_create_array(uint16_t immediate, MemoryManager& memory) noexcept;
+    bool execute_load_array(uint16_t immediate, MemoryManager& memory) noexcept;
+    bool execute_store_array(uint16_t immediate, MemoryManager& memory) noexcept;
     
     // Stack bounds checking
     bool check_stack_bounds() const noexcept;

@@ -3,70 +3,11 @@
 
 #include "ArduinoCBaseVisitor.h"
 #include "symbol_table.h"
+#include "../shared/vm_opcodes.h"
 #include <vector>
 #include <string>
 #include <cstdint>
 #include <map>
-
-// VM Opcodes (from existing VM implementation)
-enum class VMOpcode : uint8_t {
-    // Core VM operations (0x01-0x08)
-    OP_PUSH = 0x01,
-    OP_POP = 0x02,
-    OP_ADD = 0x03,
-    OP_SUB = 0x04,
-    OP_MUL = 0x05,
-    OP_DIV = 0x06,
-    OP_MOD = 0x07,
-    OP_CALL = 0x08,
-    OP_RET = 0x09,
-    OP_HALT = 0x0A,
-    
-    // Arduino functions (0x10-0x1F)
-    OP_DIGITAL_WRITE = 0x10,
-    OP_DIGITAL_READ = 0x11,
-    OP_ANALOG_WRITE = 0x12,
-    OP_ANALOG_READ = 0x13,
-    OP_DELAY = 0x14,
-    OP_BUTTON_PRESSED = 0x15,
-    OP_BUTTON_RELEASED = 0x16,
-    OP_PIN_MODE = 0x17,
-    OP_PRINTF = 0x18,
-    OP_MILLIS = 0x19,
-    OP_MICROS = 0x1A,
-    
-    // Comparison operations (0x20-0x2F)
-    OP_EQ = 0x20,
-    OP_NE = 0x21,
-    OP_LT = 0x22,
-    OP_GT = 0x23,
-    OP_LE = 0x24,
-    OP_GE = 0x25,
-    
-    // Control flow operations (0x30-0x3F)
-    OP_JMP = 0x30,
-    OP_JMP_TRUE = 0x31,
-    OP_JMP_FALSE = 0x32,
-    
-    // Logical operations (0x40-0x4F)
-    OP_AND = 0x40,
-    OP_OR = 0x41,
-    OP_NOT = 0x42,
-    
-    // Bitwise operations (0x60-0x6F)
-    OP_BITWISE_AND = 0x60,
-    OP_BITWISE_OR = 0x61,
-    OP_BITWISE_XOR = 0x62,
-    OP_BITWISE_NOT = 0x63,
-    OP_SHIFT_LEFT = 0x64,
-    OP_SHIFT_RIGHT = 0x65,
-    
-    // Memory operations (custom for compiler)
-    OP_LOAD_GLOBAL = 0x50,
-    OP_STORE_GLOBAL = 0x51,
-    OP_LOAD_LOCAL = 0x52,
-    OP_STORE_LOCAL = 0x53
-};
 
 // Flag definitions for instruction variants
 enum class InstructionFlag : uint8_t {

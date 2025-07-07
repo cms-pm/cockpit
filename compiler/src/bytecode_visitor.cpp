@@ -115,20 +115,41 @@ antlrcpp::Any BytecodeVisitor::visitDeclaration(ArduinoCParser::DeclarationConte
     
     DataType dataType = (typeName == "int") ? DataType::INT : DataType::VOID;
     
-    if (!symbolTable.declareSymbol(varName, SymbolType::VARIABLE, dataType)) {
-        reportError("Variable already declared: " + varName);
-    } else {
-        std::cout << "Declared variable: " << varName << " (" << typeName << ")" << std::endl;
+    // Check if this is an array declaration
+    if (ctx->INTEGER()) {
+        // Array declaration: int arr[size];
+        std::string sizeStr = ctx->INTEGER()->getText();
+        size_t arraySize = std::stoul(sizeStr);
         
-        // Handle initialization if present
-        if (ctx->expression()) {
-            std::cout << "Initializing variable: " << varName << std::endl;
+        if (!symbolTable.declareArray(varName, dataType, arraySize)) {
+            reportError("Array already declared: " + varName);
+        } else {
+            std::cout << "Declared array: " << varName << "[" << arraySize << "] (" << typeName << ")" << std::endl;
             
-            // Evaluate the initialization expression
-            visit(ctx->expression());
+            // Emit array creation instruction
+            Symbol* symbol = symbolTable.lookupSymbol(varName);
+            if (symbol) {
+                emitInstruction(VMOpcode::OP_CREATE_ARRAY, static_cast<uint16_t>(symbol->arrayId));
+                emitPushConstant(static_cast<int32_t>(arraySize));
+            }
+        }
+    } else {
+        // Regular variable declaration
+        if (!symbolTable.declareSymbol(varName, SymbolType::VARIABLE, dataType)) {
+            reportError("Variable already declared: " + varName);
+        } else {
+            std::cout << "Declared variable: " << varName << " (" << typeName << ")" << std::endl;
             
-            // Store the result in the variable
-            emitStoreVariable(varName);
+            // Handle initialization if present
+            if (ctx->expression()) {
+                std::cout << "Initializing variable: " << varName << std::endl;
+                
+                // Evaluate the initialization expression
+                visit(ctx->expression());
+                
+                // Store the result in the variable
+                emitStoreVariable(varName);
+            }
         }
     }
     
@@ -202,11 +223,41 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     std::string varName = ctx->IDENTIFIER()->getText();
     std::string assignmentText = ctx->getText();
     
+    // Get the expression(s) - may be vector due to array access
+    auto expressions = ctx->expression();
+    
+    // Check if this is an array assignment: identifier[index] = value
+    if (expressions.size() == 2) {
+        // Array assignment: arr[index] = value
+        visit(expressions[0]);  // Evaluate index expression
+        visit(expressions[1]);  // Evaluate value expression
+        
+        // Look up array symbol to get array ID
+        Symbol* symbol = symbolTable.lookupSymbol(varName);
+        if (!symbol) {
+            reportError("Undefined array: " + varName);
+            return nullptr;
+        }
+        
+        if (symbol->symbolType != SymbolType::ARRAY) {
+            reportError("Variable is not an array: " + varName);
+            return nullptr;
+        }
+        
+        // Emit array store instruction
+        emitInstruction(VMOpcode::OP_STORE_ARRAY, static_cast<uint16_t>(symbol->arrayId));
+        std::cout << "Generated array assignment: " << varName << "[index] = value" << std::endl;
+        return nullptr;
+    }
+    
+    // Regular variable assignment or compound assignment
+    auto expression = expressions[0];  // Single expression for regular assignment
+    
     // Check for compound assignment operators
     if (assignmentText.find("+=") != std::string::npos) {
         // Compound addition: var += expr -> var = var + expr
         emitLoadVariable(varName);  // Load current value
-        visit(ctx->expression());   // Evaluate right-hand side
+        visit(expression);   // Evaluate right-hand side
         emitInstruction(VMOpcode::OP_ADD);  // Add them
         emitStoreVariable(varName); // Store result
         std::cout << "Generated compound assignment: " << varName << " += <expression>" << std::endl;
@@ -214,7 +265,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("-=") != std::string::npos) {
         // Compound subtraction: var -= expr -> var = var - expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_SUB);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " -= <expression>" << std::endl;
@@ -222,7 +273,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("*=") != std::string::npos) {
         // Compound multiplication: var *= expr -> var = var * expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_MUL);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " *= <expression>" << std::endl;
@@ -230,7 +281,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("/=") != std::string::npos) {
         // Compound division: var /= expr -> var = var / expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_DIV);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " /= <expression>" << std::endl;
@@ -238,7 +289,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("%=") != std::string::npos) {
         // Compound modulo: var %= expr -> var = var % expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_MOD);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " %= <expression>" << std::endl;
@@ -246,7 +297,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("&=") != std::string::npos) {
         // Compound bitwise AND: var &= expr -> var = var & expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_BITWISE_AND);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " &= <expression>" << std::endl;
@@ -254,7 +305,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("|=") != std::string::npos) {
         // Compound bitwise OR: var |= expr -> var = var | expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_BITWISE_OR);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " |= <expression>" << std::endl;
@@ -262,7 +313,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("^=") != std::string::npos) {
         // Compound bitwise XOR: var ^= expr -> var = var ^ expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_BITWISE_XOR);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " ^= <expression>" << std::endl;
@@ -270,7 +321,7 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find("<<=") != std::string::npos) {
         // Compound left shift: var <<= expr -> var = var << expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_SHIFT_LEFT);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " <<= <expression>" << std::endl;
@@ -278,14 +329,14 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
     } else if (assignmentText.find(">>=") != std::string::npos) {
         // Compound right shift: var >>= expr -> var = var >> expr
         emitLoadVariable(varName);
-        visit(ctx->expression());
+        visit(expression);
         emitInstruction(VMOpcode::OP_SHIFT_RIGHT);
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " >>= <expression>" << std::endl;
         
     } else {
         // Regular assignment: var = expr
-        visit(ctx->expression());
+        visit(expression);
         emitStoreVariable(varName);
         std::cout << "Generated assignment: " << varName << " = <expression>" << std::endl;
     }
@@ -858,9 +909,31 @@ antlrcpp::Any BytecodeVisitor::visitPrimaryExpression(ArduinoCParser::PrimaryExp
     if (ctx->functionCall()) {
         return visit(ctx->functionCall());
     } else if (ctx->IDENTIFIER()) {
-        // Load variable value onto stack
         std::string varName = ctx->IDENTIFIER()->getText();
-        emitLoadVariable(varName);
+        
+        // Check if this is array access: IDENTIFIER '[' expression ']'
+        if (ctx->expression()) {
+            // Array access: arr[index]
+            Symbol* symbol = symbolTable.lookupSymbol(varName);
+            if (!symbol) {
+                reportError("Undefined array: " + varName);
+                return nullptr;
+            }
+            
+            if (symbol->symbolType != SymbolType::ARRAY) {
+                reportError("Variable is not an array: " + varName);
+                return nullptr;
+            }
+            
+            // Evaluate index expression
+            visit(ctx->expression());
+            
+            // Emit array load instruction
+            emitInstruction(VMOpcode::OP_LOAD_ARRAY, static_cast<uint16_t>(symbol->arrayId));
+        } else {
+            // Load variable value onto stack
+            emitLoadVariable(varName);
+        }
     } else if (ctx->INTEGER()) {
         // Check if this is a negative number
         if (ctx->children.size() == 2 && ctx->children[0]->getText() == "-") {

@@ -3,7 +3,7 @@
 #include <array>
 
 // Simple test program: push 42, push 24, add, halt
-constexpr std::array<Instruction, 4> test_program = {{
+constexpr std::array<VM::Instruction, 4> test_program = {{
     {0x01, 0x00, 42},   // PUSH 42
     {0x01, 0x00, 24},   // PUSH 24
     {0x03, 0x00, 0},    // ADD

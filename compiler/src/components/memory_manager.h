@@ -9,6 +9,7 @@ public:
     static constexpr size_t MAX_GLOBALS = 64;
     static constexpr size_t ARRAY_POOL_SIZE = 2048;
     static constexpr size_t MAX_ARRAYS = 16;
+    static constexpr size_t MAX_ARRAY_SIZE = 1024;  // MVP limit: 1024 ints per array
     
     MemoryManager() noexcept;
     ~MemoryManager() noexcept;
@@ -26,6 +27,10 @@ public:
     // Array information
     bool get_array_size(uint8_t array_id, size_t& size) const noexcept;
     uint8_t get_array_count() const noexcept { return array_count_; }
+    
+    // Hybrid approach: Direct access methods for ExecutionEngine
+    int32_t* get_array_base(uint8_t array_id) const noexcept;
+    uint16_t get_array_size_direct(uint8_t array_id) const noexcept;
     
     // Memory state
     void reset() noexcept;
