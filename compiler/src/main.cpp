@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
         if (outFile.is_open()) {
             const auto& bytecode = visitor.getBytecode();
             for (const auto& instr : bytecode) {
-                uint16_t encoded = instr.encode();
+                uint32_t encoded = instr.encode();
                 outFile.write(reinterpret_cast<const char*>(&encoded), sizeof(encoded));
             }
             outFile.close();

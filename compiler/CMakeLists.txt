@@ -32,6 +32,7 @@ add_custom_command(
 # Include directories
 include_directories(${ANTLR_OUTPUT_DIR})
 include_directories(/usr/include/antlr4-runtime)
+include_directories(src/components)
 
 # Compiler executable
 add_executable(arduino_compiler
@@ -59,6 +60,22 @@ add_executable(test_compiler
 )
 
 target_link_libraries(test_compiler antlr4-runtime)
+
+# Add ComponentVM library subdirectory
+add_subdirectory(src/components)
+
+# Simple 32-bit instruction format test
+add_executable(simple_integration_test
+    src/simple_integration_test.cpp
+    src/bytecode_visitor.cpp
+    src/symbol_table.cpp
+    ${ANTLR_OUTPUT_DIR}/ArduinoCBaseListener.cpp
+    ${ANTLR_OUTPUT_DIR}/ArduinoCBaseVisitor.cpp
+    ${ANTLR_OUTPUT_DIR}/ArduinoCLexer.cpp
+    ${ANTLR_OUTPUT_DIR}/ArduinoCParser.cpp
+)
+
+target_link_libraries(simple_integration_test antlr4-runtime)
 
 # Comprehensive test runner
 add_executable(test_runner

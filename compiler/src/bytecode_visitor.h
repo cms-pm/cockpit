@@ -68,16 +68,34 @@ enum class VMOpcode : uint8_t {
     OP_STORE_LOCAL = 0x53
 };
 
-struct Instruction {
-    VMOpcode opcode;
-    uint8_t immediate;
-    
-    Instruction(VMOpcode op, uint8_t imm = 0) : opcode(op), immediate(imm) {}
-    
-    uint16_t encode() const {
-        return (static_cast<uint16_t>(opcode) << 8) | immediate;
-    }
+// Flag definitions for instruction variants
+enum class InstructionFlag : uint8_t {
+    NONE = 0x00,
+    SIGNED = 0x01,
+    WIDE = 0x02,
+    VOLATILE = 0x04,
+    CONDITION = 0x08,
+    ATOMIC = 0x10,
+    DEBUG = 0x20,
+    RESERVED1 = 0x40,
+    RESERVED2 = 0x80
 };
+
+// ARM Cortex-M4 optimized 32-bit instruction format
+struct Instruction {
+    uint8_t opcode;     // 256 base operations
+    uint8_t flags;      // 8 modifier bits for instruction variants
+    uint16_t immediate; // 0-65535 range
+    
+    Instruction(VMOpcode op, uint16_t imm = 0, InstructionFlag flag = InstructionFlag::NONE) 
+        : opcode(static_cast<uint8_t>(op)), flags(static_cast<uint8_t>(flag)), immediate(imm) {}
+    
+    uint32_t encode() const {
+        return (static_cast<uint32_t>(opcode) << 24) | 
+               (static_cast<uint32_t>(flags) << 16) | 
+               static_cast<uint32_t>(immediate);
+    }
+} __attribute__((packed));
 
 // Jump placeholder for backpatching
 struct JumpPlaceholder {
@@ -105,7 +123,7 @@ private:
     std::map<std::string, size_t> functionAddresses;
     std::vector<JumpPlaceholder> functionCallPlaceholders;
     
-    void emitInstruction(VMOpcode opcode, uint8_t immediate = 0);
+    void emitInstruction(VMOpcode opcode, uint16_t immediate = 0, InstructionFlag flags = InstructionFlag::NONE);
     void emitPushConstant(int32_t value);
     void emitLoadVariable(const std::string& name);
     void emitStoreVariable(const std::string& name);
@@ -148,6 +166,7 @@ public:
     antlrcpp::Any visitReturnStatement(ArduinoCParser::ReturnStatementContext *ctx) override;
     antlrcpp::Any visitArithmeticExpression(ArduinoCParser::ArithmeticExpressionContext *ctx) override;
     antlrcpp::Any visitMultiplicativeExpression(ArduinoCParser::MultiplicativeExpressionContext *ctx) override;
+    antlrcpp::Any visitPrimaryExpression(ArduinoCParser::PrimaryExpressionContext *ctx) override;
     
     // Logical expression visitor methods
     antlrcpp::Any visitLogicalOrExpression(ArduinoCParser::LogicalOrExpressionContext *ctx) override;

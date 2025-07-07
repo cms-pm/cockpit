@@ -108,6 +108,7 @@ primaryExpression
     : functionCall
     | IDENTIFIER
     | INTEGER
+    | '-' INTEGER  // Support for negative numbers
     | STRING
     | '(' expression ')'
     ;
