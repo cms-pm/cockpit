@@ -71,13 +71,28 @@ logicalAndExpression
 
 logicalNotExpression
     : '!' logicalNotExpression
-    | conditionalExpression
-    | arithmeticExpression
-    | primaryExpression
+    | '~' logicalNotExpression
+    | bitwiseOrExpression
+    ;
+
+bitwiseOrExpression
+    : bitwiseXorExpression ('|' bitwiseXorExpression)*
+    ;
+
+bitwiseXorExpression
+    : bitwiseAndExpression ('^' bitwiseAndExpression)*
+    ;
+
+bitwiseAndExpression
+    : conditionalExpression ('&' conditionalExpression)*
     ;
 
 conditionalExpression
-    : primaryExpression comparisonOperator primaryExpression
+    : shiftExpression (comparisonOperator shiftExpression)?
+    ;
+
+shiftExpression
+    : arithmeticExpression (('<<' | '>>') arithmeticExpression)*
     ;
 
 arithmeticExpression
@@ -116,6 +131,11 @@ assignment
     | IDENTIFIER '*=' expression
     | IDENTIFIER '/=' expression
     | IDENTIFIER '%=' expression
+    | IDENTIFIER '&=' expression
+    | IDENTIFIER '|=' expression
+    | IDENTIFIER '^=' expression
+    | IDENTIFIER '<<=' expression
+    | IDENTIFIER '>>=' expression
     ;
 
 functionCall

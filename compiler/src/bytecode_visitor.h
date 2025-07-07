@@ -53,6 +53,14 @@ enum class VMOpcode : uint8_t {
     OP_OR = 0x41,
     OP_NOT = 0x42,
     
+    // Bitwise operations (0x60-0x6F)
+    OP_BITWISE_AND = 0x60,
+    OP_BITWISE_OR = 0x61,
+    OP_BITWISE_XOR = 0x62,
+    OP_BITWISE_NOT = 0x63,
+    OP_SHIFT_LEFT = 0x64,
+    OP_SHIFT_RIGHT = 0x65,
+    
     // Memory operations (custom for compiler)
     OP_LOAD_GLOBAL = 0x50,
     OP_STORE_GLOBAL = 0x51,
@@ -144,6 +152,12 @@ public:
     antlrcpp::Any visitLogicalOrExpression(ArduinoCParser::LogicalOrExpressionContext *ctx) override;
     antlrcpp::Any visitLogicalAndExpression(ArduinoCParser::LogicalAndExpressionContext *ctx) override;
     antlrcpp::Any visitLogicalNotExpression(ArduinoCParser::LogicalNotExpressionContext *ctx) override;
+    
+    // Bitwise expression visitor methods
+    antlrcpp::Any visitBitwiseOrExpression(ArduinoCParser::BitwiseOrExpressionContext *ctx) override;
+    antlrcpp::Any visitBitwiseXorExpression(ArduinoCParser::BitwiseXorExpressionContext *ctx) override;
+    antlrcpp::Any visitBitwiseAndExpression(ArduinoCParser::BitwiseAndExpressionContext *ctx) override;
+    antlrcpp::Any visitShiftExpression(ArduinoCParser::ShiftExpressionContext *ctx) override;
     
     // Result access
     const std::vector<Instruction>& getBytecode() const { return bytecode; }

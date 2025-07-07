@@ -239,6 +239,46 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
         emitStoreVariable(varName);
         std::cout << "Generated compound assignment: " << varName << " %= <expression>" << std::endl;
         
+    } else if (assignmentText.find("&=") != std::string::npos) {
+        // Compound bitwise AND: var &= expr -> var = var & expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_BITWISE_AND);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " &= <expression>" << std::endl;
+        
+    } else if (assignmentText.find("|=") != std::string::npos) {
+        // Compound bitwise OR: var |= expr -> var = var | expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_BITWISE_OR);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " |= <expression>" << std::endl;
+        
+    } else if (assignmentText.find("^=") != std::string::npos) {
+        // Compound bitwise XOR: var ^= expr -> var = var ^ expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_BITWISE_XOR);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " ^= <expression>" << std::endl;
+        
+    } else if (assignmentText.find("<<=") != std::string::npos) {
+        // Compound left shift: var <<= expr -> var = var << expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_SHIFT_LEFT);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " <<= <expression>" << std::endl;
+        
+    } else if (assignmentText.find(">>=") != std::string::npos) {
+        // Compound right shift: var >>= expr -> var = var >> expr
+        emitLoadVariable(varName);
+        visit(ctx->expression());
+        emitInstruction(VMOpcode::OP_SHIFT_RIGHT);
+        emitStoreVariable(varName);
+        std::cout << "Generated compound assignment: " << varName << " >>= <expression>" << std::endl;
+        
     } else {
         // Regular assignment: var = expr
         visit(ctx->expression());
@@ -506,11 +546,17 @@ antlrcpp::Any BytecodeVisitor::visitWhileStatement(ArduinoCParser::WhileStatemen
 antlrcpp::Any BytecodeVisitor::visitConditionalExpression(ArduinoCParser::ConditionalExpressionContext *ctx) {
     std::cout << "Compiling conditional expression" << std::endl;
     
-    // Visit left operand
-    visit(ctx->primaryExpression(0));
+    auto shiftExpressions = ctx->shiftExpression();
     
-    // Visit right operand
-    visit(ctx->primaryExpression(1));
+    if (shiftExpressions.size() == 1) {
+        // No comparison, just visit the shift expression
+        visit(shiftExpressions[0]);
+        return nullptr;
+    }
+    
+    // Has comparison operator
+    visit(shiftExpressions[0]);  // Left operand
+    visit(shiftExpressions[1]);  // Right operand
     
     // Get comparison operator and emit corresponding instruction
     std::string operator_ = ctx->comparisonOperator()->getText();
@@ -651,24 +697,120 @@ antlrcpp::Any BytecodeVisitor::visitLogicalAndExpression(ArduinoCParser::Logical
 }
 
 antlrcpp::Any BytecodeVisitor::visitLogicalNotExpression(ArduinoCParser::LogicalNotExpressionContext *ctx) {
-    std::cout << "Compiling logical NOT expression" << std::endl;
+    std::cout << "Compiling logical/bitwise NOT expression" << std::endl;
     
-    if (ctx->getText().substr(0, 1) == "!") {
-        // This is a NOT expression, recursively visit the nested expression
+    std::string text = ctx->getText();
+    if (text.substr(0, 1) == "!") {
+        // This is a logical NOT expression, recursively visit the nested expression
         visit(ctx->logicalNotExpression());
-        // Emit NOT instruction to invert the result
+        // Emit logical NOT instruction
         emitInstruction(VMOpcode::OP_NOT);
+    } else if (text.substr(0, 1) == "~") {
+        // This is a bitwise NOT expression, recursively visit the nested expression
+        visit(ctx->logicalNotExpression());
+        // Emit bitwise NOT instruction
+        emitInstruction(VMOpcode::OP_BITWISE_NOT);
     } else {
-        // Not a NOT expression, visit one of the alternative expressions
-        if (ctx->conditionalExpression()) {
-            visit(ctx->conditionalExpression());
-        } else if (ctx->arithmeticExpression()) {
-            visit(ctx->arithmeticExpression());
-        } else if (ctx->primaryExpression()) {
-            visit(ctx->primaryExpression());
-        }
+        // Not a NOT expression, visit the bitwise OR expression
+        visit(ctx->bitwiseOrExpression());
     }
     
     return nullptr;
 }
 
+// Bitwise expression visitor methods
+antlrcpp::Any BytecodeVisitor::visitBitwiseOrExpression(ArduinoCParser::BitwiseOrExpressionContext *ctx) {
+    std::cout << "Compiling bitwise OR expression" << std::endl;
+    
+    auto xorExpressions = ctx->bitwiseXorExpression();
+    
+    if (xorExpressions.size() == 1) {
+        // Single operand, just visit it
+        visit(xorExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with OR operators
+    visit(xorExpressions[0]);  // First operand
+    
+    for (size_t i = 1; i < xorExpressions.size(); i++) {
+        visit(xorExpressions[i]);  // Next operand
+        emitInstruction(VMOpcode::OP_BITWISE_OR);  // Perform OR operation
+    }
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitBitwiseXorExpression(ArduinoCParser::BitwiseXorExpressionContext *ctx) {
+    std::cout << "Compiling bitwise XOR expression" << std::endl;
+    
+    auto andExpressions = ctx->bitwiseAndExpression();
+    
+    if (andExpressions.size() == 1) {
+        // Single operand, just visit it
+        visit(andExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with XOR operators
+    visit(andExpressions[0]);  // First operand
+    
+    for (size_t i = 1; i < andExpressions.size(); i++) {
+        visit(andExpressions[i]);  // Next operand
+        emitInstruction(VMOpcode::OP_BITWISE_XOR);  // Perform XOR operation
+    }
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitBitwiseAndExpression(ArduinoCParser::BitwiseAndExpressionContext *ctx) {
+    std::cout << "Compiling bitwise AND expression" << std::endl;
+    
+    auto conditionalExpressions = ctx->conditionalExpression();
+    
+    if (conditionalExpressions.size() == 1) {
+        // Single operand, just visit it
+        visit(conditionalExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with AND operators
+    visit(conditionalExpressions[0]);  // First operand
+    
+    for (size_t i = 1; i < conditionalExpressions.size(); i++) {
+        visit(conditionalExpressions[i]);  // Next operand
+        emitInstruction(VMOpcode::OP_BITWISE_AND);  // Perform AND operation
+    }
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitShiftExpression(ArduinoCParser::ShiftExpressionContext *ctx) {
+    std::cout << "Compiling shift expression" << std::endl;
+    
+    auto arithmeticExpressions = ctx->arithmeticExpression();
+    
+    if (arithmeticExpressions.size() == 1) {
+        // Single operand, just visit it
+        visit(arithmeticExpressions[0]);
+        return nullptr;
+    }
+    
+    // Multiple operands with shift operators
+    visit(arithmeticExpressions[0]);  // First operand
+    
+    for (size_t i = 1; i < arithmeticExpressions.size(); i++) {
+        visit(arithmeticExpressions[i]);  // Next operand
+        
+        // Determine shift direction from the token between operands
+        // This is a simplified approach - in a real parser we'd get the operator token
+        std::string fullText = ctx->getText();
+        if (fullText.find("<<") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_SHIFT_LEFT);
+        } else if (fullText.find(">>") != std::string::npos) {
+            emitInstruction(VMOpcode::OP_SHIFT_RIGHT);
+        }
+    }
+    
+    return nullptr;
+}
