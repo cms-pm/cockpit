@@ -27,17 +27,20 @@
 ## Current Technical Specifications
 
 ```yaml
-# Technical State
-BUILD: {flash: 25072, ram: 200, vm_mem: 8192, tests: 181, pass_rate: 100}
+# Technical State (Phase 3.6 → 3.7 Transition)
+BUILD: {flash: 25072, ram: 200, vm_mem: 8192, tests: 181, pass_rate: 100, integration: 75%}
+INSTRUCTION_FORMAT: {current: 16bit_total, planned: 32bit_ARM_aligned, layout: opcode_flags_immediate}
 OPCODES: {
   vm: [0x01-0x08: PUSH,POP,ADD,SUB,MUL,DIV,CALL,RET,HALT],
   arduino: [0x10-0x1F: DIGITAL_WRITE,DIGITAL_READ,ANALOG_WRITE,ANALOG_READ,DELAY,BUTTON_PRESSED,BUTTON_RELEASED,PIN_MODE,PRINTF,MILLIS,MICROS],
   compare: [0x20-0x2F: EQ,NE,LT,GT,LE,GE + signed variants],
-  control: [0x30-0x3F: JMP,JMP_TRUE,JMP_FALSE + reserved]
+  control: [0x30-0x3F: JMP,JMP_TRUE,JMP_FALSE + reserved],
+  planned_arrays: [0x54-0x55: LOAD_ARRAY,STORE_ARRAY]
 }
-MEMORY: {stack: 4096, heap: 4096, globals: 256, total: 8448}
+MEMORY: {stack: 4096, heap: 4096, globals: 256, arrays: planned_component, total: 8448}
 ARDUINO_API: [digitalWrite,digitalRead,analogWrite,analogRead,delay,pinMode,millis,micros,printf,buttonPressed,buttonReleased]
-COMPILER: {antlr4_grammar: complete, function_calls: working, control_flow: working, user_functions: working}
+COMPILER: {antlr4_grammar: complete, expressions: complex_working, negative_numbers: working, arrays: pending}
+VM_ARCHITECTURE: {current: monolithic, planned: component_based, modules: execution_memory_io}
 ```
 
 ## Phase 2.3+ Recent Decisions
@@ -52,16 +55,55 @@ TIMING_SYSTEM: {base: qemu_virtual_time, precision: millisecond, integration: bu
 C_TO_BYTECODE: {examples: complete, validation: 33_tests, patterns: documented}
 ```
 
-## Phase 3.3+ Recent Decisions
+## Phase 3.4-3.6 Evolution & Design Decisions
 
+### Critical Design Decisions Made
 ```yaml
-# Phase 3.3 Completed Architecture
-FUNCTION_SYSTEM: {approach: unified_resolution, addresses: 8bit_immediate, calls: stack_based}
-RTOS_FRAME_MGMT: {context_save: full_state, pc_stack_flags: saved, evolution_ready: true}
-BACKPATCHING: {jumps: working, functions: working, resolution: two_pass}
-USER_FUNCTIONS: {parameters: stack_based, returns: stack_based, calling_convention: c_style}
-GRAMMAR_EXTENSIONS: {return_stmt: working, arithmetic_expr: working, var_init: working}
-ERROR_RESOLUTION: {false_errors: eliminated, clean_output: achieved}
+# Phase 3.4: Advanced Expression & Memory Protection
+LOGICAL_OPERATORS: {implementation: short_circuit_eval, opcodes: 0x40-0x42, precedence: c_style}
+BITWISE_OPERATORS: {implementation: complete, opcodes: 0x60-0x6F, grammar: needs_refinement}
+COMPOUND_ASSIGNMENTS: {coverage: arithmetic_bitwise, parsing: text_based, working: true}
+MEMORY_PROTECTION: {approach: stack_canaries_heap_guards, overhead: minimal, safety: production}
+SOS_DEMO: {complexity: 228_bytes, validation: interactive_button, status: working}
+
+# Phase 3.5: Testing Framework & Validation
+TEST_ARCHITECTURE: {approach: flat_organization, automation: make_based, metrics: performance}
+BASIC_TESTS: {status: 5/5_pass, coverage: fundamental_ops, efficiency: 312_bytes_peak}
+INTEGRATION_TESTS: {blocker: arithmetic_grammar, critical_finding: precedence_issue}
+PHASE_4_READINESS: {assessment: basic_ready, handoff: documented, vm_stable: true}
+
+# Phase 3.6: Grammar Completion (COMPLETED)
+ARITHMETIC_GRAMMAR: {issue: single_op_limitation, solution: left_recursive_precedence, status: fixed}
+EXPRESSION_HIERARCHY: {problem: flat_alternatives, solution: proper_precedence, result: 75%_improvement}
+NEGATIVE_NUMBERS: {implementation: primaryExpression_extension, parsing: working, constants: unlimited}
+BOOLEAN_COMPARISONS: {opcodes: OP_GT_OP_EQ_etc, bytecode: correct, vm_integration: working}
+INTEGRATION_TESTS: {status: 3/4_passing, blocked: array_support_only, expressions: complex_working}
+
+# Phase 3.7: Component Architecture & Infrastructure Upgrade (IN PROGRESS)
+ARM_CORTEX_OPTIMIZED: {instruction_format: 32bit_aligned, layout: opcode_flags_immediate, precedent: arm_thumb2}
+INSTRUCTION_DETAILS: {opcode: 8bit_256_ops, flags: 8bit_variants, immediate: 16bit_range, total: 32bit}
+COMPONENT_ARCHITECTURE: {design: modular_vm, components: execution_memory_io, boundaries: clean_apis}
+ARRAY_IMPLEMENTATION: {scope: global_only, bounds: runtime_checking, memory: static_pool, safety: explicit}
+REVIEWER_CONCERNS: {alignment: addressed, memory_model: clarified, bounds_checking: explicit}
+IMPLEMENTATION_ORDER: {current: architecture_refinement, next: component_foundation}
+```
+
+### Key Architectural Insights Discovered
+```yaml
+# Performance & Memory Characteristics
+INSTRUCTION_EFFICIENCY: {basic_tests: 93_instructions, improvement: 30%_reduction, headroom: 95.9%}
+MEMORY_LAYOUT: {peak_usage: 312_bytes, target_percentage: 3.8%, constraint_validation: passed}
+BYTECODE_DENSITY: {format: 16bit_optimal, arm_compatibility: confirmed, scalability: 8bit_limited}
+
+# Grammar Design Lessons
+ANTLR_PATTERNS: {left_recursion: required_for_chaining, token_access: preferred_over_getText}
+OPERATOR_PRECEDENCE: {c_style: mandatory, hierarchy: multiplicative_additive_logical, parsing: working}
+EXPRESSION_COMPLEXITY: {basic: 100%_working, integration: 50%_working, complex: blocked_by_grammar}
+
+# Embedded Systems Constraints
+VM_INSTRUCTION_LIMITS: {constants: 0-255, jumps: ±127, functions: 0-255, impact: scaling_blocker}
+HARDWARE_CONSIDERATIONS: {timing: millisecond_precision, memory: 8KB_unified, debug: swd_compatible}
+SAFETY_REQUIREMENTS: {memory_protection: implemented, bounds_checking: needed, error_handling: basic}
 ```
 
 ## Current Phase Status
@@ -72,7 +114,10 @@ ERROR_RESOLUTION: {false_errors: eliminated, clean_output: achieved}
 - ✅ **Phase 3.1**: Minimal C Parser Foundation complete (ANTLR compiler working)
 - ✅ **Phase 3.2**: Essential Control Flow complete (if/else, while with jump instructions)
 - ✅ **Phase 3.3**: Basic Functions complete (user-defined functions with parameters/returns)
-- 🚀 **Next**: Begin Phase 3.4 planning (Advanced Expressions and Optimization)
+- ✅ **Phase 3.4**: Advanced Features complete (logical, bitwise, compound ops, memory protection, SOS demo)
+- ✅ **Phase 3.5**: Comprehensive Testing complete (100% basic tests, framework established, QA report)
+- ✅ **Phase 3.6**: Grammar Completion complete (75% integration tests passing, arithmetic grammar fixed, negative numbers)
+- 🚀 **Phase 3.7**: Component Architecture & 16-bit Upgrade (ARM Thumb-inspired design, modular VM, array support)
 
 ### Current Technical Status
 - **Build System**: Working (25,072 bytes flash, 200 bytes + 8KB VM RAM)
@@ -177,6 +222,70 @@ void setup() {
 - **VM Memory**: Existing 8KB stack + 256 bytes globals
 - **Symbol Table**: <2KB for typical Arduino programs (50 symbols max)
 
+## Phase 3.7 Implementation Context
+
+### Component Architecture Foundation (Ready for Implementation)
+
+**Core Technologies Finalized:**
+- ✅ **ARM Thumb-Inspired Instruction Format**: 24-bit instructions (8-bit opcode + 16-bit immediate)
+- ✅ **Component-Based VM Design**: ExecutionEngine, MemoryManager, IOController separation
+- ✅ **Array Implementation Strategy**: Global arrays with compile-time bounds checking
+- ✅ **No Backward Compatibility**: Clean architectural foundation prioritized
+
+**Implementation Roadmap (Detailed):**
+
+#### **Chunk 3.7.1: Component Architecture Foundation (3-4 hours)**
+**Goal**: Modular VM with clean API boundaries
+
+**Component Design:**
+```c
+// ExecutionEngine: Instruction decode & execution
+// MemoryManager: Global variables, stack, arrays  
+// IOController: Arduino HAL, printf, hardware abstraction
+```
+
+**Validation**: Each component testable independently with defined interfaces
+
+#### **Chunk 3.7.2: 32-bit Instruction Format Upgrade (2-3 hours)**
+**Goal**: ARM Cortex-M4 optimized instruction format
+
+**Technical Implementation:**
+- Instruction format: `struct { uint8_t opcode; uint8_t flags; uint16_t immediate; }`
+- ARM Cortex-M4 optimized 32-bit aligned instructions
+- Flag-based instruction variants (reduces opcode explosion)
+- Support constants 0-65535 and array indices
+- Update bytecode visitor for flag-aware emission
+
+#### **Chunk 3.7.3: Array Implementation (3-4 hours)**
+**Goal**: Global arrays with 16-bit indexing
+
+**Array Features:**
+- Grammar: `int arr[size];` declarations and `arr[index]` access
+- Symbol table: Array metadata with size tracking
+- Bytecode: `OP_LOAD_ARRAY` and `OP_STORE_ARRAY` opcodes
+- Memory: Static allocation in MemoryManager component
+
+#### **Chunk 3.7.4: Integration & Documentation (2-3 hours)**
+**Goal**: 100% integration test success and Phase 4 handoff
+
+**Deliverables:**
+- Complete integration test validation (4/4 passing)
+- Comprehensive architecture documentation
+- API documentation with examples
+- Performance characterization data
+
+### Design Decisions Documented
+- **Architecture Document**: `/docs/PHASE_3_7_ARCHITECTURE_DECISIONS.md` (comprehensive design rationale)
+- **ARM Thumb Precedent**: Battle-tested approach for embedded immediate encoding
+- **Component Boundaries**: Clean separation enables debugging, testing, and future expansion
+- **Array Simplicity**: Global-only arrays sufficient for Arduino-style programming patterns
+
+### Success Criteria Defined
+1. ✅ **100% Integration Test Pass Rate**: All tests including array memory test
+2. ✅ **Component Architecture**: Modular VM with documented APIs
+3. ✅ **16-bit Immediate Support**: Constants and array indices up to 65535
+4. ✅ **Phase 4 Readiness**: Comprehensive handoff documentation
+
 ## Final Implementation Context
 
 **Project Overview**: Embedded emulator/hypervisor running C/C++ bytecode on microprocessor-agnostic hardware (ARM Cortex-M4, RISC-V), providing hardware abstraction similar to J2ME/MicroPython.
@@ -190,4 +299,4 @@ void setup() {
 
 **Context Preservation**: All design decisions documented, pool question results preserved, KISS principle guidelines maintained, memory constraint validation completed.
 
-**Phase 3.3 is complete with comprehensive function system, RTOS-ready architecture, and 100% test validation. The project is ready for Phase 3.4 advanced expression handling and optimization.**
+**Phase 3.6 is complete with grammar completion and 75% integration test success. Phase 3.7 architectural decisions are finalized with ARM Thumb-inspired instruction format and component-based VM design. The project is ready for foundational infrastructure implementation before Phase 4 hardware deployment.**
