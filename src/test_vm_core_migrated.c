@@ -198,33 +198,6 @@ void test_division_by_zero(void) {
     component_vm_destroy(vm);
 }
 
-// Test bytecode execution with legacy compatibility
-void test_legacy_compatibility(void) {
-    ComponentVM_C* vm = NULL;
-    
-    // Test legacy init
-    int result = vm_init_compat(&vm);
-    TEST_ASSERT(result == 0, "Legacy init compatibility");
-    TEST_ASSERT(vm != NULL, "Legacy VM created");
-    
-    // Test legacy program loading with 16-bit format
-    uint16_t legacy_program[] = {
-        0x010A,  // PUSH 10 (old format: opcode | immediate)
-        0x0114,  // PUSH 20
-        0x0300,  // ADD
-        0x0000   // HALT
-    };
-    
-    result = vm_load_program_compat(vm, legacy_program, 4);
-    TEST_ASSERT(result == 0, "Legacy program loading");
-    
-    // Test legacy execution
-    result = vm_run_compat(vm, 1000);
-    TEST_ASSERT(result == 0, "Legacy program execution");
-    TEST_ASSERT(component_vm_is_halted(vm), "VM halted after legacy execution");
-    
-    component_vm_destroy(vm);
-}
 
 // Main test runner for VM core tests
 int run_vm_core_tests(void) {
@@ -243,7 +216,6 @@ int run_vm_core_tests(void) {
     test_stack_underflow();
     test_arithmetic_ops();
     test_division_by_zero();
-    test_legacy_compatibility();
     
     // Print summary
     semihost_write_string("\n--- VM Core Test Summary ---\n");
@@ -258,7 +230,6 @@ int run_vm_core_tests(void) {
     if (results.failed == 0) {
         debug_print("✓ VM Core migration successful");
         debug_print("✓ Phase 1 functionality validated");
-        debug_print("✓ Legacy compatibility confirmed");
     }
     
     return results.failed;

@@ -6,7 +6,7 @@
 #ifndef TEST_GPIO_COMMON_H
 #define TEST_GPIO_COMMON_H
 
-#include "../lib/vm_core/vm_core.h"
+#include "component_vm_c.h"
 #include "../lib/arduino_hal/arduino_hal.h"
 #include "../lib/semihosting/semihosting.h"
 

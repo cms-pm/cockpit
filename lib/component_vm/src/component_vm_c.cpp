@@ -200,54 +200,138 @@ void component_vm_reset_performance_metrics(ComponentVM_C* vm) {
     }
 }
 
-// === Legacy Compatibility Functions ===
+// Legacy compatibility functions removed - wisteria eradicated
 
-int vm_init_compat(ComponentVM_C** vm_ptr) {
-    if (!vm_ptr) {
-        return 1; // Error
+// ============= TIER 1 STATE VALIDATION IMPLEMENTATION =============
+// The Golden Triangle: Stack, Memory, Execution validation with canary integration
+
+bool component_vm_validate_memory_integrity(const ComponentVM_C* vm) {
+    if (!vm || !vm->vm_instance) {
+        return false;
     }
     
-    *vm_ptr = component_vm_create();
-    return (*vm_ptr) ? 0 : 1;
+    // Validate memory manager integrity
+    return vm->vm_instance->get_memory_manager().validate_memory_integrity();
 }
 
-int vm_load_program_compat(ComponentVM_C* vm, uint16_t* program, uint32_t size) {
-    if (!vm || !program) {
-        return 1; // Error
+size_t component_vm_get_stack_pointer(const ComponentVM_C* vm) {
+    if (!vm || !vm->vm_instance) {
+        return 0;
     }
     
-    // Convert legacy 16-bit instructions to new 32-bit format
-    vm_instruction_c_t* converted_program = new(std::nothrow) vm_instruction_c_t[size];
-    if (!converted_program) {
-        return 1; // Memory allocation error
-    }
-    
-    for (uint32_t i = 0; i < size; i++) {
-        uint16_t legacy_instr = program[i];
-        // Legacy format: opcode in upper 8 bits, immediate in lower 8 bits
-        converted_program[i].opcode = (uint8_t)((legacy_instr >> 8) & 0xFF);
-        converted_program[i].flags = 0;
-        converted_program[i].immediate = (uint16_t)(legacy_instr & 0xFF);
-    }
-    
-    bool result = component_vm_load_program(vm, converted_program, size);
-    
-    delete[] converted_program;
-    return result ? 0 : 1;
+    return vm->vm_instance->get_execution_engine().get_sp();
 }
 
-int vm_run_compat(ComponentVM_C* vm, uint32_t max_cycles) {
-    // max_cycles is ignored in new implementation - it runs until halt or error
-    if (!vm) {
-        return 1; // Error
+size_t component_vm_get_program_counter(const ComponentVM_C* vm) {
+    if (!vm || !vm->vm_instance) {
+        return 0;
     }
     
-    // Execute single steps until halted or error
-    while (!component_vm_is_halted(vm)) {
-        if (!component_vm_execute_single_step(vm)) {
-            return 1; // Execution error
+    return vm->vm_instance->get_execution_engine().get_pc();
+}
+
+bool component_vm_validate_stack_state(const ComponentVM_C* vm,
+                                       const vm_stack_validation_t* expected_stack) {
+    if (!vm || !vm->vm_instance || !expected_stack) {
+        return false;
+    }
+    
+    const ExecutionEngine& engine = vm->vm_instance->get_execution_engine();
+    
+    // Validate stack pointer
+    size_t actual_sp = engine.get_sp();
+    if (actual_sp != expected_stack->expected_sp) {
+        return false;  // Stack pointer mismatch
+    }
+    
+    // Validate clean stack expectation
+    if (expected_stack->stack_should_be_clean && actual_sp != 1) {
+        return false;  // Stack should be clean but isn't
+    }
+    
+    // Validate canary integrity if requested
+    if (expected_stack->canaries_should_be_intact) {
+        #ifdef DEBUG
+        // Access canary validation through protected method
+        // Note: This requires friendship or protected access
+        // For now, we'll validate through memory integrity
+        if (!component_vm_validate_memory_integrity(vm)) {
+            return false;  // Canaries died - memory corruption
+        }
+        #endif
+    }
+    
+    // TODO: Validate expected_top_values when stack inspection is implemented
+    // This requires additional API to peek at stack contents
+    
+    return true;
+}
+
+bool component_vm_validate_memory_state(const ComponentVM_C* vm,
+                                        const vm_memory_expectation_t* expectations,
+                                        size_t count) {
+    if (!vm || !vm->vm_instance || !expectations) {
+        return false;
+    }
+    
+    const MemoryManager& memory = vm->vm_instance->get_memory_manager();
+    
+    // Validate each memory expectation
+    for (size_t i = 0; i < count; i++) {
+        const vm_memory_expectation_t* expectation = &expectations[i];
+        
+        int32_t actual_value;
+        if (!memory.load_global(expectation->variable_index, actual_value)) {
+            return false;  // Failed to load global variable
+        }
+        
+        if (actual_value != expectation->expected_value) {
+            return false;  // Value mismatch
         }
     }
     
-    return 0; // Success
+    return true;
+}
+
+bool component_vm_validate_final_state(const ComponentVM_C* vm, 
+                                       const vm_final_state_validation_t* expected_state) {
+    if (!vm || !vm->vm_instance || !expected_state) {
+        return false;
+    }
+    
+    const ExecutionEngine& engine = vm->vm_instance->get_execution_engine();
+    
+    // Validate execution state
+    const vm_execution_validation_t* exec_validation = &expected_state->execution_validation;
+    
+    // Check halt state
+    if (engine.is_halted() != exec_validation->should_be_halted) {
+        return false;  // Halt state mismatch
+    }
+    
+    // Check program counter
+    if (engine.get_pc() != exec_validation->expected_final_pc) {
+        return false;  // Program counter mismatch
+    }
+    
+    // Check instruction count
+    size_t actual_instruction_count = component_vm_get_instruction_count(vm);
+    if (actual_instruction_count != exec_validation->expected_instruction_count) {
+        return false;  // Instruction count mismatch
+    }
+    
+    // Validate stack state
+    if (!component_vm_validate_stack_state(vm, &expected_state->stack_validation)) {
+        return false;  // Stack validation failed
+    }
+    
+    // Validate memory state
+    if (expected_state->memory_checks && expected_state->memory_check_count > 0) {
+        if (!component_vm_validate_memory_state(vm, expected_state->memory_checks, 
+                                               expected_state->memory_check_count)) {
+            return false;  // Memory validation failed
+        }
+    }
+    
+    return true;  // All validations passed - canaries are singing!
 }

@@ -143,32 +143,100 @@ vm_c_performance_metrics_t component_vm_get_performance_metrics(const ComponentV
  */
 void component_vm_reset_performance_metrics(ComponentVM_C* vm);
 
-// === Legacy Compatibility Functions ===
-// These provide compatibility with the old vm_core API for existing tests
+// === Memory Protection & State Validation ===
 
 /**
- * @brief Legacy-compatible VM initialization (maps to component_vm_create)
- * @param vm_ptr Pointer to store created VM instance
- * @return 0 on success, error code on failure
- */
-int vm_init_compat(ComponentVM_C** vm_ptr);
-
-/**
- * @brief Legacy-compatible program loading
+ * @brief Validate VM memory integrity (canaries, bounds, etc.)
  * @param vm VM instance
- * @param program Program instructions (16-bit format)
- * @param size Program size
- * @return 0 on success, error code on failure
+ * @return true if memory is intact, false if corruption detected
  */
-int vm_load_program_compat(ComponentVM_C* vm, uint16_t* program, uint32_t size);
+bool component_vm_validate_memory_integrity(const ComponentVM_C* vm);
 
 /**
- * @brief Legacy-compatible program execution
+ * @brief Get current stack pointer for validation
  * @param vm VM instance
- * @param max_cycles Maximum cycles to run (ignored in new implementation)
- * @return 0 on success, error code on failure
+ * @return Current stack pointer value
  */
-int vm_run_compat(ComponentVM_C* vm, uint32_t max_cycles);
+size_t component_vm_get_stack_pointer(const ComponentVM_C* vm);
+
+/**
+ * @brief Get current program counter for validation
+ * @param vm VM instance
+ * @return Current program counter value
+ */
+size_t component_vm_get_program_counter(const ComponentVM_C* vm);
+
+// === Tier 1 State Validation Framework ===
+
+/**
+ * @brief Stack validation structure for comprehensive stack state checking
+ */
+typedef struct {
+    size_t expected_sp;           // Expected stack pointer value
+    int32_t expected_top_values[4]; // Expected last 4 stack entries
+    bool stack_should_be_clean;   // Should stack be empty (SP == 1)
+    bool canaries_should_be_intact; // Should canaries be alive and well
+} vm_stack_validation_t;
+
+/**
+ * @brief Memory expectation structure for global variable validation
+ */
+typedef struct {
+    uint8_t variable_index;       // Global variable index
+    int32_t expected_value;       // Expected value at this location
+    const char* variable_name;    // Human-readable name for debugging
+} vm_memory_expectation_t;
+
+/**
+ * @brief Execution validation structure for program counter and halt state
+ */
+typedef struct {
+    size_t expected_final_pc;     // Expected program counter after execution
+    bool should_be_halted;        // Should VM be in halted state
+    size_t expected_instruction_count; // Expected number of instructions executed
+    bool execution_should_succeed; // Should execution complete successfully
+} vm_execution_validation_t;
+
+/**
+ * @brief Comprehensive final state validation structure - The Golden Triangle
+ */
+typedef struct {
+    vm_stack_validation_t stack_validation;
+    vm_memory_expectation_t* memory_checks;
+    size_t memory_check_count;
+    vm_execution_validation_t execution_validation;
+} vm_final_state_validation_t;
+
+/**
+ * @brief Validate VM final state against expected conditions
+ * @param vm VM instance
+ * @param expected_state Expected state specification
+ * @return true if all validations pass, false otherwise
+ */
+bool component_vm_validate_final_state(const ComponentVM_C* vm, 
+                                       const vm_final_state_validation_t* expected_state);
+
+/**
+ * @brief Validate only stack state (part of Tier 1 validation)
+ * @param vm VM instance
+ * @param expected_stack Expected stack state
+ * @return true if stack validation passes, false otherwise
+ */
+bool component_vm_validate_stack_state(const ComponentVM_C* vm,
+                                       const vm_stack_validation_t* expected_stack);
+
+/**
+ * @brief Validate global memory state against expectations
+ * @param vm VM instance
+ * @param expectations Array of memory expectations
+ * @param count Number of expectations to validate
+ * @return true if all memory validations pass, false otherwise
+ */
+bool component_vm_validate_memory_state(const ComponentVM_C* vm,
+                                        const vm_memory_expectation_t* expectations,
+                                        size_t count);
+
+// Legacy compatibility functions removed - use ComponentVM C API directly
 
 #ifdef __cplusplus
 }

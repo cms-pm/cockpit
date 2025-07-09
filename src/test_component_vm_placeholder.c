@@ -116,26 +116,6 @@ void test_component_vm_wrapper_error_handling(void) {
     component_vm_destroy(vm);
 }
 
-// Test legacy compatibility functions
-void test_component_vm_legacy_compatibility(void) {
-    ComponentVM_C* vm = NULL;
-    
-    // Test legacy init
-    int result = vm_init_compat(&vm);
-    TEST_ASSERT(result == 0, "Legacy init compatibility");
-    TEST_ASSERT(vm != NULL, "Legacy init creates VM");
-    
-    // Test legacy program format conversion (16-bit to 32-bit)
-    uint16_t legacy_program[] = {0x0000}; // HALT in old format
-    result = vm_load_program_compat(vm, legacy_program, 1);
-    TEST_ASSERT(result == 0, "Legacy program loading");
-    
-    // Test legacy execution
-    result = vm_run_compat(vm, 1000); // max_cycles ignored
-    TEST_ASSERT(result == 0, "Legacy execution compatibility");
-    
-    component_vm_destroy(vm);
-}
 
 // Run all ComponentVM wrapper tests
 int run_component_vm_tests(void) {
@@ -150,7 +130,6 @@ int run_component_vm_tests(void) {
     test_component_vm_wrapper_execution();
     test_component_vm_wrapper_reset();
     test_component_vm_wrapper_error_handling();
-    test_component_vm_legacy_compatibility();
     
     // Print summary
     semihost_write_string("\n--- ComponentVM Test Summary ---\n");
@@ -164,7 +143,6 @@ int run_component_vm_tests(void) {
     
     if (results.failed == 0) {
         semihost_write_string("✓ ComponentVM C wrapper working correctly\n");
-        semihost_write_string("✓ Legacy vm_core migration successful\n");
         semihost_write_string("✓ Mixed C/C++ compilation ready\n");
     }
     

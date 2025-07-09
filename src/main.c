@@ -82,7 +82,57 @@ void Reset_Handler(void)
     // Run migrated Phase 3 tests (advanced features)
     debug_print("Running Phase 3: Integration Tests...");
     int integration_result = run_integration_tests();
+    
+    // Test minimal debug program to verify CALL fix
+    debug_print("Testing minimal debug program (CALL fix validation)...");
+    
+    vm_instruction_c_t minimal_program[] = {
+        {0x08, 0, 2},   // CALL setup (address 2)  
+        {0x00, 0, 0},   // HALT
+        {0x01, 0, 42},  // PUSH 42
+        {0x51, 0, 9},   // STORE_GLOBAL global_var (index 9)
+        {0x09, 0, 0}    // RET
+    };
+    
+    ComponentVM_C* test_vm = component_vm_create();
+    bool minimal_result = false;
+    if (test_vm) {
+        minimal_result = component_vm_execute_program(test_vm, minimal_program, 5);
+        if (minimal_result && component_vm_is_halted(test_vm)) {
+            debug_print("✓ Minimal debug program: PASS (CALL/RET working)");
+        } else {
+            debug_print("✗ Minimal debug program: FAIL");
+            minimal_result = false;
+        }
+        component_vm_destroy(test_vm);
+    }
+    
+    // Test no printf program to isolate printf issues
+    debug_print("Testing no printf program (isolate printf hanging)...");
+    
+    vm_instruction_c_t no_printf_program[] = {
+        {0x08, 0, 2},   // CALL setup (address 2)
+        {0x00, 0, 0},   // HALT
+        {0x01, 0, 123}, // PUSH 123
+        {0x51, 0, 9},   // STORE_GLOBAL result (index 9)
+        {0x09, 0, 0}    // RET
+    };
+    
+    ComponentVM_C* no_printf_vm = component_vm_create();
+    bool no_printf_result = false;
+    if (no_printf_vm) {
+        no_printf_result = component_vm_execute_program(no_printf_vm, no_printf_program, 5);
+        if (no_printf_result && component_vm_is_halted(no_printf_vm)) {
+            debug_print("✓ No printf program: PASS (basic function calls working)");
+        } else {
+            debug_print("✗ No printf program: FAIL");
+            no_printf_result = false;
+        }
+        component_vm_destroy(no_printf_vm);
+    }
     total_failures += integration_result;
+    if (!minimal_result) total_failures++;
+    if (!no_printf_result) total_failures++;
     
     // Report final result and exit
     if (total_failures == 0) {

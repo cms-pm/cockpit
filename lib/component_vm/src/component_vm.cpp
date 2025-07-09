@@ -34,15 +34,19 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
     start_performance_timing();
     clear_error();
     
-    bool success = engine_.execute_program(program, program_size, memory_, io_);
-    
-    update_performance_metrics();
-    
-    if (!success) {
-        set_error(VMError::INVALID_INSTRUCTION);
+    // Execute program with proper instruction counting
+    // Use single-step execution to maintain consistent metrics
+    while (!engine_.is_halted() && instruction_count_ < program_size) {
+        if (!engine_.execute_single_instruction(memory_, io_)) {
+            set_error(VMError::INVALID_INSTRUCTION);
+            return false;
+        }
+        instruction_count_++;
+        metrics_.instructions_executed++;
     }
     
-    return success;
+    update_performance_metrics();
+    return true;
 }
 
 bool ComponentVM::execute_single_step() noexcept
@@ -57,9 +61,9 @@ bool ComponentVM::execute_single_step() noexcept
     }
     
     bool success = engine_.execute_single_instruction(memory_, io_);
-    instruction_count_++;
     
     if (success) {
+        instruction_count_++;
         metrics_.instructions_executed++;
     } else {
         set_error(VMError::INVALID_INSTRUCTION);
