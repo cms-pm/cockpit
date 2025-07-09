@@ -5,7 +5,7 @@ BUILD_DIR = ../build
 COMPILER = $(BUILD_DIR)/arduino_compiler
 TEST_RUNNER = $(BUILD_DIR)/test_runner
 
-.PHONY: all test test-basic test-integration test-complex clean setup
+.PHONY: all test test-basic test-integration test-complex test-runtime clean setup
 
 all: setup test
 
@@ -35,6 +35,12 @@ test-complex:
 test-all:
 	@echo "=== EXECUTING ALL TESTS ==="
 	@cd $(BUILD_DIR) && ./test_runner all
+
+test-runtime: test-all
+	@echo ""
+	@echo "=== EXECUTING BYTECODE RUNTIME VALIDATION ==="
+	@echo "Validating compiler→bytecode→VM execution chain..."
+	@cd $(BUILD_DIR) && ./runtime_validator
 
 # Individual test execution
 test-single:
@@ -71,6 +77,7 @@ help:
 	@echo "  test-basic    - Run basic functionality tests"
 	@echo "  test-integration - Run integration tests"
 	@echo "  test-complex  - Run complex scenario tests"
+	@echo "  test-runtime  - Run bytecode runtime validation"
 	@echo "  test-single   - Run single test (usage: make test-single TEST=file.c)"
 	@echo "  test-performance - Check resource usage"
 	@echo "  smoke         - Quick compiler functionality check"

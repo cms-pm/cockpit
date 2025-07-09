@@ -235,9 +235,9 @@ def main():
         
         # Check for test success in output
         output = result['stderr'] if result['stderr'] else ""
-        if "ALL HYPERVISOR TESTS SUCCESSFUL" in output:
+        if "ALL COMPONENTVM TESTS SUCCESSFUL" in output or "ALL HYPERVISOR TESTS SUCCESSFUL" in output:
             return 0  # All tests passed
-        elif "SOME HYPERVISOR TESTS FAILED" in output:
+        elif "SOME HYPERVISOR TESTS FAILED" in output or "SOME COMPONENTVM TESTS FAILED" in output:
             return 1  # Some tests failed
         else:
             return result['returncode']  # Fall back to QEMU exit code

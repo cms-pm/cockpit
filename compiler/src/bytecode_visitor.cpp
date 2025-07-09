@@ -93,7 +93,28 @@ void BytecodeVisitor::reportError(const std::string& message) {
 antlrcpp::Any BytecodeVisitor::visitProgram(ArduinoCParser::ProgramContext *ctx) {
     std::cout << "Compiling Arduino C program..." << std::endl;
     
-    // Visit all declarations and functions
+    // Check if we have a setup() or main() function and emit entry point
+    bool has_setup = false;
+    bool has_main = false;
+    
+    // First pass: scan for entry point functions
+    for (auto child : ctx->children) {
+        if (auto funcDef = dynamic_cast<ArduinoCParser::FunctionDefinitionContext*>(child)) {
+            std::string funcName = funcDef->IDENTIFIER()->getText();
+            if (funcName == "setup") has_setup = true;
+            if (funcName == "main") has_main = true;
+        }
+    }
+    
+    // Generate entry point call
+    if (has_main) {
+        emitFunctionCall("main");
+    } else if (has_setup) {
+        emitFunctionCall("setup");
+    }
+    emitInstruction(VMOpcode::OP_HALT);
+    
+    // Visit all declarations and functions (they will be placed after entry point)
     for (auto child : ctx->children) {
         visit(child);
     }
@@ -101,9 +122,6 @@ antlrcpp::Any BytecodeVisitor::visitProgram(ArduinoCParser::ProgramContext *ctx)
     // Resolve all jump targets and function calls
     resolveJumps();
     resolveFunctionCalls();
-    
-    // Add halt instruction at the end
-    emitInstruction(VMOpcode::OP_HALT);
     
     std::cout << "Compilation complete. Generated " << bytecode.size() << " instructions." << std::endl;
     return nullptr;
@@ -200,6 +218,23 @@ antlrcpp::Any BytecodeVisitor::visitFunctionDefinition(ArduinoCParser::FunctionD
     
     // Exit function scope
     symbolTable.exitScope();
+    
+    return nullptr;
+}
+
+antlrcpp::Any BytecodeVisitor::visitFunctionDeclaration(ArduinoCParser::FunctionDeclarationContext *ctx) {
+    std::string funcName = ctx->IDENTIFIER()->getText();
+    std::string returnType = ctx->type()->getText();
+    
+    std::cout << "Declaring function prototype: " << funcName << std::endl;
+    
+    // Only declare function in symbol table - no bytecode generation
+    // Address will be assigned later when actual definition is encountered
+    DataType dataType = (returnType == "int") ? DataType::INT : DataType::VOID;
+    symbolTable.declareSymbol(funcName, SymbolType::FUNCTION, dataType);
+    
+    // Note: We don't call registerFunction() here because no bytecode is generated yet
+    // The actual function definition will register the address
     
     return nullptr;
 }
@@ -347,6 +382,51 @@ antlrcpp::Any BytecodeVisitor::visitAssignment(ArduinoCParser::AssignmentContext
 antlrcpp::Any BytecodeVisitor::visitFunctionCall(ArduinoCParser::FunctionCallContext *ctx) {
     std::string funcName = ctx->IDENTIFIER()->getText();
     
+    // Special handling for printf - requires argument count and string index processing
+    if (funcName == "printf") {
+        int arg_count = 0;
+        int string_index = 0;
+        
+        // Process arguments and count them
+        if (ctx->argumentList()) {
+            auto args = ctx->argumentList()->expression();
+            arg_count = args.size();
+            
+            // First argument should be string literal - extract and add to string table
+            if (arg_count > 0) {
+                auto first_arg = args[0];
+                // Check if it's a string literal by examining the parse tree
+                std::string arg_text = first_arg->getText();
+                if (arg_text.front() == '"' && arg_text.back() == '"') {
+                    // Remove quotes and add to string table
+                    std::string str_content = arg_text.substr(1, arg_text.length() - 2);
+                    string_index = addStringLiteral(str_content);
+                    
+                    // Process remaining arguments (skip first string literal)
+                    for (size_t i = 1; i < args.size(); i++) {
+                        visit(args[i]);
+                    }
+                    arg_count--; // String doesn't go on stack, only other args
+                } else {
+                    // Not a string literal, process all args normally
+                    for (auto arg : args) {
+                        visit(arg);
+                    }
+                }
+            }
+        }
+        
+        // Push argument count to stack
+        emitPushConstant(arg_count);
+        
+        // Emit printf with string index in immediate field
+        emitInstruction(VMOpcode::OP_PRINTF, static_cast<uint16_t>(string_index));
+        std::cout << "Generated printf call: " << arg_count << " args, string_index=" << string_index << std::endl;
+        
+        return nullptr;
+    }
+    
+    // Regular function call processing
     // Process arguments first (push them onto stack in reverse order for correct parameter order)
     if (ctx->argumentList()) {
         auto args = ctx->argumentList()->expression();
@@ -362,31 +442,11 @@ antlrcpp::Any BytecodeVisitor::visitFunctionCall(ArduinoCParser::FunctionCallCon
 }
 
 antlrcpp::Any BytecodeVisitor::visitExpression(ArduinoCParser::ExpressionContext *ctx) {
+    // Handle both assignment and ternary expressions as per grammar
     if (ctx->assignment()) {
         return visit(ctx->assignment());
-    } else if (ctx->logicalOrExpression()) {
-        return visit(ctx->logicalOrExpression());
-    } else if (ctx->conditionalExpression()) {
-        return visit(ctx->conditionalExpression());
-    } else if (ctx->arithmeticExpression()) {
-        return visit(ctx->arithmeticExpression());
-    } else if (ctx->functionCall()) {
-        return visit(ctx->functionCall());
-    } else if (ctx->IDENTIFIER()) {
-        // Load variable value onto stack
-        std::string varName = ctx->IDENTIFIER()->getText();
-        emitLoadVariable(varName);
-    } else if (ctx->INTEGER()) {
-        // Push integer constant onto stack
-        int value = std::stoi(ctx->INTEGER()->getText());
-        emitPushConstant(value);
-    } else if (ctx->STRING()) {
-        // Handle string literal
-        std::string str = ctx->STRING()->getText();
-        // Remove quotes
-        str = str.substr(1, str.length() - 2);
-        int stringIndex = addStringLiteral(str);
-        emitPushConstant(stringIndex);
+    } else if (ctx->ternaryExpression()) {
+        return visit(ctx->ternaryExpression());
     }
     return nullptr;
 }

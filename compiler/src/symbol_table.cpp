@@ -35,15 +35,9 @@ bool SymbolTable::declareSymbol(const std::string& name, SymbolType type, DataTy
     Symbol newSymbol(name, type, dataType, currentScope);
     
     // Allocate memory based on scope
-    if (currentScope == 0) {
-        // Global variable
-        newSymbol.globalIndex = allocateGlobal();
-        newSymbol.isGlobal = true;
-    } else {
-        // Local variable
-        newSymbol.stackOffset = allocateLocal();
-        newSymbol.isGlobal = false;
-    }
+    // KISS Design: All variables are global-only for simplicity
+    newSymbol.globalIndex = allocateGlobal();
+    newSymbol.isGlobal = true;
     
     symbols.push_back(newSymbol);
     return true;

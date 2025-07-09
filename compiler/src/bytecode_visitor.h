@@ -92,6 +92,7 @@ public:
     antlrcpp::Any visitProgram(ArduinoCParser::ProgramContext *ctx) override;
     antlrcpp::Any visitDeclaration(ArduinoCParser::DeclarationContext *ctx) override;
     antlrcpp::Any visitFunctionDefinition(ArduinoCParser::FunctionDefinitionContext *ctx) override;
+    antlrcpp::Any visitFunctionDeclaration(ArduinoCParser::FunctionDeclarationContext *ctx) override;
     antlrcpp::Any visitCompoundStatement(ArduinoCParser::CompoundStatementContext *ctx) override;
     antlrcpp::Any visitExpressionStatement(ArduinoCParser::ExpressionStatementContext *ctx) override;
     antlrcpp::Any visitAssignment(ArduinoCParser::AssignmentContext *ctx) override;

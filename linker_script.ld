@@ -45,6 +45,10 @@ SECTIONS
         _bss_end = .;
     } > SRAM
 
+    /* Heap for dynamic allocation (for C++ new/delete) */
+    _heap_start = _bss_end;
+    _heap_end = _stack_end - 0x1000; /* Leave 4KB gap before stack */
+    
     /* Stack at end of SRAM */
     _stack_start = ORIGIN(SRAM) + LENGTH(SRAM);
     _stack_end = _stack_start - _stack_size;

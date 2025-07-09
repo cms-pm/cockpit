@@ -2,7 +2,7 @@ grammar ArduinoC;
 
 // Parser Rules
 program
-    : (declaration | functionDefinition)* EOF
+    : (declaration | functionDefinition | functionDeclaration)* EOF
     ;
 
 declaration
@@ -11,6 +11,10 @@ declaration
 
 functionDefinition
     : type IDENTIFIER '(' parameterList? ')' compoundStatement
+    ;
+
+functionDeclaration
+    : type IDENTIFIER '(' parameterList? ')' ';'
     ;
 
 parameterList
@@ -52,13 +56,11 @@ expressionStatement
 
 expression
     : assignment
-    | logicalOrExpression
-    | conditionalExpression
-    | arithmeticExpression
-    | functionCall
-    | IDENTIFIER
-    | INTEGER
-    | STRING
+    | ternaryExpression
+    ;
+
+ternaryExpression
+    : logicalOrExpression ('?' expression ':' expression)?
     ;
 
 logicalOrExpression
@@ -153,12 +155,16 @@ type
     ;
 
 // Lexer Rules
+QUESTION_MARK : '?';
+COLON : ':';
+
 IDENTIFIER
     : [a-zA-Z_][a-zA-Z0-9_]*
     ;
 
 INTEGER
-    : [0-9]+
+    : '0x' [0-9a-fA-F]+  // Hexadecimal literals
+    | [0-9]+
     ;
 
 STRING

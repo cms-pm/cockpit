@@ -4,8 +4,8 @@ project(ArduinoCompiler)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Use system ANTLR4 packages
-find_program(ANTLR4_JAR antlr4 REQUIRED)
+# Use local ANTLR4 jar
+set(ANTLR4_JAR java -jar ${CMAKE_CURRENT_SOURCE_DIR}/tools/antlr-4.13.1-complete.jar)
 find_package(antlr4-runtime REQUIRED)
 
 # Generate parser from grammar
@@ -61,8 +61,8 @@ add_executable(test_compiler
 
 target_link_libraries(test_compiler antlr4-runtime)
 
-# Add ComponentVM library subdirectory
-add_subdirectory(src/components)
+# ComponentVM: Using canonical implementation from /lib/component_vm/
+# All ComponentVM references now point to single source of truth
 
 # Simple 32-bit instruction format test
 add_executable(simple_integration_test
@@ -83,3 +83,25 @@ add_executable(test_runner
 )
 
 target_include_directories(test_runner PRIVATE tests/)
+
+# Runtime bytecode validator
+add_executable(runtime_validator
+    tests/runtime_validator.c
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/src/component_vm.cpp
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/src/component_vm_c.cpp
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/src/execution_engine.cpp
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/src/memory_manager.cpp
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/src/io_controller.cpp
+)
+
+target_include_directories(runtime_validator PRIVATE 
+    tests/
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/include
+    ${CMAKE_SOURCE_DIR}/../lib/component_vm/src
+)
+
+# Set C++ standard for the validator since it includes C++ sources
+set_target_properties(runtime_validator PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
+)

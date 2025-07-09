@@ -1,19 +1,18 @@
 /*
- * Embedded Hypervisor MVP - Main Entry Point
- * Phase 1, Chunk 1.2: VM Core Stack Operations
+ * ComponentVM Main Entry Point
+ * Phase 3: Clean entry point for C++ ComponentVM with C wrapper
+ * Following architectural cleanliness principles from CLAUDE.md
  */
 
 #include <stdint.h>
-#include "../lib/vm_core/vm_core.h"
+#include "component_vm_c.h"
 #include "../lib/semihosting/semihosting.h"
 
-// Test functions
-int run_vm_tests(void);           // VM core tests
-int run_qemu_gpio_tests(void);    // QEMU-compatible GPIO tests
-int run_button_tests(void);       // Button input tests
-int run_arduino_function_tests(void); // Arduino function tests (Phase 2.3)
-int run_c_to_bytecode_tests(void);    // C-to-bytecode examples (Phase 2.3.4)
-void run_sos_demo_tests(void);    // SOS demo tests (Phase 3.4.3)
+// Forward declarations for test functions
+int run_component_vm_tests(void);           // ComponentVM wrapper tests
+int run_vm_core_tests(void);               // Migrated Phase 1 tests
+int run_arduino_function_tests(void);      // Migrated Phase 2 tests  
+int run_integration_tests(void);           // Migrated Phase 3 tests
 
 // Vector table for ARM Cortex-M4
 extern uint32_t _stack_start;
@@ -59,43 +58,47 @@ void Reset_Handler(void)
     // Initialize memory sections
     startup_init();
     
-    debug_print("Embedded Hypervisor MVP Starting...");
-    debug_print("Phase 2, Chunk 2.3: Arduino Function Integration");
+    debug_print("ComponentVM Embedded Hypervisor Starting...");
+    debug_print("Phase 3: C++ ComponentVM with C Wrapper Integration");
     
-    // Run VM core tests
-    int vm_test_result = run_vm_tests();
+    // Track test results
+    int total_failures = 0;
     
-    // Run QEMU-compatible GPIO tests  
-    int gpio_test_result = run_qemu_gpio_tests();
+    // Run ComponentVM wrapper tests (basic functionality)
+    debug_print("Running ComponentVM C Wrapper Tests...");
+    int wrapper_test_result = run_component_vm_tests();
+    total_failures += wrapper_test_result;
     
-    // Run button input tests
-    int button_test_result = run_button_tests();
+    // Run migrated Phase 1 tests (VM core functionality)
+    debug_print("Running Phase 1: VM Core Tests...");
+    int vm_core_result = run_vm_core_tests();
+    total_failures += vm_core_result;
     
-    // Run Arduino function tests (Phase 2.3)
-    int arduino_test_result = run_arduino_function_tests();
+    // Run migrated Phase 2 tests (Arduino integration)
+    debug_print("Running Phase 2: Arduino Integration Tests...");
+    int arduino_result = run_arduino_function_tests();
+    total_failures += arduino_result;
     
-    // Run C-to-bytecode examples (Phase 2.3.4)
-    int c2b_test_result = run_c_to_bytecode_tests();
-    
-    // Run SOS demo tests (Phase 3.4.3)
-    debug_print("Running SOS Demo Tests...");
-    run_sos_demo_tests();
-    
-    // Combined test result
-    int total_failures = vm_test_result + gpio_test_result + button_test_result + arduino_test_result + c2b_test_result;
+    // Run migrated Phase 3 tests (advanced features)
+    debug_print("Running Phase 3: Integration Tests...");
+    int integration_result = run_integration_tests();
+    total_failures += integration_result;
     
     // Report final result and exit
     if (total_failures == 0) {
-        debug_print("=== ALL HYPERVISOR TESTS SUCCESSFUL ===");
-        debug_print("VM Core + GPIO + Button + Arduino Function + C-to-Bytecode + SOS Demo tests passed");
+        debug_print("=== ALL COMPONENTVM TESTS SUCCESSFUL ===");
+        debug_print("✓ C++ ComponentVM architecture working");
+        debug_print("✓ C wrapper interface validated");
+        debug_print("✓ Mixed C/C++ compilation successful");
+        debug_print("✓ 32-bit instruction format operational");
+        debug_print("✓ Phase 1-3 feature migration complete");
         semihost_exit(0);  // Exit with success code
     } else {
-        debug_print("=== SOME HYPERVISOR TESTS FAILED ===");
-        debug_print_dec("VM test failures", vm_test_result);
-        debug_print_dec("GPIO test failures", gpio_test_result);
-        debug_print_dec("Button test failures", button_test_result);
-        debug_print_dec("Arduino function test failures", arduino_test_result);
-        debug_print_dec("C-to-bytecode test failures", c2b_test_result);
+        debug_print("=== COMPONENTVM TESTS FAILED ===");
+        debug_print_dec("ComponentVM wrapper failures", wrapper_test_result);
+        debug_print_dec("VM core test failures", vm_core_result);
+        debug_print_dec("Arduino integration failures", arduino_result);
+        debug_print_dec("Integration test failures", integration_result);
         debug_print_dec("Total failures", total_failures);
         semihost_exit(1);  // Exit with failure code
     }
