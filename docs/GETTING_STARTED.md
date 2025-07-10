@@ -20,9 +20,6 @@ ComponentVM is a **embedded hypervisor** that runs C bytecode programs on ARM Co
 
 ---
 
-
-```
-
 ---
 
 ## 📋 Architecture at a Glance
