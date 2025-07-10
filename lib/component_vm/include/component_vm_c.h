@@ -229,6 +229,24 @@ bool component_vm_validate_memory_state(const ComponentVM_C* vm,
                                         const vm_memory_expectation_t* expectations,
                                         size_t count);
 
+// === String Table Management (for printf support) ===
+
+/**
+ * @brief Add a string to the VM's string table for printf operations
+ * @param vm VM instance
+ * @param str String to add (null-terminated)
+ * @param string_id Pointer to receive the assigned string ID
+ * @return true on success, false on failure (table full, null string, etc.)
+ */
+bool component_vm_add_string(ComponentVM_C* vm, const char* str, uint8_t* string_id);
+
+/**
+ * @brief Get current string count in the VM's string table
+ * @param vm VM instance
+ * @return Number of strings currently in table
+ */
+uint8_t component_vm_get_string_count(const ComponentVM_C* vm);
+
 // Legacy compatibility functions removed - use ComponentVM C API directly
 
 #ifdef __cplusplus

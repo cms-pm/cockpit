@@ -135,6 +135,67 @@ void Reset_Handler(void)
     if (!minimal_result) total_failures++;
     if (!no_printf_result) total_failures++;
     
+    // Test printf hanging issue before HandlerReturn tests
+    debug_print("=== Testing Printf Hanging Issue ===");
+    
+    ComponentVM_C* printf_vm = component_vm_create();
+    
+    // Add format string to IOController before testing
+    if (printf_vm) {
+        debug_print("Adding format string to IOController...");
+        
+        // Add a simple format string for testing printf with %d
+        uint8_t format_string_id;
+        if (component_vm_add_string(printf_vm, "Value: %d\n", &format_string_id)) {
+            debug_print_dec("Format string added with ID", format_string_id);
+            debug_print_dec("String count", component_vm_get_string_count(printf_vm));
+        } else {
+            debug_print("Failed to add format string!");
+        }
+    }
+    
+    // Corrected printf test program
+    vm_instruction_c_t printf_program[] = {
+        {0x01, 0, 42},    // PUSH 42 (value to print)
+        {0x01, 0, 1},     // PUSH 1 (arg_count)
+        {0x18, 0, 0},     // PRINTF with format string index 0
+        {0x00, 0, 0},     // HALT
+    };
+    
+    debug_print("Program: PUSH 42, PUSH 1, PRINTF, HALT");
+    debug_print_dec("Program size", 4);
+    
+    if (!component_vm_load_program(printf_vm, printf_program, 4)) {
+        debug_print("Failed to load program");
+    } else {
+        debug_print("Program loaded successfully");
+        debug_print_dec("Initial PC", (int)component_vm_get_program_counter(printf_vm));
+        debug_print_dec("Initial SP", (int)component_vm_get_stack_pointer(printf_vm));
+        
+        // Execute with timeout detection
+        debug_print("Starting execution...");
+        
+        bool result = component_vm_execute_program(printf_vm, printf_program, 4);
+        
+        debug_print_dec("Execution result", result ? 1 : 0);
+        debug_print_dec("Final PC", (int)component_vm_get_program_counter(printf_vm));
+        debug_print_dec("Final SP", (int)component_vm_get_stack_pointer(printf_vm));
+        debug_print_dec("Final Error", (int)component_vm_get_last_error(printf_vm));
+        debug_print_dec("Is halted", component_vm_is_halted(printf_vm) ? 1 : 0);
+        
+        if (!result) {
+            debug_print("Printf test failed!");
+            vm_error_t error = component_vm_get_last_error(printf_vm);
+            debug_print_dec("Error code", (int)error);
+            debug_print("Error description:");
+            debug_print(component_vm_get_error_string(error));
+        } else {
+            debug_print("Printf test completed successfully");
+        }
+    }
+    
+    component_vm_destroy(printf_vm);
+    
     // Run HandlerReturn architecture validation tests
     debug_print("Running HandlerReturn Architecture Validation Tests...");
     int handlerreturn_result = run_handlerreturn_validation_tests();

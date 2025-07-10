@@ -316,3 +316,25 @@ bool component_vm_validate_final_state(const ComponentVM_C* vm,
     
     return true;  // All validations passed - canaries are singing!
 }
+
+// === String Table Management Implementation ===
+
+bool component_vm_add_string(ComponentVM_C* vm, const char* str, uint8_t* string_id) {
+    if (!vm || !vm->vm_instance || !str || !string_id) {
+        return false;
+    }
+    
+    // Access the IOController through the ComponentVM
+    IOController& io = vm->vm_instance->get_io_controller();
+    return io.add_string(str, *string_id);
+}
+
+uint8_t component_vm_get_string_count(const ComponentVM_C* vm) {
+    if (!vm || !vm->vm_instance) {
+        return 0;
+    }
+    
+    // Access the IOController through the ComponentVM
+    const IOController& io = vm->vm_instance->get_io_controller();
+    return io.get_string_count();
+}
