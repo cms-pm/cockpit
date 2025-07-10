@@ -39,7 +39,7 @@ void test_vm_init(void) {
     TEST_ASSERT(!component_vm_is_running(vm), "VM not running initially");
     TEST_ASSERT(!component_vm_is_halted(vm), "VM not halted initially");
     TEST_ASSERT(component_vm_get_instruction_count(vm) == 0, "Zero instruction count");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No initial errors");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No initial errors");
     
     component_vm_destroy(vm);
 }
@@ -57,7 +57,7 @@ void test_stack_push(void) {
     bool result = component_vm_execute_program(vm, push_program, 2);
     TEST_ASSERT(result, "Push program execution");
     TEST_ASSERT(component_vm_is_halted(vm), "VM halted after push");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No errors during push");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No errors during push");
     
     component_vm_destroy(vm);
 }
@@ -76,7 +76,7 @@ void test_stack_pop(void) {
     bool result = component_vm_execute_program(vm, pop_program, 3);
     TEST_ASSERT(result, "Pop program execution");
     TEST_ASSERT(component_vm_is_halted(vm), "VM halted after pop");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No errors during pop");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No errors during pop");
     
     component_vm_destroy(vm);
 }
@@ -123,8 +123,8 @@ void test_stack_underflow(void) {
     
     // Should either fail due to underflow or handle gracefully
     // Check if an error was set
-    vm_c_error_t error = component_vm_get_last_error(vm);
-    TEST_ASSERT(error == VM_C_ERROR_STACK_UNDERFLOW || result == false, "Stack underflow detected");
+    vm_error_t error = component_vm_get_last_error(vm);
+    TEST_ASSERT(error == VM_ERROR_STACK_UNDERFLOW || result == false, "Stack underflow detected");
     
     component_vm_destroy(vm);
 }
@@ -144,7 +144,7 @@ void test_arithmetic_ops(void) {
     bool result = component_vm_execute_program(vm, add_program, 4);
     TEST_ASSERT(result, "Addition program execution");
     TEST_ASSERT(component_vm_is_halted(vm), "VM halted after addition");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No errors during addition");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No errors during addition");
     
     // Reset and test subtraction: 50 - 30 = 20
     component_vm_reset(vm);
@@ -192,8 +192,8 @@ void test_division_by_zero(void) {
     bool result = component_vm_execute_program(vm, div_program, 4);
     
     // Should either fail or set an error
-    vm_c_error_t error = component_vm_get_last_error(vm);
-    TEST_ASSERT(result == false || error != VM_C_ERROR_NONE, "Division by zero detected");
+    vm_error_t error = component_vm_get_last_error(vm);
+    TEST_ASSERT(result == false || error != VM_ERROR_NONE, "Division by zero detected");
     
     component_vm_destroy(vm);
 }

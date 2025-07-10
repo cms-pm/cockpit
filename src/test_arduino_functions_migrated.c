@@ -59,7 +59,7 @@ void test_millis_function_migrated(void) {
 
     bool result = component_vm_execute_program(vm, millis_program, 2);
     GPIO_TEST_ASSERT(result, "Millis program execution");
-    GPIO_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No errors");
+    GPIO_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No errors");
 
     component_vm_destroy(vm);
 }

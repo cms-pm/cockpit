@@ -19,7 +19,7 @@ enum InstructionFlag : uint8_t {
 };
 
 ExecutionEngine::ExecutionEngine() noexcept
-    : stack_{}, sp_(1), pc_(0), program_(nullptr), program_size_(0), halted_(false)
+    : stack_{}, sp_(1), pc_(0), program_(nullptr), program_size_(0), halted_(false), last_error_(VM_ERROR_NONE)
 {
     #ifdef DEBUG
     trace_enabled_ = true;
@@ -76,6 +76,7 @@ bool ExecutionEngine::execute_single_instruction(MemoryManager& memory, IOContro
     
     // Function pointer table dispatch - single instruction execution via table lookup
     if (opcode > MAX_OPCODE) {
+        last_error_ = VM_ERROR_INVALID_OPCODE;
         return false;  // Invalid opcode
     }
     
@@ -103,6 +104,7 @@ bool ExecutionEngine::execute_single_instruction(MemoryManager& memory, IOContro
             case VM::HandlerReturn::JUMP_ABSOLUTE:
                 // Bounds check handled by dispatcher
                 if (result.jump_address >= program_size_) {
+                    last_error_ = VM_ERROR_INVALID_JUMP;
                     return false;  // Invalid jump caught at dispatcher level
                 }
                 pc_ = result.jump_address;  // Explicit jump
@@ -118,7 +120,8 @@ bool ExecutionEngine::execute_single_instruction(MemoryManager& memory, IOContro
                 break;
                 
             case VM::HandlerReturn::ERROR:
-                // Error handling at dispatcher level
+                // Store error from HandlerResult for ComponentVM
+                last_error_ = result.error_code;
                 return false;
                 
             case VM::HandlerReturn::STACK_CHECK_REQUESTED:
@@ -135,6 +138,7 @@ bool ExecutionEngine::execute_single_instruction(MemoryManager& memory, IOContro
         // LEGACY ARCHITECTURE: Use old handler with PC save/restore
         OpcodeHandler handler = opcode_handlers_[opcode];
         if (handler == nullptr) {
+            last_error_ = VM_ERROR_INVALID_OPCODE;
             return false;  // Unimplemented opcode
         }
         
@@ -158,6 +162,7 @@ void ExecutionEngine::reset() noexcept
     sp_ = 1;  // Start above guard canary at stack_[0]
     pc_ = 0;
     halted_ = false;
+    last_error_ = VM_ERROR_NONE;
     memset(stack_, 0, sizeof(stack_));
     
     #ifdef DEBUG
@@ -176,12 +181,14 @@ void ExecutionEngine::set_program(const VM::Instruction* program, size_t size) n
 bool ExecutionEngine::push(int32_t value) noexcept
 {
     if (sp_ >= STACK_SIZE - 1) {  // Reserve space for guard canary
+        last_error_ = VM_ERROR_STACK_OVERFLOW;
         return false;  // Stack overflow
     }
     
     #ifdef DEBUG
     // Feed the canaries periodically - embedded systems best practice
     if ((sp_ % 16) == 0 && !validate_stack_canaries()) {
+        last_error_ = VM_ERROR_STACK_CORRUPTION;
         return false;  // Canary died - stack corruption detected
     }
     #endif
@@ -193,12 +200,14 @@ bool ExecutionEngine::push(int32_t value) noexcept
 bool ExecutionEngine::pop(int32_t& value) noexcept
 {
     if (sp_ <= 1) {  // Protect guard canary at stack_[0]
+        last_error_ = VM_ERROR_STACK_UNDERFLOW;
         return false;  // Stack underflow
     }
     
     #ifdef DEBUG
     // Check canaries periodically during pop operations
     if ((sp_ % 16) == 0 && !validate_stack_canaries()) {
+        last_error_ = VM_ERROR_STACK_CORRUPTION;
         return false;  // Canary died - stack corruption detected
     }
     #endif
@@ -1126,7 +1135,11 @@ bool ExecutionEngine::validate_stack_protection(VM::HandlerReturn protection_lev
     }
     #else
     // Release build - minimal overhead
-    return (sp_ > 0 && sp_ < STACK_SIZE);
+    // Temporary debug: Add some logging to understand the issue
+    bool bounds_check = (sp_ > 0 && sp_ < STACK_SIZE);
+    // We can't use debug_print here as this is called from VM context
+    // but we can return the bounds check result
+    return bounds_check;
     #endif
 }
 
@@ -1137,21 +1150,21 @@ VM::HandlerResult ExecutionEngine::handle_call_new(uint8_t flags, uint16_t immed
 {
     // TIER 1: Full stack protection for critical control flow
     if (!validate_stack_protection(VM::HandlerReturn::STACK_CHECK_REQUESTED)) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_CORRUPTION)};
+        return {VM_ERROR_STACK_CORRUPTION};
     }
     
     // Bounds check function address BEFORE stack modification
     if (immediate >= program_size_) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+        return {VM_ERROR_INVALID_JUMP};
     }
     
     // Push return address onto stack (PC + 1, next instruction after CALL)
     if (!push(static_cast<int32_t>(pc_ + 1))) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_OVERFLOW)};
+        return {VM_ERROR_STACK_OVERFLOW};
     }
     
     // EXPLICIT jump request - dispatcher handles PC modification
-    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate};
 }
 
 VM::HandlerResult ExecutionEngine::handle_ret_new(uint8_t flags, uint16_t immediate, 
@@ -1159,29 +1172,29 @@ VM::HandlerResult ExecutionEngine::handle_ret_new(uint8_t flags, uint16_t immedi
 {
     // TIER 1: Full stack protection for critical control flow
     if (!validate_stack_protection(VM::HandlerReturn::STACK_CHECK_REQUESTED)) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_CORRUPTION)};
+        return {VM_ERROR_STACK_CORRUPTION};
     }
     
     // Pop return address from stack
     int32_t return_address;
     if (!pop(return_address)) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_UNDERFLOW)};
+        return {VM_ERROR_STACK_UNDERFLOW};
     }
     
     // Enhanced bounds check for return address
     if (return_address < 0 || static_cast<size_t>(return_address) >= program_size_) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+        return {VM_ERROR_INVALID_JUMP};
     }
     
     // EXPLICIT jump request - dispatcher handles PC modification
-    return {VM::HandlerReturn::JUMP_ABSOLUTE, static_cast<size_t>(return_address), 0};
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, static_cast<size_t>(return_address)};
 }
 
 VM::HandlerResult ExecutionEngine::handle_halt_new(uint8_t flags, uint16_t immediate, 
                                                    MemoryManager& memory, IOController& io) noexcept
 {
     // EXPLICIT halt request - dispatcher handles halted_ flag
-    return {VM::HandlerReturn::HALT, 0, 0};
+    return {VM::HandlerReturn::HALT, 0, VM_ERROR_NONE};
 }
 
 // ============= JUMP OPERATIONS =============
@@ -1191,10 +1204,10 @@ VM::HandlerResult ExecutionEngine::handle_jmp_new(uint8_t flags, uint16_t immedi
 {
     // Bounds check jump address
     if (immediate >= program_size_) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+        return {VM_ERROR_INVALID_JUMP};
     }
     
-    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, VM_ERROR_NONE};
 }
 
 VM::HandlerResult ExecutionEngine::handle_jmp_true_new(uint8_t flags, uint16_t immediate, 
@@ -1202,18 +1215,18 @@ VM::HandlerResult ExecutionEngine::handle_jmp_true_new(uint8_t flags, uint16_t i
 {
     int32_t condition;
     if (!pop(condition)) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_UNDERFLOW)};
+        return {VM_ERROR_STACK_UNDERFLOW};
     }
     
     if (condition != 0) {
         // Bounds check jump address
         if (immediate >= program_size_) {
-            return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+            return {VM_ERROR_INVALID_JUMP};
         }
-        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, VM_ERROR_NONE};
     }
     
-    return {VM::HandlerReturn::CONTINUE, 0, 0};
+    return {VM::HandlerReturn::CONTINUE, 0, VM_ERROR_NONE};
 }
 
 VM::HandlerResult ExecutionEngine::handle_jmp_false_new(uint8_t flags, uint16_t immediate, 
@@ -1221,18 +1234,18 @@ VM::HandlerResult ExecutionEngine::handle_jmp_false_new(uint8_t flags, uint16_t 
 {
     int32_t condition;
     if (!pop(condition)) {
-        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_UNDERFLOW)};
+        return {VM_ERROR_STACK_UNDERFLOW};
     }
     
     if (condition == 0) {
         // Bounds check jump address
         if (immediate >= program_size_) {
-            return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+            return {VM_ERROR_INVALID_JUMP};
         }
-        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, VM_ERROR_NONE};
     }
     
-    return {VM::HandlerReturn::CONTINUE, 0, 0};
+    return {VM::HandlerReturn::CONTINUE, 0, VM_ERROR_NONE};
 }
 
 #ifdef DEBUG

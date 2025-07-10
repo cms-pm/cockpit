@@ -5,7 +5,7 @@
 
 ComponentVM::ComponentVM() noexcept
     : engine_{}, memory_{}, io_{}, program_loaded_(false), 
-      instruction_count_(0), last_error_(VMError::NONE), 
+      instruction_count_(0), last_error_(VM_ERROR_NONE), 
       metrics_{}, execution_start_time_(0)
 {
     #ifdef DEBUG
@@ -38,7 +38,9 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
     // Use single-step execution to maintain consistent metrics
     while (!engine_.is_halted() && instruction_count_ < program_size) {
         if (!engine_.execute_single_instruction(memory_, io_)) {
-            set_error(VMError::INVALID_INSTRUCTION);
+            // Propagate error from ExecutionEngine
+            vm_error_t engine_error = engine_.get_last_error();
+            set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
             return false;
         }
         instruction_count_++;
@@ -52,7 +54,7 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
 bool ComponentVM::execute_single_step() noexcept
 {
     if (!program_loaded_) {
-        set_error(VMError::PROGRAM_NOT_LOADED);
+        set_error(VM_ERROR_PROGRAM_NOT_LOADED);
         return false;
     }
     
@@ -66,7 +68,9 @@ bool ComponentVM::execute_single_step() noexcept
         instruction_count_++;
         metrics_.instructions_executed++;
     } else {
-        set_error(VMError::INVALID_INSTRUCTION);
+        // Propagate error from ExecutionEngine
+        vm_error_t engine_error = engine_.get_last_error();
+        set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
     }
     
     return success;
@@ -75,7 +79,7 @@ bool ComponentVM::execute_single_step() noexcept
 bool ComponentVM::load_program(const VM::Instruction* program, size_t program_size) noexcept
 {
     if (program == nullptr || program_size == 0) {
-        set_error(VMError::PROGRAM_NOT_LOADED);
+        set_error(VM_ERROR_PROGRAM_NOT_LOADED);
         return false;
     }
     
@@ -120,36 +124,20 @@ void ComponentVM::reset_performance_metrics() noexcept
     metrics_.io_operations = 0;
 }
 
-const char* ComponentVM::get_error_string(VMError error) const noexcept
+const char* ComponentVM::get_error_string(vm_error_t error) const noexcept
 {
-    switch (error) {
-        case VMError::NONE:
-            return "No error";
-        case VMError::STACK_OVERFLOW:
-            return "Stack overflow";
-        case VMError::STACK_UNDERFLOW:
-            return "Stack underflow";
-        case VMError::INVALID_INSTRUCTION:
-            return "Invalid instruction";
-        case VMError::MEMORY_BOUNDS_ERROR:
-            return "Memory bounds error";
-        case VMError::IO_ERROR:
-            return "I/O error";
-        case VMError::PROGRAM_NOT_LOADED:
-            return "Program not loaded";
-        default:
-            return "Unknown error";
-    }
+    // Use unified error system string conversion
+    return vm_error_to_string(error);
 }
 
-void ComponentVM::set_error(VMError error) noexcept
+void ComponentVM::set_error(vm_error_t error) noexcept
 {
     last_error_ = error;
 }
 
 void ComponentVM::clear_error() noexcept
 {
-    last_error_ = VMError::NONE;
+    last_error_ = VM_ERROR_NONE;
 }
 
 void ComponentVM::start_performance_timing() noexcept

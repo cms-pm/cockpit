@@ -8,6 +8,9 @@
 class MemoryManager;
 class IOController;
 
+// Include unified error system
+#include "../include/vm_errors.h"
+
 namespace VM {
     struct Instruction {
         uint8_t  opcode;     // 256 base operations
@@ -26,41 +29,27 @@ namespace VM {
         STACK_CHECK_REQUESTED  // Explicit stack protection request
     };
 
-    // Error codes for detailed error reporting
-    enum class ErrorCode : uint8_t {
-        SUCCESS = 0,
-        STACK_OVERFLOW,
-        STACK_UNDERFLOW,
-        STACK_CORRUPTION,
-        INVALID_JUMP_ADDRESS,
-        DIVISION_BY_ZERO,
-        INVALID_OPCODE,
-        MEMORY_BOUNDS_VIOLATION,
-        PRINTF_ARGUMENT_ERROR,
-        HARDWARE_FAULT,
-        RESERVED_10,            // Room for expansion
-        RESERVED_11,
-        RESERVED_12,
-        RESERVED_13,
-        RESERVED_14,
-        RESERVED_15
-    };
+    // Use unified error system - no more separate ErrorCode enum
 
     // Handler result structure for explicit control flow
     struct HandlerResult {
         HandlerReturn action;
         size_t jump_address;     // Used for JUMP_ABSOLUTE/JUMP_RELATIVE
-        uint8_t error_code;      // Used for ERROR (cast from ErrorCode)
+        vm_error_t error_code;   // Used for ERROR (unified error system)
         
         // Convenience constructors
         HandlerResult(HandlerReturn act) noexcept 
-            : action(act), jump_address(0), error_code(0) {}
+            : action(act), jump_address(0), error_code(VM_ERROR_NONE) {}
         
         HandlerResult(HandlerReturn act, size_t addr) noexcept 
-            : action(act), jump_address(addr), error_code(0) {}
+            : action(act), jump_address(addr), error_code(VM_ERROR_NONE) {}
         
-        HandlerResult(HandlerReturn act, size_t addr, uint8_t err) noexcept 
+        HandlerResult(HandlerReturn act, size_t addr, vm_error_t err) noexcept 
             : action(act), jump_address(addr), error_code(err) {}
+        
+        // Error result constructor
+        HandlerResult(vm_error_t err) noexcept 
+            : action(HandlerReturn::ERROR), jump_address(0), error_code(err) {}
     };
 }
 
@@ -94,6 +83,7 @@ public:
     size_t get_pc() const noexcept { return pc_; }
     size_t get_sp() const noexcept { return sp_; }
     bool is_halted() const noexcept { return halted_; }
+    vm_error_t get_last_error() const noexcept { return last_error_; }
     
 private:
     int32_t stack_[STACK_SIZE];
@@ -102,6 +92,7 @@ private:
     const VM::Instruction* program_;     // Program memory
     size_t program_size_;           // Program size in instructions
     bool halted_;                   // Execution halt flag
+    vm_error_t last_error_;         // Last error from unified system
     
     // Debug state (only in debug builds)
     #ifdef DEBUG

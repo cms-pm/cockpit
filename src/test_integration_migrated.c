@@ -77,7 +77,7 @@ void test_sos_pattern_basic_migrated(void) {
     bool result = component_vm_execute_program(vm, simple_sos, sizeof(simple_sos)/sizeof(simple_sos[0]));
     INTEGRATION_TEST_ASSERT(result, "SOS pattern basic execution");
     INTEGRATION_TEST_ASSERT(component_vm_is_halted(vm), "SOS pattern completed");
-    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No errors during SOS");
+    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No errors during SOS");
 
     component_vm_destroy(vm);
 }
@@ -98,7 +98,7 @@ void test_c2b_level1_basic_output_migrated(void) {
     bool result = component_vm_execute_program(vm, basic_output, 5);
     INTEGRATION_TEST_ASSERT(result, "C2B Level 1.1: Basic output execution");
     INTEGRATION_TEST_ASSERT(component_vm_is_halted(vm), "C2B Level 1.1: Program completed");
-    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "C2B Level 1.1: No errors");
+    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "C2B Level 1.1: No errors");
 
     component_vm_destroy(vm);
 }
@@ -116,7 +116,7 @@ void test_c2b_level1_analog_input_migrated(void) {
     bool result = component_vm_execute_program(vm, analog_input, 2);
     INTEGRATION_TEST_ASSERT(result, "C2B Level 1.2: Analog input execution");
     INTEGRATION_TEST_ASSERT(component_vm_is_halted(vm), "C2B Level 1.2: Program completed");
-    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "C2B Level 1.2: No errors");
+    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "C2B Level 1.2: No errors");
 
     component_vm_destroy(vm);
 }
@@ -136,7 +136,7 @@ void test_c2b_level1_timing_migrated(void) {
     bool result = component_vm_execute_program(vm, timing_example, 4);
     INTEGRATION_TEST_ASSERT(result, "C2B Level 1.3: Timing execution");
     INTEGRATION_TEST_ASSERT(component_vm_is_halted(vm), "C2B Level 1.3: Program completed");
-    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "C2B Level 1.3: No errors");
+    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "C2B Level 1.3: No errors");
 
     component_vm_destroy(vm);
 }
@@ -160,7 +160,7 @@ void test_arithmetic_integration_migrated(void) {
     bool result = component_vm_execute_program(vm, arithmetic_program, 8);
     INTEGRATION_TEST_ASSERT(result, "Arithmetic integration execution");
     INTEGRATION_TEST_ASSERT(component_vm_is_halted(vm), "Arithmetic integration completed");
-    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "Arithmetic integration no errors");
+    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "Arithmetic integration no errors");
 
     component_vm_destroy(vm);
 }
@@ -192,7 +192,7 @@ void test_arduino_hal_integration_migrated(void) {
     bool result = component_vm_execute_program(vm, hal_integration, 8);
     INTEGRATION_TEST_ASSERT(result, "Arduino HAL integration execution");
     INTEGRATION_TEST_ASSERT(component_vm_is_halted(vm), "Arduino HAL integration completed");
-    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "Arduino HAL integration no errors");
+    INTEGRATION_TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "Arduino HAL integration no errors");
 
     component_vm_destroy(vm);
 }

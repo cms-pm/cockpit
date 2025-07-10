@@ -37,7 +37,7 @@ void test_component_vm_wrapper_init(void) {
     TEST_ASSERT(vm != NULL, "VM wrapper creation");
     TEST_ASSERT(!component_vm_is_running(vm), "VM not running initially");
     TEST_ASSERT(!component_vm_is_halted(vm), "VM not halted initially");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No initial errors");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No initial errors");
     TEST_ASSERT(component_vm_get_instruction_count(vm) == 0, "Zero instruction count");
     
     component_vm_destroy(vm);
@@ -50,13 +50,13 @@ void test_component_vm_wrapper_program_loading(void) {
     // Test with null program
     bool result = component_vm_load_program(vm, NULL, 0);
     TEST_ASSERT(!result, "Null program rejected");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_PROGRAM_NOT_LOADED, "Correct error for null program");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_PROGRAM_NOT_LOADED, "Correct error for null program");
     
     // Test with valid program (simple HALT)
     vm_instruction_c_t halt_program[] = {{0x00, 0, 0}};  // OP_HALT
     result = component_vm_load_program(vm, halt_program, 1);
     TEST_ASSERT(result, "Valid program loaded");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No error after valid load");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No error after valid load");
     
     component_vm_destroy(vm);
 }
@@ -74,7 +74,7 @@ void test_component_vm_wrapper_execution(void) {
     bool result = component_vm_execute_program(vm, simple_program, 2);
     TEST_ASSERT(result, "Simple program executed");
     TEST_ASSERT(component_vm_is_halted(vm), "VM halted after execution");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No execution errors");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No execution errors");
     
     component_vm_destroy(vm);
 }
@@ -97,7 +97,7 @@ void test_component_vm_wrapper_reset(void) {
     TEST_ASSERT(!component_vm_is_running(vm), "VM not running after reset");
     TEST_ASSERT(!component_vm_is_halted(vm), "VM not halted after reset");
     TEST_ASSERT(component_vm_get_instruction_count(vm) == 0, "Instruction count reset");
-    TEST_ASSERT(component_vm_get_last_error(vm) == VM_C_ERROR_NONE, "No errors after reset");
+    TEST_ASSERT(component_vm_get_last_error(vm) == VM_ERROR_NONE, "No errors after reset");
     
     component_vm_destroy(vm);
 }
@@ -107,10 +107,10 @@ void test_component_vm_wrapper_error_handling(void) {
     ComponentVM_C* vm = component_vm_create();
     
     // Test error string function
-    const char* error_str = component_vm_get_error_string(VM_C_ERROR_NONE);
+    const char* error_str = component_vm_get_error_string(VM_ERROR_NONE);
     TEST_ASSERT(error_str != NULL, "Error string function works");
     
-    error_str = component_vm_get_error_string(VM_C_ERROR_STACK_OVERFLOW);
+    error_str = component_vm_get_error_string(VM_ERROR_STACK_OVERFLOW);
     TEST_ASSERT(error_str != NULL, "Stack overflow error string");
     
     component_vm_destroy(vm);

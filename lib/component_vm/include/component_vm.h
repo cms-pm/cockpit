@@ -3,6 +3,7 @@
 #include "execution_engine.h"
 #include "memory_manager.h"
 #include "io_controller.h"
+#include "vm_errors.h"
 #include <cstdint>
 #include <cstddef>
 
@@ -44,19 +45,9 @@ public:
     PerformanceMetrics get_performance_metrics() const noexcept { return metrics_; }
     void reset_performance_metrics() noexcept;
     
-    // Error handling
-    enum class VMError : uint8_t {
-        NONE = 0,
-        STACK_OVERFLOW,
-        STACK_UNDERFLOW,
-        INVALID_INSTRUCTION,
-        MEMORY_BOUNDS_ERROR,
-        IO_ERROR,
-        PROGRAM_NOT_LOADED
-    };
-    
-    VMError get_last_error() const noexcept { return last_error_; }
-    const char* get_error_string(VMError error) const noexcept;
+    // Error handling - uses unified error system
+    vm_error_t get_last_error() const noexcept { return last_error_; }
+    const char* get_error_string(vm_error_t error) const noexcept;
     
 private:
     // VM Components - construction order matters for RAII
@@ -67,7 +58,7 @@ private:
     // VM state
     bool program_loaded_;
     size_t instruction_count_;
-    VMError last_error_;
+    vm_error_t last_error_;
     
     // Performance monitoring
     PerformanceMetrics metrics_;
@@ -80,7 +71,7 @@ private:
     #endif
     
     // Error handling helpers
-    void set_error(VMError error) noexcept;
+    void set_error(vm_error_t error) noexcept;
     void clear_error() noexcept;
     
     // Performance tracking helpers

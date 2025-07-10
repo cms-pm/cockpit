@@ -30,19 +30,8 @@ static VM::Instruction convert_instruction(const vm_instruction_c_t& c_instr) {
     return cpp_instr;
 }
 
-// Helper function to convert C++ error to C error
-static vm_c_error_t convert_error(ComponentVM::VMError cpp_error) {
-    switch (cpp_error) {
-        case ComponentVM::VMError::NONE:                return VM_C_ERROR_NONE;
-        case ComponentVM::VMError::STACK_OVERFLOW:      return VM_C_ERROR_STACK_OVERFLOW;
-        case ComponentVM::VMError::STACK_UNDERFLOW:     return VM_C_ERROR_STACK_UNDERFLOW;
-        case ComponentVM::VMError::INVALID_INSTRUCTION: return VM_C_ERROR_INVALID_INSTRUCTION;
-        case ComponentVM::VMError::MEMORY_BOUNDS_ERROR: return VM_C_ERROR_MEMORY_BOUNDS_ERROR;
-        case ComponentVM::VMError::IO_ERROR:            return VM_C_ERROR_IO_ERROR;
-        case ComponentVM::VMError::PROGRAM_NOT_LOADED:  return VM_C_ERROR_PROGRAM_NOT_LOADED;
-        default:                                        return VM_C_ERROR_INVALID_INSTRUCTION;
-    }
-}
+// No more error conversion needed - unified error system
+// ComponentVM will be updated to use vm_error_t directly
 
 // === Core VM Functions Implementation ===
 
@@ -156,26 +145,18 @@ size_t component_vm_get_instruction_count(const ComponentVM_C* vm) {
 
 // === Error Handling ===
 
-vm_c_error_t component_vm_get_last_error(const ComponentVM_C* vm) {
+vm_error_t component_vm_get_last_error(const ComponentVM_C* vm) {
     if (!vm || !vm->vm_instance) {
-        return VM_C_ERROR_PROGRAM_NOT_LOADED;
+        return VM_ERROR_PROGRAM_NOT_LOADED;
     }
     
-    ComponentVM::VMError cpp_error = vm->vm_instance->get_last_error();
-    return convert_error(cpp_error);
+    // ComponentVM now uses unified error system directly
+    return vm->vm_instance->get_last_error();
 }
 
-const char* component_vm_get_error_string(vm_c_error_t error) {
-    switch (error) {
-        case VM_C_ERROR_NONE:                return "No error";
-        case VM_C_ERROR_STACK_OVERFLOW:      return "Stack overflow";
-        case VM_C_ERROR_STACK_UNDERFLOW:     return "Stack underflow";
-        case VM_C_ERROR_INVALID_INSTRUCTION: return "Invalid instruction";
-        case VM_C_ERROR_MEMORY_BOUNDS_ERROR: return "Memory bounds error";
-        case VM_C_ERROR_IO_ERROR:            return "I/O error";
-        case VM_C_ERROR_PROGRAM_NOT_LOADED:  return "Program not loaded";
-        default:                             return "Unknown error";
-    }
+const char* component_vm_get_error_string(vm_error_t error) {
+    // Use unified error system string conversion
+    return vm_error_to_string(error);
 }
 
 // === Performance Monitoring ===

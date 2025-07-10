@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "vm_errors.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,16 +26,8 @@ typedef struct {
     uint16_t immediate;  // 0-65535 range
 } vm_instruction_c_t;
 
-// VM Error codes (C enum)
-typedef enum {
-    VM_C_ERROR_NONE = 0,
-    VM_C_ERROR_STACK_OVERFLOW,
-    VM_C_ERROR_STACK_UNDERFLOW,
-    VM_C_ERROR_INVALID_INSTRUCTION,
-    VM_C_ERROR_MEMORY_BOUNDS_ERROR,
-    VM_C_ERROR_IO_ERROR,
-    VM_C_ERROR_PROGRAM_NOT_LOADED
-} vm_c_error_t;
+// Use unified error system - no separate C error enum needed
+// All functions now use vm_error_t from vm_errors.h
 
 // Performance metrics (C struct)
 typedef struct {
@@ -117,16 +110,16 @@ size_t component_vm_get_instruction_count(const ComponentVM_C* vm);
 /**
  * @brief Get the last error that occurred
  * @param vm VM instance
- * @return Error code
+ * @return Error code from unified error system
  */
-vm_c_error_t component_vm_get_last_error(const ComponentVM_C* vm);
+vm_error_t component_vm_get_last_error(const ComponentVM_C* vm);
 
 /**
  * @brief Get human-readable error string
- * @param error Error code
+ * @param error Error code from unified error system
  * @return String description of error
  */
-const char* component_vm_get_error_string(vm_c_error_t error);
+const char* component_vm_get_error_string(vm_error_t error);
 
 // === Performance Monitoring ===
 
