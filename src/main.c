@@ -13,6 +13,7 @@ int run_component_vm_tests(void);           // ComponentVM wrapper tests
 int run_vm_core_tests(void);               // Migrated Phase 1 tests
 int run_arduino_function_tests(void);      // Migrated Phase 2 tests  
 int run_integration_tests(void);           // Migrated Phase 3 tests
+int run_handlerreturn_validation_tests(void); // HandlerReturn architecture validation
 
 // Vector table for ARM Cortex-M4
 extern uint32_t _stack_start;
@@ -134,6 +135,11 @@ void Reset_Handler(void)
     if (!minimal_result) total_failures++;
     if (!no_printf_result) total_failures++;
     
+    // Run HandlerReturn architecture validation tests
+    debug_print("Running HandlerReturn Architecture Validation Tests...");
+    int handlerreturn_result = run_handlerreturn_validation_tests();
+    total_failures += handlerreturn_result;
+    
     // Report final result and exit
     if (total_failures == 0) {
         debug_print("=== ALL COMPONENTVM TESTS SUCCESSFUL ===");
@@ -141,6 +147,8 @@ void Reset_Handler(void)
         debug_print("✓ C wrapper interface validated");
         debug_print("✓ Mixed C/C++ compilation successful");
         debug_print("✓ 32-bit instruction format operational");
+        debug_print("✓ HandlerReturn architecture validated");
+        debug_print("✓ Explicit PC management working");
         debug_print("✓ Phase 1-3 feature migration complete");
         semihost_exit(0);  // Exit with success code
     } else {

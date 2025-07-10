@@ -79,23 +79,78 @@ bool ExecutionEngine::execute_single_instruction(MemoryManager& memory, IOContro
         return false;  // Invalid opcode
     }
     
-    OpcodeHandler handler = opcode_handlers_[opcode];
-    if (handler == nullptr) {
-        return false;  // Unimplemented opcode
+    // NEW ARCHITECTURE: Check if handler has been migrated to HandlerResult pattern
+    if (use_new_handler_[opcode]) {
+        // Use new handler with explicit PC management
+        NewOpcodeHandler new_handler = new_opcode_handlers_[opcode];
+        if (new_handler == nullptr) {
+            return false;  // Unimplemented new handler
+        }
+        
+        // Execute new handler - NO PC SIDE EFFECTS
+        VM::HandlerResult result = (this->*new_handler)(flags, immediate, memory, io);
+        
+        // EXPLICIT PC management based on handler result
+        switch (result.action) {
+            case VM::HandlerReturn::CONTINUE:
+                pc_++;  // Predictable increment
+                break;
+                
+            case VM::HandlerReturn::CONTINUE_NO_CHECK:
+                pc_++;  // Increment without protection checks
+                break;
+                
+            case VM::HandlerReturn::JUMP_ABSOLUTE:
+                // Bounds check handled by dispatcher
+                if (result.jump_address >= program_size_) {
+                    return false;  // Invalid jump caught at dispatcher level
+                }
+                pc_ = result.jump_address;  // Explicit jump
+                break;
+                
+            case VM::HandlerReturn::JUMP_RELATIVE:
+                // Future expansion for relative jumps
+                // For now, treat as error
+                return false;
+                
+            case VM::HandlerReturn::HALT:
+                halted_ = true;
+                break;
+                
+            case VM::HandlerReturn::ERROR:
+                // Error handling at dispatcher level
+                return false;
+                
+            case VM::HandlerReturn::STACK_CHECK_REQUESTED:
+                // Stack check already performed by handler
+                pc_++;
+                break;
+                
+            default:
+                return false;  // Unknown handler return
+        }
+        
+        return true;
+    } else {
+        // LEGACY ARCHITECTURE: Use old handler with PC save/restore
+        OpcodeHandler handler = opcode_handlers_[opcode];
+        if (handler == nullptr) {
+            return false;  // Unimplemented opcode
+        }
+        
+        // Save current PC to detect if handler modified it (jump occurred)
+        size_t saved_pc = pc_;
+        
+        // Execute handler with unified signature - clean, predictable, debuggable
+        bool result = (this->*handler)(flags, immediate, memory, io);
+        
+        // Only increment PC if handler didn't modify it (no jump occurred)
+        if (pc_ == saved_pc) {
+            pc_++;
+        }
+        
+        return result;
     }
-    
-    // Save current PC to detect if handler modified it (jump occurred)
-    size_t saved_pc = pc_;
-    
-    // Execute handler with unified signature - clean, predictable, debuggable
-    bool result = (this->*handler)(flags, immediate, memory, io);
-    
-    // Only increment PC if handler didn't modify it (no jump occurred)
-    if (pc_ == saved_pc) {
-        pc_++;
-    }
-    
-    return result;
 }
 
 void ExecutionEngine::reset() noexcept
@@ -615,6 +670,76 @@ const ExecutionEngine::OpcodeHandler ExecutionEngine::opcode_handlers_[MAX_OPCOD
 };
 
 // ============================================================================
+//                         NEW HANDLER TABLE (HANDLERRESULT)
+// ============================================================================
+
+// New handler table for migrated handlers
+const ExecutionEngine::NewOpcodeHandler ExecutionEngine::new_opcode_handlers_[MAX_OPCODE + 1] = {
+    // ========== Core VM Operations (0x00-0x0F) ==========
+    &ExecutionEngine::handle_halt_new,    // 0x00
+    nullptr,                              // 0x01 - PUSH (not migrated yet)
+    nullptr,                              // 0x02 - POP (not migrated yet)
+    nullptr,                              // 0x03 - ADD (not migrated yet)
+    nullptr,                              // 0x04 - SUB (not migrated yet)
+    nullptr,                              // 0x05 - MUL (not migrated yet)
+    nullptr,                              // 0x06 - DIV (not migrated yet)
+    nullptr,                              // 0x07 - MOD (not migrated yet)
+    &ExecutionEngine::handle_call_new,    // 0x08
+    &ExecutionEngine::handle_ret_new,     // 0x09
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x0A-0x0F reserved
+    
+    // ========== Arduino HAL Functions (0x10-0x1F) ==========
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x10-0x1F not migrated yet
+    
+    // ========== Comparison Operations (0x20-0x2F) ==========
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x20-0x2F not migrated yet
+    
+    // ========== Control Flow Operations (0x30-0x3F) ==========
+    &ExecutionEngine::handle_jmp_new,         // 0x30
+    &ExecutionEngine::handle_jmp_true_new,    // 0x31
+    &ExecutionEngine::handle_jmp_false_new,   // 0x32
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x33-0x3F reserved
+    
+    // ========== Remaining Operations (0x40-0x6F) ==========
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x40-0x4F
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x50-0x5F
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr   // 0x60-0x6F
+};
+
+// Handler migration tracking - true means use new handler
+const bool ExecutionEngine::use_new_handler_[MAX_OPCODE + 1] = {
+    // ========== Core VM Operations (0x00-0x0F) ==========
+    true,   // 0x00 - HALT (migrated)
+    false,  // 0x01 - PUSH (legacy)
+    false,  // 0x02 - POP (legacy)
+    false,  // 0x03 - ADD (legacy)
+    false,  // 0x04 - SUB (legacy)
+    false,  // 0x05 - MUL (legacy)
+    false,  // 0x06 - DIV (legacy)
+    false,  // 0x07 - MOD (legacy)
+    true,   // 0x08 - CALL (migrated)
+    true,   // 0x09 - RET (migrated)
+    false, false, false, false, false, false,  // 0x0A-0x0F reserved
+    
+    // ========== Arduino HAL Functions (0x10-0x1F) ==========
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,  // 0x10-0x1F legacy
+    
+    // ========== Comparison Operations (0x20-0x2F) ==========
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,  // 0x20-0x2F legacy
+    
+    // ========== Control Flow Operations (0x30-0x3F) ==========
+    true,   // 0x30 - JMP (migrated)
+    true,   // 0x31 - JMP_TRUE (migrated)
+    true,   // 0x32 - JMP_FALSE (migrated)
+    false, false, false, false, false, false, false, false, false, false, false, false, false,  // 0x33-0x3F reserved
+    
+    // ========== Remaining Operations (0x40-0x6F) ==========
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,  // 0x40-0x4F
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,  // 0x50-0x5F
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false   // 0x60-0x6F
+};
+
+// ============================================================================
 //                         HANDLER IMPLEMENTATIONS
 // ============================================================================
 
@@ -975,6 +1100,139 @@ bool ExecutionEngine::handle_millis(uint8_t flags, uint16_t immediate, MemoryMan
 bool ExecutionEngine::handle_micros(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
 {
     return execute_io_op(static_cast<uint8_t>(VMOpcode::OP_MICROS), flags, immediate, io);
+}
+
+// ============================================================================
+//                      NEW HANDLER IMPLEMENTATIONS (HANDLERRESULT)
+// ============================================================================
+
+// Stack protection utility - tiered protection strategy
+bool ExecutionEngine::validate_stack_protection(VM::HandlerReturn protection_level) const noexcept
+{
+    #ifdef DEBUG
+    switch (protection_level) {
+        case VM::HandlerReturn::CONTINUE:
+        case VM::HandlerReturn::STACK_CHECK_REQUESTED:
+            // Full canary validation for critical operations
+            return validate_stack_canaries();
+            
+        case VM::HandlerReturn::CONTINUE_NO_CHECK:
+            // Skip protection for performance-critical operations
+            return true;
+            
+        default:
+            // Default to full protection
+            return validate_stack_canaries();
+    }
+    #else
+    // Release build - minimal overhead
+    return (sp_ > 0 && sp_ < STACK_SIZE);
+    #endif
+}
+
+// ============= CRITICAL CONTROL FLOW HANDLERS =============
+
+VM::HandlerResult ExecutionEngine::handle_call_new(uint8_t flags, uint16_t immediate, 
+                                                   MemoryManager& memory, IOController& io) noexcept
+{
+    // TIER 1: Full stack protection for critical control flow
+    if (!validate_stack_protection(VM::HandlerReturn::STACK_CHECK_REQUESTED)) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_CORRUPTION)};
+    }
+    
+    // Bounds check function address BEFORE stack modification
+    if (immediate >= program_size_) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+    }
+    
+    // Push return address onto stack (PC + 1, next instruction after CALL)
+    if (!push(static_cast<int32_t>(pc_ + 1))) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_OVERFLOW)};
+    }
+    
+    // EXPLICIT jump request - dispatcher handles PC modification
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+}
+
+VM::HandlerResult ExecutionEngine::handle_ret_new(uint8_t flags, uint16_t immediate, 
+                                                  MemoryManager& memory, IOController& io) noexcept
+{
+    // TIER 1: Full stack protection for critical control flow
+    if (!validate_stack_protection(VM::HandlerReturn::STACK_CHECK_REQUESTED)) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_CORRUPTION)};
+    }
+    
+    // Pop return address from stack
+    int32_t return_address;
+    if (!pop(return_address)) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_UNDERFLOW)};
+    }
+    
+    // Enhanced bounds check for return address
+    if (return_address < 0 || static_cast<size_t>(return_address) >= program_size_) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+    }
+    
+    // EXPLICIT jump request - dispatcher handles PC modification
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, static_cast<size_t>(return_address), 0};
+}
+
+VM::HandlerResult ExecutionEngine::handle_halt_new(uint8_t flags, uint16_t immediate, 
+                                                   MemoryManager& memory, IOController& io) noexcept
+{
+    // EXPLICIT halt request - dispatcher handles halted_ flag
+    return {VM::HandlerReturn::HALT, 0, 0};
+}
+
+// ============= JUMP OPERATIONS =============
+
+VM::HandlerResult ExecutionEngine::handle_jmp_new(uint8_t flags, uint16_t immediate, 
+                                                  MemoryManager& memory, IOController& io) noexcept
+{
+    // Bounds check jump address
+    if (immediate >= program_size_) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+    }
+    
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+}
+
+VM::HandlerResult ExecutionEngine::handle_jmp_true_new(uint8_t flags, uint16_t immediate, 
+                                                       MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t condition;
+    if (!pop(condition)) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_UNDERFLOW)};
+    }
+    
+    if (condition != 0) {
+        // Bounds check jump address
+        if (immediate >= program_size_) {
+            return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+        }
+        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+    }
+    
+    return {VM::HandlerReturn::CONTINUE, 0, 0};
+}
+
+VM::HandlerResult ExecutionEngine::handle_jmp_false_new(uint8_t flags, uint16_t immediate, 
+                                                        MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t condition;
+    if (!pop(condition)) {
+        return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::STACK_UNDERFLOW)};
+    }
+    
+    if (condition == 0) {
+        // Bounds check jump address
+        if (immediate >= program_size_) {
+            return {VM::HandlerReturn::ERROR, 0, static_cast<uint8_t>(VM::ErrorCode::INVALID_JUMP_ADDRESS)};
+        }
+        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate, 0};
+    }
+    
+    return {VM::HandlerReturn::CONTINUE, 0, 0};
 }
 
 #ifdef DEBUG

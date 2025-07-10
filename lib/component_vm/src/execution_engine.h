@@ -14,6 +14,54 @@ namespace VM {
         uint8_t  flags;      // 8 modifier bits for instruction variants
         uint16_t immediate;  // 0-65535 range
     } __attribute__((packed));
+
+    // Handler return actions for explicit PC management
+    enum class HandlerReturn : uint8_t {
+        CONTINUE,              // Normal execution, increment PC
+        CONTINUE_NO_CHECK,     // Skip automatic stack protection (performance)
+        HALT,                  // Stop execution
+        JUMP_ABSOLUTE,         // Jump to absolute address
+        JUMP_RELATIVE,         // Jump relative to current PC (future expansion)
+        ERROR,                 // Execution error
+        STACK_CHECK_REQUESTED  // Explicit stack protection request
+    };
+
+    // Error codes for detailed error reporting
+    enum class ErrorCode : uint8_t {
+        SUCCESS = 0,
+        STACK_OVERFLOW,
+        STACK_UNDERFLOW,
+        STACK_CORRUPTION,
+        INVALID_JUMP_ADDRESS,
+        DIVISION_BY_ZERO,
+        INVALID_OPCODE,
+        MEMORY_BOUNDS_VIOLATION,
+        PRINTF_ARGUMENT_ERROR,
+        HARDWARE_FAULT,
+        RESERVED_10,            // Room for expansion
+        RESERVED_11,
+        RESERVED_12,
+        RESERVED_13,
+        RESERVED_14,
+        RESERVED_15
+    };
+
+    // Handler result structure for explicit control flow
+    struct HandlerResult {
+        HandlerReturn action;
+        size_t jump_address;     // Used for JUMP_ABSOLUTE/JUMP_RELATIVE
+        uint8_t error_code;      // Used for ERROR (cast from ErrorCode)
+        
+        // Convenience constructors
+        HandlerResult(HandlerReturn act) noexcept 
+            : action(act), jump_address(0), error_code(0) {}
+        
+        HandlerResult(HandlerReturn act, size_t addr) noexcept 
+            : action(act), jump_address(addr), error_code(0) {}
+        
+        HandlerResult(HandlerReturn act, size_t addr, uint8_t err) noexcept 
+            : action(act), jump_address(addr), error_code(err) {}
+    };
 }
 
 class ExecutionEngine {
@@ -72,13 +120,23 @@ private:
     
     // ============= FUNCTION POINTER TABLE ARCHITECTURE =============
     
-    // Unified opcode handler signature - clean, consistent, debuggable
+    // Legacy opcode handler signature - for gradual migration
     using OpcodeHandler = bool (ExecutionEngine::*)(uint8_t flags, uint16_t immediate, 
                                                    MemoryManager& memory, IOController& io) noexcept;
+    
+    // New handler signature with explicit PC management
+    using NewOpcodeHandler = VM::HandlerResult (ExecutionEngine::*)(uint8_t flags, uint16_t immediate, 
+                                                                    MemoryManager& memory, IOController& io) noexcept;
     
     // Compile-time opcode dispatch table - eliminates switch statement
     static constexpr size_t MAX_OPCODE = 0x6F;
     static const OpcodeHandler opcode_handlers_[MAX_OPCODE + 1];
+    
+    // New handler table for migrated handlers
+    static const NewOpcodeHandler new_opcode_handlers_[MAX_OPCODE + 1];
+    
+    // Handler migration tracking
+    static const bool use_new_handler_[MAX_OPCODE + 1];
     
     // ============= CORE VM OPERATIONS =============
     bool handle_halt(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
@@ -145,6 +203,21 @@ private:
     bool handle_printf(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
     bool handle_millis(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
     bool handle_micros(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    
+    // ============= NEW HANDLER DECLARATIONS (HANDLERRESULT RETURN) =============
+    
+    // Critical control flow handlers - first to migrate
+    VM::HandlerResult handle_call_new(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_ret_new(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_halt_new(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    
+    // Jump operations
+    VM::HandlerResult handle_jmp_new(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_true_new(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_false_new(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    
+    // Stack protection utilities
+    bool validate_stack_protection(VM::HandlerReturn protection_level) const noexcept;
     
     // Legacy helper methods (for gradual transition)
     bool execute_arithmetic(uint8_t opcode, uint8_t flags) noexcept;
