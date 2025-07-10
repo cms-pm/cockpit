@@ -1,0 +1,43 @@
+{
+  "name": "WeAct Studio STM32G431 CoreBoard",
+  "upload": {
+    "maximum_ram_size": 32768,         ; 32 KB
+    "maximum_size": 131072,           ; 128 KB
+    "protocol": "stlink",
+    "protocols": [
+      "stlink"
+    ]
+  },
+  "build": {
+    "core": "stm32",
+    "cpu": "cortex-m4",
+    "extra_flags": "-DSTM32G431xx -DSTM32G431CB -DUSE_HAL_DRIVER",
+    "f_cpu": "170000000L",
+    "mcu": "stm32g431cbu6",
+    "variant": "STM32G4xx"
+  },
+  "debug": {
+    "jlink_device": "STM32G431CB",
+    "openocd_target": "stm32g4x.cfg",
+    "openocd_extra_args": [
+       "-c", "set WORKAREASIZE 0x4000"
+    ],
+    "svd_path": "STM32G431xx.svd",
+    "debug_tool": "stlink",
+    "tools": {
+      "stlink": {
+        "extra_cmds": [
+          "set COREID 0"
+        ]
+      }
+    }
+  },
+  "frameworks": [
+    "arduino",
+    "stm32cube"
+  ],
+  "platform": "ststm32",
+  "url": "https://github.com/WeActStudio/WeActStudio.STM32G431CoreBoard/tree/master",
+  "vendor": "WeAct Studio",
+  "description": "WeAct Studio CoreBoard featuring STM32G431CBU6 microcontroller. Includes onboard LED (PC6), USB-connected USART (PA11/PA12 - USART1), BOOT0 button (PB8), and User button (PC13)."
+}

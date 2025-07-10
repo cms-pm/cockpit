@@ -8,8 +8,8 @@
 .DS_Store
 CLAUDE.md
 build/
-docs/ESP32_C6_FEASIBILITY_STUDY.md
-docs/ESP32_C6_IMPLEMENTATION_PLAN.md
+docs/feasibility/ESP32_C6_FEASIBILITY_STUDY.md
+docs/feasibility/ESP32_C6_IMPLEMENTATION_PLAN.md
 **/Debug/
 **/Release/
 *.d
