@@ -1,0 +1,33 @@
+{
+  "name": "VM_Compiler",
+  "version": "3.10.0",
+  "description": "C to ComponentVM Bytecode Compiler Library",
+  "keywords": ["embedded", "compiler", "bytecode", "vm"],
+  "authors": [
+    {
+      "name": "Embedded Systems Team",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "ComponentVM",
+      "version": "^3.9.0"
+    }
+  ],
+  "frameworks": ["arduino"],
+  "platforms": ["*"],
+  "build": {
+    "flags": ["-std=c++17", "-Wall", "-Wextra"],
+    "srcFilter": [
+      "+<src/>",
+      "+<grammar/>",
+      "-<tests/>",
+      "-<examples/>"
+    ]
+  },
+  "export": {
+    "include": "include"
+  }
+}
