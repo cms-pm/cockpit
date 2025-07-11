@@ -53,8 +53,7 @@ def switch_pio_target(target, dry_run=False):
             modified_lines.append(line)
         elif in_platformio_section and stripped_line.startswith("default_envs ="):
             # Found the default_envs line, modify it
-            new_line = f"default_envs = {target_env}
-"
+            new_line = f"default_envs = {target_env}"
             modified_lines.append(new_line)
             default_envs_found = True
             print(f"  Found and modified line: '{line.strip()}' -> '{new_line.strip()}'")
@@ -68,8 +67,7 @@ def switch_pio_target(target, dry_run=False):
         return False
 
     if dry_run:
-        print("
---- Dry Run Output (Not writing to file) ---")
+        print("-- Dry Run Output (Not writing to file) ---")
         print("".join(modified_lines))
         print("--- End Dry Run ---")
         print(f"Dry run complete. Default target *would have been* switched to '{target_env}'.")
