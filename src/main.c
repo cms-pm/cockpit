@@ -32,6 +32,7 @@ void Error_Handler(void);
 void test_stm32g4_hal(void);
 void test_vm_hardware_integration(void);
 void memory_layout_test(void);
+void run_telemetry_validation_main(void);
 
 int main(void) {
     // Initialize STM32G4 HAL (includes SysTick at 1ms)
@@ -42,7 +43,14 @@ int main(void) {
     // Phase 4.2.2A1: Memory layout validation
     memory_layout_test();
     
-    // Test SysTick directly with HAL_Delay
+    // Phase 4.2.2B1.5: Telemetry validation test with ComponentVM
+    run_telemetry_validation_main();
+    
+    // Note: run_telemetry_validation_main() contains its own infinite loop
+    // This code should never be reached
+    debug_print("ERROR: Returned from telemetry validation - should not happen");
+    
+    // Fallback: Test SysTick directly with HAL_Delay
     while(1) {
         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);    // LED ON
         HAL_Delay(250);  // 250ms delay

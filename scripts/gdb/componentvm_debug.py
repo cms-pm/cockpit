@@ -59,7 +59,8 @@ class ComponentVMDebugEngine:
                  openocd_config: str = "scripts/gdb/openocd_debug.cfg",
                  gdb_port: int = 3333,
                  telnet_port: int = 4444,
-                 use_platformio_openocd: bool = True):
+                 use_platformio_openocd: bool = True,
+                 use_platformio_gdb: bool = True):
         """Initialize debug engine with configuration"""
         self.openocd_config = openocd_config
         self.gdb_port = gdb_port
@@ -73,6 +74,12 @@ class ComponentVMDebugEngine:
         else:
             self.openocd_binary = "openocd"  # System PATH
             self.openocd_scripts_path = None
+            
+        # GDB binary selection - Battle-tested approach 
+        if use_platformio_gdb:
+            self.gdb_binary = self._find_platformio_gdb()
+        else:
+            self.gdb_binary = "arm-none-eabi-gdb"  # System PATH
         
         # Process management
         self.openocd_process: Optional[subprocess.Popen] = None
@@ -83,6 +90,7 @@ class ComponentVMDebugEngine:
         self.telemetry_size = 256
         
         logger.info(f"ComponentVM Debug Engine initialized with OpenOCD: {self.openocd_binary}")
+        logger.info(f"Using GDB binary: {self.gdb_binary}")
     
     def __enter__(self):
         """Context manager entry"""
@@ -150,6 +158,37 @@ class ComponentVMDebugEngine:
         
         logger.warning("OpenOCD scripts directory not found")
         return None
+    
+    def _find_platformio_gdb(self) -> str:
+        """Find PlatformIO ARM GDB binary - battle-tested reliability"""
+        # Priority order: most reliable first
+        search_paths = [
+            # User's PlatformIO ARM toolchain
+            os.path.expanduser("~/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gdb"),
+            # Global PlatformIO installation (Linux)
+            "/opt/platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gdb",
+            # Global PlatformIO installation (macOS)
+            "/usr/local/lib/platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gdb",
+            # Fallback to system PATH
+            "arm-none-eabi-gdb"
+        ]
+        
+        for path in search_paths:
+            if path == "arm-none-eabi-gdb":  # System PATH
+                try:
+                    subprocess.run(["which", "arm-none-eabi-gdb"], 
+                                 check=True, capture_output=True)
+                    logger.info("Using system ARM GDB from PATH")
+                    return "arm-none-eabi-gdb"
+                except subprocess.CalledProcessError:
+                    continue
+            else:  # Specific path
+                if os.path.exists(path):
+                    logger.info(f"Found PlatformIO ARM GDB: {path}")
+                    return path
+        
+        logger.warning("ARM GDB not found - will attempt system fallback")
+        return "arm-none-eabi-gdb"  # Last resort
     
     # =================================================================
     # OpenOCD Process Management (A2 Core)
@@ -342,7 +381,7 @@ class ComponentVMDebugEngine:
         try:
             # Execute GDB command via batch mode
             cmd = [
-                'arm-none-eabi-gdb',
+                self.gdb_binary,
                 '-batch',
                 '-ex', f'target extended-remote localhost:{self.gdb_port}',
                 '-ex', command,

@@ -22,32 +22,34 @@
 
 ---
 
-## Phase 4.2.2 Implementation Strategy
+## Phase 4.2.2 Implementation Strategy: Progressive Telemetry Development
 
-### New Component Architecture
+### Revised Approach: Incremental Foundation Building
+Based on KISS principles and realistic milestone targets, Phase 4.2.2 focuses on establishing basic telemetry infrastructure that can be progressively enhanced.
+
+### Component Architecture
 ```
-ComponentVM Ecosystem (Updated):
+ComponentVM Ecosystem (Phase 4 Foundation):
 ├── component_vm/           # Core VM (unchanged)
 ├── component_vm_bridge/    # C++ to C interface (unchanged)  
-├── vm_blackbox/           # NEW: Telemetry black box component
-├── vm_watchdog/           # FUTURE: Fault management (Phase 4.2.3)
+├── vm_blackbox/           # NEW: Simple telemetry foundation
 └── arduino_hal/           # Hardware abstraction (unchanged)
 ```
 
-### Telemetry Black Box Innovation
+### Simple Telemetry Foundation (Phase 4)
 ```c
-// Memory-mapped telemetry at top of RAM
-#define TELEMETRY_BASE_ADDR 0x20007F00  // Top 256 bytes of STM32G431CB RAM
+// Memory-mapped telemetry at top of RAM - designed for expansion
+#define TELEMETRY_BASE_ADDR 0x20007F00  // 32 bytes initially, expandable to 256 bytes
 typedef struct {
-    uint32_t magic;                     // 0xDEADBEEF (integrity check)
-    uint32_t program_counter;           // Current VM PC
-    uint32_t instruction_count;         // Instructions executed  
-    uint32_t stack_pointer;             // VM stack pointer
-    vm_instruction_t last_instruction;  // Last executed instruction
-    uint32_t system_tick;               // HAL_GetTick() value
-    uint32_t fault_code;                // Fault/error code if crash
-    uint32_t checksum;                  // Data integrity validation
-} telemetry_black_box_t;
+    uint32_t magic;              // 0xFADE5AFE (integrity check)
+    uint32_t format_version;     // 0x00040001 (Phase 4, version 1)
+    uint32_t program_counter;    // Current VM PC
+    uint32_t instruction_count;  // Instructions executed
+    uint32_t last_opcode;        // Last executed instruction
+    uint32_t system_tick;        // HAL_GetTick() timestamp
+    uint32_t test_value;         // Known value for memory validation
+    uint32_t checksum;           // XOR validation of above fields
+} simple_telemetry_t;          // 32 bytes - expandable design
 ```
 
 ---
@@ -130,11 +132,129 @@ echo \n=== ComponentVM GDB Debug Session Started ===\n
 
 ---
 
-## Chunk 4.2.2B: vm_blackbox Component Implementation (3-4 hours)
+## Chunk 4.2.2B: Simple Telemetry Foundation (2-3 hours)
 
-### Objectives  
-- Create self-contained telemetry black box component
-- Implement memory-mapped continuous telemetry capture
+### Revised B1: Simple Telemetry Structure (1.5 hours)
+
+**Objectives:**
+- Create minimal viable telemetry for basic debugging
+- Establish memory-mapped monitoring at 0x20007F00
+- Validate Python debug engine can read telemetry data
+- Design for easy expansion to circular buffer in Phase 5
+
+**Success Criteria:**
+1. ✅ VM bytecode writes test values to known memory addresses
+2. ✅ Telemetry structure captures current VM execution state
+3. ✅ Python debug engine reads telemetry via GDB memory inspection
+4. ✅ Memory visibility validated through automated tests
+
+### Revised B2: Memory Test Integration (1 hour)
+
+**Objectives:**
+- Modify VM test program to write predictable values
+- Integrate telemetry updates in bridge layer on significant events
+- Create test case that validates end-to-end memory visibility
+
+**Test Program Example:**
+```c
+static const vm_instruction_t telemetry_test_program[] = {
+    // Write magic test value to validate memory access
+    {OP_PUSH_CONST, 0, 0xABCD1234},
+    {OP_PUSH_CONST, 0, 0x20007F80},  // Test address in telemetry region
+    {OP_STORE_GLOBAL, 0, 0},
+    
+    // Normal LED blink to show VM is working
+    {OP_PUSH_CONST, 0, LED_PIN},
+    {OP_PUSH_CONST, 0, PIN_HIGH},
+    {OP_ARDUINO_DIGITALWRITE, 0, 0},
+    {OP_HALT, 0, 0}
+};
+```
+
+### Success Metrics for Phase 4.2.2B
+- [ ] Simple telemetry structure operational at 0x20007F00
+- [ ] VM execution state visible via Python debug engine
+- [ ] Memory writes by bytecode verified through GDB inspection
+- [ ] Foundation established for Phase 5 circular buffer expansion
+
+---
+
+## Chunk 4.2.2C: Python Telemetry Reader (1.5 hours)
+
+**Objectives:**
+- Add telemetry parsing to ComponentVMDebugEngine
+- Create structured telemetry display via Python
+- Automate verification of memory visibility and VM state
+
+**Technical Implementation:**
+```python
+def read_simple_telemetry(self) -> TelemetryData:
+    """Read and parse simple telemetry structure"""
+    result = self.read_memory(0x20007F00, 8)  # 32 bytes = 8 words
+    if result.success:
+        return TelemetryData.parse(result.output)
+    return None
+
+def validate_telemetry_test(self) -> bool:
+    """Validate test program wrote expected values"""
+    telemetry = self.read_simple_telemetry()
+    test_memory = self.read_memory(0x20007F80, 1)
+    return (telemetry.magic == 0xFADE5AFE and 
+            telemetry.test_value == 0xABCD1234)
+```
+
+---
+
+## Phase 4.2.3: Basic Debugging Workflow (4.5 hours)
+
+### Chunk 4.2.3A: GDB Breakpoint Integration (2 hours)
+- Set breakpoints in VM execution via Python debug engine
+- Step through bytecode instruction by instruction
+- Verify telemetry updates at each execution step
+- Create debugging workflow documentation
+
+### Chunk 4.2.3B: Memory Inspection Automation (1.5 hours)  
+- Automated memory dumps of VM stack and global variables
+- Bytecode program disassembly via GDB
+- Complete VM state visualization tools
+
+### Chunk 4.2.3C: End-to-End Debugging Validation (1 hour)
+- Create deliberately broken bytecode program
+- Use telemetry + breakpoints to identify and fix bug
+- Document complete debugging workflow for future reference
+
+---
+
+## Phase 4.2.4: Production Readiness (2.5 hours)
+
+### Chunk 4.2.4A: Performance Validation (1 hour)
+- Measure telemetry update overhead on VM execution
+- Verify real-time performance with debugging enabled
+- Optimize critical telemetry update paths
+
+### Chunk 4.2.4B: Documentation and Examples (1.5 hours)
+- Complete debugging workflow documentation
+- Create example debugging sessions with common problems
+- Troubleshooting guide for hardware setup issues
+
+---
+
+## Phase 5 Preview: Enhanced Telemetry and Web Interface
+
+### Phase 5.1: Flight Recorder Capabilities
+- Expand simple_telemetry_t to circular buffer design
+- Event classification and filtering (significant events vs all events)
+- Historical analysis and crash forensics
+
+### Phase 5.2: Web-Based Debugging Interface
+- Real-time telemetry visualization in web browser
+- Remote debugging capabilities for distributed teams
+- Collaborative debugging features
+
+### Phase 5.3: Advanced Features
+- Automated test generation based on telemetry patterns
+- Performance profiling and optimization recommendations
+- Integration with CI/CD pipelines for automated hardware testing
 - Integrate with existing VM execution flow
 
 ### Component Structure

@@ -65,6 +65,10 @@ void component_vm_reset_performance_metrics(component_vm_t* vm);
 // Error handling
 const char* component_vm_get_error_string(vm_result_t result);
 
+// Phase 4.2.2B: Telemetry integration
+void component_vm_enable_telemetry(component_vm_t* vm, bool enable);
+bool component_vm_is_telemetry_enabled(const component_vm_t* vm);
+
 #ifdef __cplusplus
 }
 #endif

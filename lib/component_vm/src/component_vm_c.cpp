@@ -1,8 +1,12 @@
 /*
  * ComponentVM C Wrapper Implementation
  * Phase 3: C-compatible wrapper for C++ ComponentVM implementation
+ * 
+ * NOTE: This is the legacy C wrapper. The new bridge layer in 
+ * component_vm_bridge.cpp is used for Phase 4 hardware integration.
  */
 
+#ifndef USE_COMPONENT_VM_BRIDGE
 #include "component_vm_c.h"
 #include "component_vm.h"
 #include <new>
@@ -338,3 +342,5 @@ uint8_t component_vm_get_string_count(const ComponentVM_C* vm) {
     const IOController& io = vm->vm_instance->get_io_controller();
     return io.get_string_count();
 }
+
+#endif // !USE_COMPONENT_VM_BRIDGE
