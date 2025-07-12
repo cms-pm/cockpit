@@ -31,12 +31,16 @@ void MX_GPIO_Init(void);
 void Error_Handler(void);
 void test_stm32g4_hal(void);
 void test_vm_hardware_integration(void);
+void memory_layout_test(void);
 
 int main(void) {
     // Initialize STM32G4 HAL (includes SysTick at 1ms)
     HAL_Init();
     SystemClock_Config();
     MX_GPIO_Init();
+    
+    // Phase 4.2.2A1: Memory layout validation
+    memory_layout_test();
     
     // Test SysTick directly with HAL_Delay
     while(1) {
