@@ -1,8 +1,8 @@
 {
   "name": "WeAct Studio STM32G431 CoreBoard",
   "upload": {
-    "maximum_ram_size": 32768,         ; 32 KB
-    "maximum_size": 131072,           ; 128 KB
+    "maximum_ram_size": 32768,
+    "maximum_size": 131072,
     "protocol": "stlink",
     "protocols": [
       "stlink"
@@ -14,23 +14,13 @@
     "extra_flags": "-DSTM32G431xx -DSTM32G431CB -DUSE_HAL_DRIVER",
     "f_cpu": "170000000L",
     "mcu": "stm32g431cbu6",
+    "product_line": "STM32G431xx",
     "variant": "STM32G4xx"
   },
   "debug": {
     "jlink_device": "STM32G431CB",
-    "openocd_target": "stm32g4x.cfg",
-    "openocd_extra_args": [
-       "-c", "set WORKAREASIZE 0x4000"
-    ],
-    "svd_path": "STM32G431xx.svd",
-    "debug_tool": "stlink",
-    "tools": {
-      "stlink": {
-        "extra_cmds": [
-          "set COREID 0"
-        ]
-      }
-    }
+    "openocd_target": "stm32g4x",
+    "svd_path": "STM32G431xx.svd"
   },
   "frameworks": [
     "arduino",

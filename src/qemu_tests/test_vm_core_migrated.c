@@ -1,7 +1,10 @@
 /*
  * VM Core Unit Tests - Migrated to ComponentVM
  * Phase 3: Updated to use ComponentVM C wrapper interface
+ * QEMU ONLY - Not for hardware builds
  */
+
+#ifndef HARDWARE_PLATFORM
 
 #include "component_vm_c.h"
 #include "../lib/semihosting/semihosting.h"

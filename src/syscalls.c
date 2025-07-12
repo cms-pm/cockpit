@@ -8,21 +8,11 @@
 #include <errno.h>
 
 // Heap management for dynamic memory allocation
-extern char _heap_start;
-extern char _heap_end;
-static char *heap_ptr = &_heap_start;
-
-// _sbrk - extend heap for malloc/new
+// Disable dynamic allocation for embedded safety
 void *_sbrk(int incr) {
-    char *prev_heap_ptr = heap_ptr;
-    
-    if (heap_ptr + incr > &_heap_end) {
-        errno = ENOMEM;
-        return (void *)-1;
-    }
-    
-    heap_ptr += incr;
-    return prev_heap_ptr;
+    (void)incr;
+    errno = ENOMEM;
+    return (void *)-1;
 }
 
 // _exit - terminate program (hang in embedded)

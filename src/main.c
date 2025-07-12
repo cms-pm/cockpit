@@ -1,232 +1,190 @@
 /*
- * ComponentVM Main Entry Point
- * Phase 3: Clean entry point for C++ ComponentVM with C wrapper
- * Following architectural cleanliness principles from CLAUDE.md
+ * ComponentVM Hardware Main Entry Point
+ * Phase 4.2.1: VM Core Hardware Integration
+ * 
+ * Hardware Success Criteria:
+ * - ComponentVM executes bytecode on STM32G431CB
+ * - VM controls LED via Arduino HAL
+ * - Semihosting debug output functional
+ * - System clock at 170MHz
  */
 
-#include <stdint.h>
-#include "component_vm_c.h"
-#include "../lib/semihosting/semihosting.h"
+#ifdef HARDWARE_PLATFORM
+    #include "stm32g4xx_hal.h"
+    #include "../lib/semihosting/semihosting.h"
+    #include <stdbool.h>
+#else
+    // QEMU platform - use the backed up main
+    #include "main_qemu_impl.h"
+#endif
 
-// Forward declarations for test functions
-int run_component_vm_tests(void);           // ComponentVM wrapper tests
-int run_vm_core_tests(void);               // Migrated Phase 1 tests
-int run_arduino_function_tests(void);      // Migrated Phase 2 tests  
-int run_integration_tests(void);           // Migrated Phase 3 tests
-int run_handlerreturn_validation_tests(void); // HandlerReturn architecture validation
+#ifdef HARDWARE_PLATFORM
 
-// Vector table for ARM Cortex-M4
-extern uint32_t _stack_start;
+// Test variables for debugging validation
+volatile uint32_t blink_counter = 0;
+volatile uint32_t system_ticks = 0;
+volatile bool led_state = false;
 
-// Forward declarations
-void Reset_Handler(void);
-void Default_Handler(void);
-void startup_init(void);
+// Function prototypes
+void SystemClock_Config(void);
+void MX_GPIO_Init(void);
+void Error_Handler(void);
+void test_stm32g4_hal(void);
+void test_vm_hardware_integration(void);
 
-// Vector table
-__attribute__((section(".vectors")))
-const uint32_t vector_table[] = {
-    (uint32_t)&_stack_start,    // Initial stack pointer
-    (uint32_t)Reset_Handler,    // Reset handler
-    (uint32_t)Default_Handler,  // NMI handler
-    (uint32_t)Default_Handler,  // Hard fault handler
-    // ... additional vectors would go here for full implementation
-};
-
-// Basic startup initialization
-void startup_init(void)
-{
-    // Initialize data section (copy from Flash to RAM)
-    extern uint32_t _data_start, _data_end, _data_load;
-    uint32_t *src = &_data_load;
-    uint32_t *dst = &_data_start;
+int main(void) {
+    // Initialize STM32G4 HAL (includes SysTick at 1ms)
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
     
-    while (dst < &_data_end) {
-        *dst++ = *src++;
+    // Test SysTick directly with HAL_Delay
+    while(1) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);    // LED ON
+        HAL_Delay(250);  // 250ms delay
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);  // LED OFF
+        HAL_Delay(250);  // 250ms delay
+        /*
+        led_state = true;
+        debug_print("LED ON");
+        debug_print_dec("Blink cycle", blink_counter);
+        HAL_Delay(500);
+        
+        // LED OFF  
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+        led_state = false;
+        debug_print("LED OFF");
+        HAL_Delay(500);
+        
+        blink_counter++;
+        system_ticks = HAL_GetTick();
+        
+        // Success indicator after 10 blinks
+        if (blink_counter >= 10) {
+            debug_print("=== HARDWARE VALIDATION SUCCESSFUL ===");
+            debug_print("✓ System clock configured (170MHz)");
+            debug_print("✓ GPIO initialization working");
+            debug_print("✓ LED blink timing accurate");
+            debug_print("✓ Semihosting debug operational");
+            debug_print("✓ ST-Link programming successful");
+            debug_print_dec("Total uptime (ms)", system_ticks);
+            
+            // Solid LED to indicate success
+            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+            led_state = true;
+            break;
+        }
+        */
     }
     
-    // Initialize BSS section (zero)
-    extern uint32_t _bss_start, _bss_end;
-    dst = &_bss_start;
-    while (dst < &_bss_end) {
-        *dst++ = 0;
+    // Success state - LED solid on with periodic debug
+    while(1) {
+        HAL_Delay(5000);  // 5 second intervals
+        system_ticks = HAL_GetTick();
+        debug_print("=== SUCCESS STATE ===");
+        debug_print_dec("Uptime (seconds)", system_ticks / 1000);
+        debug_print_dec("Total blinks completed", blink_counter);
+        debug_print("Hardware validation complete - system operational");
     }
 }
 
-// Reset handler - entry point after startup  
-void Reset_Handler(void)
-{
-    // Initialize memory sections
-    startup_init();
+void SystemClock_Config(void) {
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
     
-    debug_print("ComponentVM Embedded Hypervisor Starting...");
-    debug_print("Phase 3: C++ ComponentVM with C Wrapper Integration");
+    // Configure the main internal regulator output voltage
+    HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
     
-    // Track test results
-    int total_failures = 0;
+    // Configure HSE and PLL for 170MHz
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 2;     // HSE/2 = 4MHz
+    RCC_OscInitStruct.PLL.PLLN = 85;    // 4MHz * 85 = 340MHz
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;  // 340MHz/2 = 170MHz
+    RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;  // 340MHz/2 = 170MHz
+    RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;  // 340MHz/2 = 170MHz
     
-    // Run ComponentVM wrapper tests (basic functionality)
-    debug_print("Running ComponentVM C Wrapper Tests...");
-    int wrapper_test_result = run_component_vm_tests();
-    total_failures += wrapper_test_result;
-    
-    // Run migrated Phase 1 tests (VM core functionality)
-    debug_print("Running Phase 1: VM Core Tests...");
-    int vm_core_result = run_vm_core_tests();
-    total_failures += vm_core_result;
-    
-    // Run migrated Phase 2 tests (Arduino integration)
-    debug_print("Running Phase 2: Arduino Integration Tests...");
-    int arduino_result = run_arduino_function_tests();
-    total_failures += arduino_result;
-    
-    // Run migrated Phase 3 tests (advanced features)
-    debug_print("Running Phase 3: Integration Tests...");
-    int integration_result = run_integration_tests();
-    
-    // Test minimal debug program to verify CALL fix
-    debug_print("Testing minimal debug program (CALL fix validation)...");
-    
-    vm_instruction_c_t minimal_program[] = {
-        {0x08, 0, 2},   // CALL setup (address 2)  
-        {0x00, 0, 0},   // HALT
-        {0x01, 0, 42},  // PUSH 42
-        {0x51, 0, 9},   // STORE_GLOBAL global_var (index 9)
-        {0x09, 0, 0}    // RET
-    };
-    
-    ComponentVM_C* test_vm = component_vm_create();
-    bool minimal_result = false;
-    if (test_vm) {
-        minimal_result = component_vm_execute_program(test_vm, minimal_program, 5);
-        if (minimal_result && component_vm_is_halted(test_vm)) {
-            debug_print("✓ Minimal debug program: PASS (CALL/RET working)");
-        } else {
-            debug_print("✗ Minimal debug program: FAIL");
-            minimal_result = false;
-        }
-        component_vm_destroy(test_vm);
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        Error_Handler();
     }
     
-    // Test no printf program to isolate printf issues
-    debug_print("Testing no printf program (isolate printf hanging)...");
+    // Configure system clock to use PLL
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                                |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;   // 170MHz
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;    // 170MHz
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;    // 170MHz
     
-    vm_instruction_c_t no_printf_program[] = {
-        {0x08, 0, 2},   // CALL setup (address 2)
-        {0x00, 0, 0},   // HALT
-        {0x01, 0, 123}, // PUSH 123
-        {0x51, 0, 9},   // STORE_GLOBAL result (index 9)
-        {0x09, 0, 0}    // RET
-    };
-    
-    ComponentVM_C* no_printf_vm = component_vm_create();
-    bool no_printf_result = false;
-    if (no_printf_vm) {
-        no_printf_result = component_vm_execute_program(no_printf_vm, no_printf_program, 5);
-        if (no_printf_result && component_vm_is_halted(no_printf_vm)) {
-            debug_print("✓ No printf program: PASS (basic function calls working)");
-        } else {
-            debug_print("✗ No printf program: FAIL");
-            no_printf_result = false;
-        }
-        component_vm_destroy(no_printf_vm);
-    }
-    total_failures += integration_result;
-    if (!minimal_result) total_failures++;
-    if (!no_printf_result) total_failures++;
-    
-    // Test printf hanging issue before HandlerReturn tests
-    debug_print("=== Testing Printf Hanging Issue ===");
-    
-    ComponentVM_C* printf_vm = component_vm_create();
-    
-    // Add format string to IOController before testing
-    if (printf_vm) {
-        debug_print("Adding format string to IOController...");
-        
-        // Add a simple format string for testing printf with %d
-        uint8_t format_string_id;
-        if (component_vm_add_string(printf_vm, "Value: %d\n", &format_string_id)) {
-            debug_print_dec("Format string added with ID", format_string_id);
-            debug_print_dec("String count", component_vm_get_string_count(printf_vm));
-        } else {
-            debug_print("Failed to add format string!");
-        }
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK) {
+        Error_Handler();
     }
     
-    // Corrected printf test program
-    vm_instruction_c_t printf_program[] = {
-        {0x01, 0, 42},    // PUSH 42 (value to print)
-        {0x01, 0, 1},     // PUSH 1 (arg_count)
-        {0x18, 0, 0},     // PRINTF with format string index 0
-        {0x00, 0, 0},     // HALT
-    };
+    // Update SystemCoreClock variable and reconfigure SysTick
+    SystemCoreClockUpdate();
     
-    debug_print("Program: PUSH 42, PUSH 1, PRINTF, HALT");
-    debug_print_dec("Program size", 4);
+    // Manual SysTick configuration for 1ms tick at 170MHz
+    // Option 1: SysTick at full HCLK speed (170MHz)
+    // For 1ms tick: 170MHz / 1000 = 170,000 - 1 = 169,999
+    SysTick->LOAD = 169999;          // Set reload value for 1ms at 170MHz
+    SysTick->VAL = 0;                // Clear current value
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |  // Use processor clock (HCLK)
+                    SysTick_CTRL_TICKINT_Msk |     // Enable SysTick interrupt
+                    SysTick_CTRL_ENABLE_Msk;       // Enable SysTick
+}
+
+void MX_GPIO_Init(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
     
-    if (!component_vm_load_program(printf_vm, printf_program, 4)) {
-        debug_print("Failed to load program");
-    } else {
-        debug_print("Program loaded successfully");
-        debug_print_dec("Initial PC", (int)component_vm_get_program_counter(printf_vm));
-        debug_print_dec("Initial SP", (int)component_vm_get_stack_pointer(printf_vm));
-        
-        // Execute with timeout detection
-        debug_print("Starting execution...");
-        
-        bool result = component_vm_execute_program(printf_vm, printf_program, 4);
-        
-        debug_print_dec("Execution result", result ? 1 : 0);
-        debug_print_dec("Final PC", (int)component_vm_get_program_counter(printf_vm));
-        debug_print_dec("Final SP", (int)component_vm_get_stack_pointer(printf_vm));
-        debug_print_dec("Final Error", (int)component_vm_get_last_error(printf_vm));
-        debug_print_dec("Is halted", component_vm_is_halted(printf_vm) ? 1 : 0);
-        
-        if (!result) {
-            debug_print("Printf test failed!");
-            vm_error_t error = component_vm_get_last_error(printf_vm);
-            debug_print_dec("Error code", (int)error);
-            debug_print("Error description:");
-            debug_print(component_vm_get_error_string(error));
-        } else {
-            debug_print("Printf test completed successfully");
-        }
-    }
+    // Enable GPIOC clock
+    __HAL_RCC_GPIOC_CLK_ENABLE();
     
-    component_vm_destroy(printf_vm);
+    // Configure PC6 as output for LED
+    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
     
-    // Run HandlerReturn architecture validation tests
-    debug_print("Running HandlerReturn Architecture Validation Tests...");
-    int handlerreturn_result = run_handlerreturn_validation_tests();
-    total_failures += handlerreturn_result;
+    // Initial LED state (OFF)
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+}
+
+void Error_Handler(void) {
+    debug_print("ERROR: System initialization failed");
+    debug_print("Entering error state - rapid LED blink");
     
-    // Report final result and exit
-    if (total_failures == 0) {
-        debug_print("=== ALL COMPONENTVM TESTS SUCCESSFUL ===");
-        debug_print("✓ C++ ComponentVM architecture working");
-        debug_print("✓ C wrapper interface validated");
-        debug_print("✓ Mixed C/C++ compilation successful");
-        debug_print("✓ 32-bit instruction format operational");
-        debug_print("✓ HandlerReturn architecture validated");
-        debug_print("✓ Explicit PC management working");
-        debug_print("✓ Phase 1-3 feature migration complete");
-        semihost_exit(0);  // Exit with success code
-    } else {
-        debug_print("=== COMPONENTVM TESTS FAILED ===");
-        debug_print_dec("ComponentVM wrapper failures", wrapper_test_result);
-        debug_print_dec("VM core test failures", vm_core_result);
-        debug_print_dec("Arduino integration failures", arduino_result);
-        debug_print_dec("Integration test failures", integration_result);
-        debug_print_dec("Total failures", total_failures);
-        semihost_exit(1);  // Exit with failure code
+    // Enable GPIOC clock if not already enabled
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    
+    // Configure PC6 for error indication
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_6;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    
+    // Error state - rapid LED blink (5Hz)
+    while(1) {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+        HAL_Delay(100);
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+        HAL_Delay(100);
     }
 }
 
-// Default handler for unimplemented interrupts
-void Default_Handler(void)
-{
-    while (1) {
-        // Hang on unexpected interrupt
-    }
+// Required for STM32Cube HAL
+void HAL_MspInit(void) {
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
+    __HAL_RCC_PWR_CLK_ENABLE();
 }
+
+// SysTick interrupt handler
+void SysTick_Handler(void) {
+    HAL_IncTick();
+}
+
+#endif // HARDWARE_PLATFORM
