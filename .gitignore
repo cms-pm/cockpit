@@ -19,3 +19,4 @@ docs/feasibility/ESP32_C6_IMPLEMENTATION_PLAN.md
 *.bak
 *.orig
 *.swp
+.gooseignore

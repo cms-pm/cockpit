@@ -1,10 +1,20 @@
 /*
  * Arduino Hardware Abstraction Layer Implementation
- * Phase 2, Chunk 2.1: Digital GPIO Foundation
+ * Chunk 4.1.2: Multi-Platform Support for ComponentVM
  */
 
 #include "arduino_hal.h"
 #include "../semihosting/semihosting.h"
+
+// Platform-specific configuration selection
+#ifdef PLATFORM_STM32G4
+    #include "platforms/stm32g4_config.h"
+    #define CURRENT_PLATFORM &stm32g4_platform_config
+#elif defined(PLATFORM_LM3S6965) || defined(QEMU_PLATFORM)
+    // Keep existing LM3S6965 implementation
+#else
+    #error "No platform configuration available"
+#endif
 
 // Pin mapping table for LM3S6965EVB
 // Maps Arduino pin numbers to GPIO ports and pin masks
@@ -41,6 +51,11 @@ static const gpio_pin_map_t pin_map[] = {
 
 // Initialize GPIO hardware
 void hal_gpio_init(void) {
+#ifdef PLATFORM_STM32G4
+    const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
+    config->system_init();
+    debug_print("STM32G4 GPIO HAL initialized");
+#else
     // Enable GPIO clock for all ports
     uint32_t *sysctl_rcgc2 = (uint32_t*)(SYSCTL_BASE + SYSCTL_RCGC2);
     *sysctl_rcgc2 |= 0x7F; // Enable clocks for ports A-G
@@ -49,7 +64,8 @@ void hal_gpio_init(void) {
     volatile int delay = 1000;
     while (delay--);
     
-    debug_print("GPIO HAL initialized");
+    debug_print("LM3S6965 GPIO HAL initialized");
+#endif
 }
 
 // Get pin mapping
@@ -94,6 +110,37 @@ bool hal_gpio_get_pin(uint32_t port_base, uint8_t pin_mask) {
 
 // Configure pin mode
 void hal_gpio_set_mode(uint8_t pin, pin_mode_t mode) {
+#ifdef PLATFORM_STM32G4
+    const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
+    if (pin >= config->pin_count) return;
+    
+    const stm32g4_pin_config_t* pin_info = &config->pin_map[pin];
+    volatile uint32_t* gpio_base = pin_info->gpio_base;
+    
+    // Enable GPIO clock for this port
+    config->gpio_clock_enable(pin_info->port_index);
+    
+    // Configure pin mode in MODER register
+    volatile uint32_t* moder = (volatile uint32_t*)(gpio_base + STM32G4_GPIO_MODER_OFFSET);
+    uint32_t moder_mask = 0x3 << (pin_info->pin_number * 2);
+    
+    *moder &= ~moder_mask;
+    switch (mode) {
+        case PIN_MODE_OUTPUT:
+            *moder |= (STM32G4_GPIO_MODE_OUTPUT << (pin_info->pin_number * 2));
+            break;
+        case PIN_MODE_INPUT:
+            *moder |= (STM32G4_GPIO_MODE_INPUT << (pin_info->pin_number * 2));
+            break;
+        case PIN_MODE_INPUT_PULLUP:
+            *moder |= (STM32G4_GPIO_MODE_INPUT << (pin_info->pin_number * 2));
+            volatile uint32_t* pupdr = (volatile uint32_t*)(gpio_base + STM32G4_GPIO_PUPDR_OFFSET);
+            uint32_t pupdr_mask = 0x3 << (pin_info->pin_number * 2);
+            *pupdr &= ~pupdr_mask;
+            *pupdr |= (STM32G4_GPIO_PUPD_PULLUP << (pin_info->pin_number * 2));
+            break;
+    }
+#else
     const gpio_pin_map_t *pin_info = get_pin_map(pin);
     if (!pin_info) return;
     
@@ -103,41 +150,60 @@ void hal_gpio_set_mode(uint8_t pin, pin_mode_t mode) {
     switch (mode) {
         case PIN_MODE_OUTPUT:
             hal_gpio_set_direction((uint32_t)pin_info->port_base, pin_info->pin_mask, true);
-            debug_print_dec("Pin configured as output", pin);
             break;
-            
         case PIN_MODE_INPUT:
         case PIN_MODE_INPUT_PULLUP:
             hal_gpio_set_direction((uint32_t)pin_info->port_base, pin_info->pin_mask, false);
-            debug_print_dec("Pin configured as input", pin);
             break;
     }
+#endif
 }
 
 // Write to GPIO pin
 void hal_gpio_write(uint8_t pin, pin_state_t state) {
+#ifdef PLATFORM_STM32G4
+    const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
+    if (pin >= config->pin_count) return;
+    
+    const stm32g4_pin_config_t* pin_info = &config->pin_map[pin];
+    volatile uint32_t* gpio_base = pin_info->gpio_base;
+    volatile uint32_t* bsrr = (volatile uint32_t*)(gpio_base + STM32G4_GPIO_BSRR_OFFSET);
+    
+    if (state == PIN_HIGH) {
+        *bsrr = pin_info->pin_mask;  // Set bit
+    } else {
+        *bsrr = (pin_info->pin_mask << 16);  // Reset bit
+    }
+#else
     const gpio_pin_map_t *pin_info = get_pin_map(pin);
     if (!pin_info) return;
     
     if (state == PIN_HIGH) {
         hal_gpio_set_pin((uint32_t)pin_info->port_base, pin_info->pin_mask);
-        debug_print_dec("Pin set HIGH", pin);
     } else {
         hal_gpio_clear_pin((uint32_t)pin_info->port_base, pin_info->pin_mask);
-        debug_print_dec("Pin set LOW", pin);
     }
+#endif
 }
 
 // Read from GPIO pin
 pin_state_t hal_gpio_read(uint8_t pin) {
+#ifdef PLATFORM_STM32G4
+    const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
+    if (pin >= config->pin_count) return PIN_LOW;
+    
+    const stm32g4_pin_config_t* pin_info = &config->pin_map[pin];
+    volatile uint32_t* gpio_base = pin_info->gpio_base;
+    volatile uint32_t* idr = (volatile uint32_t*)(gpio_base + STM32G4_GPIO_IDR_OFFSET);
+    
+    return ((*idr) & pin_info->pin_mask) ? PIN_HIGH : PIN_LOW;
+#else
     const gpio_pin_map_t *pin_info = get_pin_map(pin);
     if (!pin_info) return PIN_LOW;
     
     bool state = hal_gpio_get_pin((uint32_t)pin_info->port_base, pin_info->pin_mask);
-    debug_print_dec("Pin read", pin);
-    debug_print_dec("State", state ? 1 : 0);
-    
     return state ? PIN_HIGH : PIN_LOW;
+#endif
 }
 
 // Test mocking support
@@ -210,10 +276,13 @@ uint16_t arduino_analog_read(uint8_t pin) {
 }
 
 void arduino_delay(uint32_t milliseconds) {
-    // Simplified busy-wait delay
-    // In real implementation, this would use SysTick
-    volatile uint32_t cycles = milliseconds * 1000; // Rough approximation
+#ifdef PLATFORM_STM32G4
+    // Use STM32 HAL delay function
+    extern void HAL_Delay(uint32_t Delay);
+    HAL_Delay(milliseconds);
+#else
+    // Simplified busy-wait delay for QEMU
+    volatile uint32_t cycles = milliseconds * 1000;
     while (cycles--);
-    
-    debug_print_dec("Delay complete (ms)", milliseconds);
+#endif
 }

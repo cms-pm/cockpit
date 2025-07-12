@@ -1,6 +1,10 @@
 /*
  * Arduino Hardware Abstraction Layer
- * Phase 2, Chunk 2.1: Digital GPIO Foundation
+ * Chunk 4.1.2: Multi-Platform Support for ComponentVM
+ * 
+ * This HAL provides a unified Arduino API that works across different
+ * embedded platforms. The magic happens through compile-time platform
+ * selection and configuration.
  */
 
 #ifndef ARDUINO_HAL_H
@@ -8,6 +12,15 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
+// Platform-specific includes
+#ifdef PLATFORM_STM32G4
+    #include "platforms/stm32g4_config.h"
+#elif defined(PLATFORM_LM3S6965) || defined(QEMU_PLATFORM)
+    // Keep existing LM3S6965/QEMU definitions
+#else
+    #error "No platform defined! Please define PLATFORM_STM32G4 or PLATFORM_LM3S6965"
+#endif
 
 // Pin definitions (Arduino-style pin numbers)
 #define PIN_13          13  // LED pin

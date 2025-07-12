@@ -1,0 +1,28 @@
+# STMicroelectronics ST-LINK V2, V2.1, and V3
+# This rule grants members of the 'plugdev' group access to the ST-Link device.
+#
+# To use this rule:
+# 1. Copy this file to /etc/udev/rules.d/
+#    sudo cp 99-platformio-stlink.rules /etc/udev/rules.d/
+#
+# 2. Create the 'plugdev' group if it doesn't exist:
+#    sudo groupadd plugdev
+#
+# 3. Add your user to the 'plugdev' group (replace <username> with your actual username):
+#    sudo usermod -aG plugdev <username>
+#
+# 4. Reload the udev rules and trigger the new rule:
+#    sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# 5. Log out and log back in for the group change to take full effect.
+
+# ST-Link/V2
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3748", TAG+="uaccess", GROUP="plugdev", MODE="0664"
+# ST-Link/V2.1 (Nucleo boards)
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", TAG+="uaccess", GROUP="plugdev", MODE="0664"
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3752", TAG+="uaccess", GROUP="plugdev", MODE="0664"
+# ST-Link/V3
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374e", TAG+="uaccess", GROUP="plugdev", MODE="0664"
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374f", TAG+="uaccess", GROUP="plugdev", MODE="0664"
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3753", TAG+="uaccess", GROUP="plugdev", MODE="0664"
+ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3754", TAG+="uaccess", GROUP="plugdev", MODE="0664"
