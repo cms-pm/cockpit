@@ -1,9 +1,9 @@
 /*
- * ComponentVM C Bridge Implementation
+ * VM Bridge Implementation
  * Phase 4.2.1A: C++ to C Bridge Layer for STM32G431CB Hardware Integration
  */
 
-#include "component_vm_bridge.h"
+#include "vm_bridge.h"
 #include "../component_vm/include/component_vm.h"
 #include "../vm_blackbox/include/vm_blackbox.h"
 
@@ -16,7 +16,7 @@ extern "C" {
 extern "C" {
 
 // Internal structure to hold C++ ComponentVM instance
-struct component_vm_t {
+struct vm_bridge_t {
     ComponentVM* vm_instance;
     vm_blackbox_t* blackbox_instance;
     bool is_valid;
@@ -25,10 +25,10 @@ struct component_vm_t {
 
 // Static memory allocation for VM instance (embedded-friendly)
 static ComponentVM vm_storage;
-static component_vm_t vm_handle = {nullptr, nullptr, false, false};
+static vm_bridge_t vm_handle = {nullptr, nullptr, false, false};
 
 // Helper function to update telemetry during VM execution
-static void update_telemetry_if_enabled(component_vm_t* vm) {
+static void update_telemetry_if_enabled(vm_bridge_t* vm) {
     if (!vm || !vm->telemetry_enabled || !vm->blackbox_instance) {
         return;
     }
@@ -41,7 +41,7 @@ static void update_telemetry_if_enabled(component_vm_t* vm) {
     vm_blackbox_update_execution(vm->blackbox_instance, pc, instruction_count, last_opcode);
 }
 
-component_vm_t* component_vm_create(void) {
+vm_bridge_t* vm_bridge_create(void) {
     if (vm_handle.is_valid) {
         debug_print("WARNING: ComponentVM already created, returning existing instance");
         return &vm_handle;
@@ -57,7 +57,7 @@ component_vm_t* component_vm_create(void) {
     return &vm_handle;
 }
 
-void component_vm_destroy(component_vm_t* vm) {
+void vm_bridge_destroy(vm_bridge_t* vm) {
     if (!vm || !vm->is_valid) {
         debug_print("WARNING: Invalid ComponentVM handle in destroy");
         return;
@@ -77,7 +77,7 @@ void component_vm_destroy(component_vm_t* vm) {
     debug_print("ComponentVM C bridge destroyed");
 }
 
-vm_result_t component_vm_execute_program(component_vm_t* vm, const vm_instruction_t* program, size_t program_size) {
+vm_result_t vm_bridge_execute_program(vm_bridge_t* vm, const vm_instruction_t* program, size_t program_size) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         debug_print("ERROR: Invalid ComponentVM handle");
         return VM_RESULT_ERROR;
@@ -107,7 +107,7 @@ vm_result_t component_vm_execute_program(component_vm_t* vm, const vm_instructio
     }
 }
 
-vm_result_t component_vm_execute_single_step(component_vm_t* vm) {
+vm_result_t vm_bridge_execute_single_step(vm_bridge_t* vm) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return VM_RESULT_ERROR;
     }
@@ -120,7 +120,7 @@ vm_result_t component_vm_execute_single_step(component_vm_t* vm) {
     return result ? VM_RESULT_SUCCESS : VM_RESULT_ERROR;
 }
 
-vm_result_t component_vm_load_program(component_vm_t* vm, const vm_instruction_t* program, size_t program_size) {
+vm_result_t vm_bridge_load_program(vm_bridge_t* vm, const vm_instruction_t* program, size_t program_size) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return VM_RESULT_ERROR;
     }
@@ -135,7 +135,7 @@ vm_result_t component_vm_load_program(component_vm_t* vm, const vm_instruction_t
     return result ? VM_RESULT_SUCCESS : VM_RESULT_ERROR;
 }
 
-void component_vm_reset(component_vm_t* vm) {
+void vm_bridge_reset(vm_bridge_t* vm) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return;
     }
@@ -144,7 +144,7 @@ void component_vm_reset(component_vm_t* vm) {
     debug_print("ComponentVM reset completed");
 }
 
-bool component_vm_is_running(const component_vm_t* vm) {
+bool vm_bridge_is_running(const vm_bridge_t* vm) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return false;
     }
@@ -152,7 +152,7 @@ bool component_vm_is_running(const component_vm_t* vm) {
     return vm->vm_instance->is_running();
 }
 
-bool component_vm_is_halted(const component_vm_t* vm) {
+bool vm_bridge_is_halted(const vm_bridge_t* vm) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return true;
     }
@@ -160,7 +160,7 @@ bool component_vm_is_halted(const component_vm_t* vm) {
     return vm->vm_instance->is_halted();
 }
 
-size_t component_vm_get_instruction_count(const component_vm_t* vm) {
+size_t vm_bridge_get_instruction_count(const vm_bridge_t* vm) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return 0;
     }
@@ -168,7 +168,7 @@ size_t component_vm_get_instruction_count(const component_vm_t* vm) {
     return vm->vm_instance->get_instruction_count();
 }
 
-vm_performance_metrics_t component_vm_get_performance_metrics(const component_vm_t* vm) {
+vm_performance_metrics_t vm_bridge_get_performance_metrics(const vm_bridge_t* vm) {
     vm_performance_metrics_t metrics = {0, 0, 0, 0};
     
     if (!vm || !vm->is_valid || !vm->vm_instance) {
@@ -185,7 +185,7 @@ vm_performance_metrics_t component_vm_get_performance_metrics(const component_vm
     return metrics;
 }
 
-void component_vm_reset_performance_metrics(component_vm_t* vm) {
+void vm_bridge_reset_performance_metrics(vm_bridge_t* vm) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
         return;
     }
@@ -193,7 +193,7 @@ void component_vm_reset_performance_metrics(component_vm_t* vm) {
     vm->vm_instance->reset_performance_metrics();
 }
 
-const char* component_vm_get_error_string(vm_result_t result) {
+const char* vm_bridge_get_error_string(vm_result_t result) {
     switch (result) {
         case VM_RESULT_SUCCESS:
             return "Success";
@@ -211,7 +211,7 @@ const char* component_vm_get_error_string(vm_result_t result) {
 }
 
 // Phase 4.2.2B: Telemetry integration functions
-void component_vm_enable_telemetry(component_vm_t* vm, bool enable) {
+void vm_bridge_enable_telemetry(vm_bridge_t* vm, bool enable) {
     if (!vm || !vm->is_valid) {
         debug_print("ERROR: Invalid ComponentVM handle for telemetry");
         return;
@@ -240,7 +240,7 @@ void component_vm_enable_telemetry(component_vm_t* vm, bool enable) {
     }
 }
 
-bool component_vm_is_telemetry_enabled(const component_vm_t* vm) {
+bool vm_bridge_is_telemetry_enabled(const vm_bridge_t* vm) {
     if (!vm || !vm->is_valid) {
         return false;
     }

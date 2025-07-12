@@ -12,7 +12,7 @@
 #ifdef HARDWARE_PLATFORM
     #include "stm32g4xx_hal.h"
     #include "../lib/semihosting/semihosting.h"
-    #include "../lib/component_vm_bridge/component_vm_bridge.h"
+    #include "../lib/vm_bridge/vm_bridge.h"
     #include "../lib/vm_blackbox/include/vm_blackbox.h"
     #include "../include/memory_layout.h"
 #endif
@@ -56,7 +56,7 @@ void test_telemetry_validation(void) {
     test_phase = 1;
     test_sequence_marker = 0xAAAA0001;
     
-    component_vm_t* vm = component_vm_create();
+    vm_bridge_t* vm = vm_bridge_create();
     if (!vm) {
         debug_print("ERROR: Failed to create ComponentVM");
         return;
@@ -68,10 +68,10 @@ void test_telemetry_validation(void) {
     test_phase = 2;
     test_sequence_marker = 0xAAAA0002;
     
-    component_vm_enable_telemetry(vm, true);
-    if (!component_vm_is_telemetry_enabled(vm)) {
+    vm_bridge_enable_telemetry(vm, true);
+    if (!vm_bridge_is_telemetry_enabled(vm)) {
         debug_print("ERROR: Failed to enable telemetry");
-        component_vm_destroy(vm);
+        vm_bridge_destroy(vm);
         return;
     }
     
@@ -81,11 +81,11 @@ void test_telemetry_validation(void) {
     test_phase = 3;
     test_sequence_marker = 0xAAAA0003;
     
-    vm_result_t load_result = component_vm_load_program(vm, test_vm_program, 
+    vm_result_t load_result = vm_bridge_load_program(vm, test_vm_program, 
                                 sizeof(test_vm_program) / sizeof(test_vm_program[0]));
     if (load_result != VM_RESULT_SUCCESS) {
         debug_print("ERROR: Failed to load test program");
-        component_vm_destroy(vm);
+        vm_bridge_destroy(vm);
         return;
     }
     
@@ -98,21 +98,21 @@ void test_telemetry_validation(void) {
     
     debug_print(">>> Starting VM execution with telemetry monitoring");
     
-    vm_result_t exec_result = component_vm_execute_program(vm, test_vm_program, 
+    vm_result_t exec_result = vm_bridge_execute_program(vm, test_vm_program, 
                                 sizeof(test_vm_program) / sizeof(test_vm_program[0]));
     
     if (exec_result == VM_RESULT_SUCCESS) {
         debug_print("✓ VM program executed successfully");
     } else {
         debug_print("ERROR: VM program execution failed");
-        debug_print(component_vm_get_error_string(exec_result));
+        debug_print(vm_bridge_get_error_string(exec_result));
     }
     
     // Phase 5: Validation - telemetry should now contain execution data
     test_phase = 5;
     test_sequence_marker = 0xAAAA0005;
     
-    size_t instruction_count = component_vm_get_instruction_count(vm);
+    size_t instruction_count = vm_bridge_get_instruction_count(vm);
     debug_print_dec("Total instructions executed", instruction_count);
     
     // Phase 6: Memory layout verification
@@ -152,7 +152,7 @@ void test_telemetry_validation(void) {
     }
     
     // Final stable state
-    test_sequence_marker = 0xDEBUG999;  // Predictable final value for GDB
+    test_sequence_marker = 0xDEBEE999;  // Predictable final value for GDB
     
     // Keep variables alive for GDB inspection
     volatile int gdb_anchor = 42;
@@ -162,7 +162,7 @@ void test_telemetry_validation(void) {
     test_phase = 8;
     test_sequence_marker = 0xAAAA0008;
     
-    component_vm_destroy(vm);
+    vm_bridge_destroy(vm);
     debug_print("✓ ComponentVM destroyed successfully");
     debug_print("=== TELEMETRY VALIDATION TEST COMPLETE ===");
 }

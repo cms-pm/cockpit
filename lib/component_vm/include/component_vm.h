@@ -6,6 +6,18 @@
 #include "vm_errors.h"
 #include <cstdint>
 #include <cstddef>
+#include <vector>
+
+// Observer pattern for telemetry and debugging - MINIMAL GENERIC INTERFACE
+class ITelemetryObserver {
+public:
+    virtual ~ITelemetryObserver() = default;
+    
+    // Generic execution events only - tests interpret instruction meaning
+    virtual void on_instruction_executed(uint32_t pc, uint8_t opcode, uint32_t operand) = 0;
+    virtual void on_execution_complete(uint32_t total_instructions, uint32_t execution_time_ms) = 0;
+    virtual void on_vm_reset() = 0;
+};
 
 class ComponentVM {
 public:
@@ -49,6 +61,12 @@ public:
     vm_error_t get_last_error() const noexcept { return last_error_; }
     const char* get_error_string(vm_error_t error) const noexcept;
     
+    // Observer management for telemetry and debugging
+    void add_observer(ITelemetryObserver* observer) noexcept;
+    void remove_observer(ITelemetryObserver* observer) noexcept;
+    void clear_observers() noexcept;
+    size_t get_observer_count() const noexcept { return observers_.size(); }
+    
 private:
     // VM Components - construction order matters for RAII
     ExecutionEngine engine_;    // Constructed first
@@ -64,6 +82,9 @@ private:
     PerformanceMetrics metrics_;
     uint32_t execution_start_time_;
     
+    // Observer pattern support
+    std::vector<ITelemetryObserver*> observers_;
+    
     // Debug state (only in debug builds)
     #ifdef DEBUG
     bool trace_enabled_;
@@ -77,6 +98,11 @@ private:
     // Performance tracking helpers
     void start_performance_timing() noexcept;
     void update_performance_metrics() noexcept;
+    
+    // Observer notification helpers - minimal generic interface
+    void notify_instruction_executed(uint32_t pc, uint8_t opcode, uint32_t operand) noexcept;
+    void notify_execution_complete() noexcept;
+    void notify_vm_reset() noexcept;
     
     // Disable copy/move
     ComponentVM(const ComponentVM&) = delete;

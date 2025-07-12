@@ -7,7 +7,7 @@
 
 #ifdef HARDWARE_PLATFORM
 
-#include "../lib/component_vm_bridge/component_vm_bridge.h"
+#include "../lib/vm_bridge/vm_bridge.h"
 #include "../lib/arduino_hal/arduino_hal.h"
 #include "../lib/semihosting/semihosting.h"
 
@@ -94,7 +94,7 @@ void test_vm_hardware_integration(void) {
     debug_print("Arduino HAL initialized");
     
     // Create ComponentVM instance
-    component_vm_t* vm = component_vm_create();
+    vm_bridge_t* vm = vm_bridge_create();
     if (!vm) {
         debug_print("ERROR: Failed to create ComponentVM instance");
         return;
@@ -103,11 +103,11 @@ void test_vm_hardware_integration(void) {
     debug_print("ComponentVM instance created successfully");
     
     // Load the hardcoded bytecode program
-    vm_result_t load_result = component_vm_load_program(vm, led_blink_program, PROGRAM_SIZE);
+    vm_result_t load_result = vm_bridge_load_program(vm, led_blink_program, PROGRAM_SIZE);
     if (load_result != VM_RESULT_SUCCESS) {
         debug_print("ERROR: Failed to load bytecode program");
-        debug_print(component_vm_get_error_string(load_result));
-        component_vm_destroy(vm);
+        debug_print(vm_bridge_get_error_string(load_result));
+        vm_bridge_destroy(vm);
         return;
     }
     
@@ -115,13 +115,13 @@ void test_vm_hardware_integration(void) {
     
     // Execute the program
     debug_print("Starting bytecode execution...");
-    vm_result_t exec_result = component_vm_execute_program(vm, led_blink_program, PROGRAM_SIZE);
+    vm_result_t exec_result = vm_bridge_execute_program(vm, led_blink_program, PROGRAM_SIZE);
     
     if (exec_result == VM_RESULT_SUCCESS) {
         debug_print("✓ Bytecode execution completed successfully");
         
         // Get performance metrics
-        vm_performance_metrics_t metrics = component_vm_get_performance_metrics(vm);
+        vm_performance_metrics_t metrics = vm_bridge_get_performance_metrics(vm);
         debug_print("=== Performance Metrics ===");
         debug_print_dec("Execution time (ms)", metrics.execution_time_ms);
         debug_print_dec("Instructions executed", metrics.instructions_executed);
@@ -129,7 +129,7 @@ void test_vm_hardware_integration(void) {
         debug_print_dec("I/O operations", metrics.io_operations);
         
         // Verify expected instruction count
-        size_t instruction_count = component_vm_get_instruction_count(vm);
+        size_t instruction_count = vm_bridge_get_instruction_count(vm);
         debug_print_dec("Total instruction count", instruction_count);
         
         if (instruction_count == PROGRAM_SIZE) {
@@ -140,18 +140,18 @@ void test_vm_hardware_integration(void) {
         
     } else {
         debug_print("✗ Bytecode execution failed");
-        debug_print(component_vm_get_error_string(exec_result));
+        debug_print(vm_bridge_get_error_string(exec_result));
     }
     
     // Verify VM state
-    if (component_vm_is_halted(vm)) {
+    if (vm_bridge_is_halted(vm)) {
         debug_print("✓ VM properly halted after execution");
     } else {
         debug_print("⚠ VM still running after execution");
     }
     
     // Cleanup
-    component_vm_destroy(vm);
+    vm_bridge_destroy(vm);
     debug_print("ComponentVM instance destroyed");
     
     debug_print("=== Hardware Integration Test Complete ===");
