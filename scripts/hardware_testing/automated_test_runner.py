@@ -145,7 +145,7 @@ class HardwareTestRunner:
             elif test_suite in self.test_expectations:
                 # Single test specified by name
                 tests_to_run = [test_suite]
-            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic"]:
+            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite"]:
                 # Direct test name specification
                 tests_to_run = [test_suite]
             else:
@@ -284,6 +284,7 @@ class HardwareTestRunner:
         function_name_map = {
             "test_telemetry_validation": "run_telemetry_validation_main",
             "test_observer_pattern_basic": "run_observer_pattern_test_main",
+            "cpp_native_test_suite": "run_cpp_native_test_suite",
             "vm_arithmetic_basic": "run_vm_arithmetic_basic_main",
             "vm_memory_operations": "run_vm_memory_operations_main", 
             "vm_control_flow": "run_vm_control_flow_main"
