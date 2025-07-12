@@ -142,6 +142,12 @@ class HardwareTestRunner:
             # Execute tests based on suite  
             if test_suite == "vm_coverage":
                 tests_to_run = ["test_telemetry_validation"]  # Use working test first
+            elif test_suite in self.test_expectations:
+                # Single test specified by name
+                tests_to_run = [test_suite]
+            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic"]:
+                # Direct test name specification
+                tests_to_run = [test_suite]
             else:
                 tests_to_run = list(self.test_expectations.keys())
             
@@ -277,6 +283,7 @@ class HardwareTestRunner:
         # Map test names to their actual function names
         function_name_map = {
             "test_telemetry_validation": "run_telemetry_validation_main",
+            "test_observer_pattern_basic": "run_observer_pattern_test_main",
             "vm_arithmetic_basic": "run_vm_arithmetic_basic_main",
             "vm_memory_operations": "run_vm_memory_operations_main", 
             "vm_control_flow": "run_vm_control_flow_main"
