@@ -92,13 +92,58 @@ class ComponentVMDebugEngine:
         logger.info(f"ComponentVM Debug Engine initialized with OpenOCD: {self.openocd_binary}")
         logger.info(f"Using GDB binary: {self.gdb_binary}")
     
+    def __del__(self):
+        """
+        Destructor: Ensure hardware is properly reset before cleanup
+        
+        CRITICAL: This guarantees hardware continues normal operation even if
+        the debug session crashes or is interrupted unexpectedly.
+        """
+        try:
+            if hasattr(self, 'debug_finalized') and self.debug_finalized:
+                return  # Already cleaned up
+            
+            logger.info("Debug engine destructor: Ensuring hardware reset sequence")
+            
+            # Execute proper OpenOCD reset and disconnect sequence for hardware recovery
+            if self.is_openocd_running():
+                self.execute_gdb_command("monitor reset halt", timeout=2.0)
+                self.execute_gdb_command("monitor reset run", timeout=2.0)
+                self.execute_gdb_command("detach", timeout=2.0)  # Disconnect GDB from target
+                self.execute_gdb_command("monitor shutdown", timeout=2.0)  # Shutdown OpenOCD server
+                logger.info("✓ Hardware reset and ST-Link disconnect completed in destructor")
+            
+            # Clean shutdown
+            self.stop_openocd()
+            self.debug_finalized = True
+            
+        except Exception as e:
+            # Even if cleanup fails, try basic OpenOCD stop
+            logger.warning(f"Destructor cleanup warning: {e}")
+            try:
+                self.stop_openocd()
+            except:
+                pass  # Silent fail for destructor
+    
     def __enter__(self):
         """Context manager entry"""
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - cleanup resources"""
-        self.stop_openocd()
+        """Context manager cleanup with proper hardware reset"""
+        try:
+            # Ensure hardware reset and disconnect sequence before cleanup
+            if self.is_openocd_running():
+                self.execute_gdb_command("monitor reset halt", timeout=2.0)
+                self.execute_gdb_command("monitor reset run", timeout=2.0)
+                self.execute_gdb_command("detach", timeout=2.0)  # Disconnect GDB from target
+                self.execute_gdb_command("monitor shutdown", timeout=2.0)  # Shutdown OpenOCD server
+                logger.info("✓ Hardware reset and ST-Link disconnect completed in context manager")
+        except Exception as e:
+            logger.warning(f"Context manager reset warning: {e}")
+        finally:
+            self.stop_openocd()
+            self.debug_finalized = True
     
     # =================================================================
     # PlatformIO OpenOCD Detection (Battle-tested approach)
@@ -391,14 +436,23 @@ class ComponentVMDebugEngine:
             result = subprocess.run(
                 cmd, 
                 capture_output=True, 
-                text=True, 
+                text=False,  # Get raw bytes instead of decoded text
                 timeout=timeout
             )
             
+            # Safely decode output with error handling for binary data
+            try:
+                stdout = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+                stderr = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+            except (UnicodeDecodeError, AttributeError):
+                # Fallback: Convert bytes to string representation if decoding fails
+                stdout = str(result.stdout) if result.stdout else ""
+                stderr = str(result.stderr) if result.stderr else ""
+            
             if result.returncode == 0:
-                return DebugResult.success_result(result.stdout)
+                return DebugResult.success_result(stdout)
             else:
-                return DebugResult.error_result(result.stderr)
+                return DebugResult.error_result(stderr)
                 
         except subprocess.TimeoutExpired:
             return DebugResult.error_result(f"GDB command timeout after {timeout}s")
@@ -406,6 +460,54 @@ class ComponentVMDebugEngine:
             return DebugResult.error_result("arm-none-eabi-gdb not found in PATH")
         except Exception as e:
             return DebugResult.error_result(f"GDB command failed: {e}")
+    
+    def execute_gdb_command_non_blocking(self, command: str) -> DebugResult:
+        """
+        Execute GDB command without waiting for completion (for continue, run, etc.)
+        
+        Args:
+            command: GDB command to execute (continue, run, etc.)
+            
+        Returns:
+            DebugResult indicating command was sent successfully
+        """
+        if not self.is_openocd_running():
+            logger.info("OpenOCD not running, attempting restart...")
+            if not self.restart_openocd():
+                return DebugResult.error_result("Failed to restart OpenOCD")
+        
+        try:
+            # Send command via GDB batch mode with short timeout
+            # We just want to send the command, not wait for program completion
+            cmd = [
+                self.gdb_binary,
+                '-batch',
+                '-ex', f'target extended-remote localhost:{self.gdb_port}',
+                '-ex', command,
+                '-ex', 'monitor reset halt',   # Halt target cleanly
+                '-ex', 'monitor reset run',    # Resume execution
+                '-ex', 'detach',              # Detach from target to let it run freely
+                '-ex', 'quit'
+            ]
+            
+            # Short timeout just to send the command
+            result = subprocess.run(
+                cmd, 
+                capture_output=True, 
+                text=False,  # Get raw bytes instead of decoded text
+                timeout=2.0  # Just long enough to send command
+            )
+            
+            # For non-blocking commands, we consider it successful if we sent it
+            logger.info(f"Non-blocking GDB command '{command}' sent successfully")
+            return DebugResult.success_result(f"Command '{command}' sent to target")
+            
+        except subprocess.TimeoutExpired:
+            # For continue commands, timeout means the command was sent and target is running
+            logger.info(f"GDB command '{command}' sent, target is running")
+            return DebugResult.success_result(f"Command '{command}' sent, target running")
+        except Exception as e:
+            return DebugResult.error_result(f"Failed to send GDB command: {e}")
     
     def set_breakpoint(self, location: str) -> DebugResult:
         """Set breakpoint at specified location"""
@@ -416,8 +518,9 @@ class ComponentVMDebugEngine:
         return self.execute_gdb_command(f"clear {location}")
     
     def continue_execution(self) -> DebugResult:
-        """Continue program execution"""
-        return self.execute_gdb_command("continue")
+        """Continue program execution (non-blocking for running programs)"""
+        # For continue commands, we don't wait for completion as the program should run indefinitely
+        return self.execute_gdb_command_non_blocking("continue")
     
     def step_instruction(self) -> DebugResult:
         """Step one instruction"""

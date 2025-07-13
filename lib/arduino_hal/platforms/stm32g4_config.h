@@ -38,6 +38,12 @@
 #define STM32G4_RCC_CFGR_OFFSET      0x08  // Clock configuration register
 #define STM32G4_RCC_AHB2ENR_OFFSET   0x4C  // AHB2 peripheral clock enable
 
+// SysTick Register Base and Offsets (Cortex-M4 Core Peripheral)
+#define STM32G4_SYSTICK_BASE         0xE000E010
+#define STM32G4_SYSTICK_CTRL         0x00  // SysTick Control and Status Register
+#define STM32G4_SYSTICK_LOAD         0x04  // SysTick Reload Value Register  
+#define STM32G4_SYSTICK_VAL          0x08  // SysTick Current Value Register
+
 // Clock Control Register (RCC_CR) bits
 #define STM32G4_RCC_CR_HSEON         (1 << 16)  // HSE oscillator enable
 #define STM32G4_RCC_CR_HSERDY        (1 << 17)  // HSE oscillator ready
@@ -56,6 +62,11 @@
 #define STM32G4_RCC_AHB2ENR_GPIOEEN  (1 << 4)
 #define STM32G4_RCC_AHB2ENR_GPIOFEN  (1 << 5)
 #define STM32G4_RCC_AHB2ENR_GPIOGEN  (1 << 6)
+
+// SysTick Control Register (SYST_CSR) bits
+#define STM32G4_SYSTICK_CTRL_ENABLE      (1 << 0)  // Enable SysTick counter
+#define STM32G4_SYSTICK_CTRL_TICKINT     (1 << 1)  // Enable SysTick interrupt
+#define STM32G4_SYSTICK_CTRL_CLKSOURCE   (1 << 2)  // Clock source: 1=processor clock, 0=external
 
 // GPIO Mode values
 #define STM32G4_GPIO_MODE_INPUT      0x0
@@ -100,10 +111,11 @@ typedef struct {
 void stm32g4_system_init(void);
 void stm32g4_gpio_clock_enable(uint8_t port);
 void stm32g4_simple_clock_init(void);
+void stm32g4_systick_init(void);
 
 // Arduino pin mapping for STM32G431CB WeAct Studio board
 // This maps Arduino pin numbers to actual STM32G4 GPIO pins
-extern const stm32g4_pin_config_t stm32g4_pin_map[16];
+extern const stm32g4_pin_config_t stm32g4_pin_map[17];  // Extended to include PC13
 extern const stm32g4_platform_config_t stm32g4_platform_config;
 
 #endif // STM32G4_CONFIG_H

@@ -14,11 +14,11 @@
 
 // Arduino Pin Mapping for STM32G431CB WeAct Studio Board
 // We're keeping it simple - just the pins we need for initial validation
-const stm32g4_pin_config_t stm32g4_pin_map[16] = {
+const stm32g4_pin_config_t stm32g4_pin_map[17] = {
     // Arduino Pin 0-7: Map to GPIOA for simplicity
     [0] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 0, (1 << 0), 0},  // PA0
     [1] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 1, (1 << 1), 0},  // PA1
-    [2] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 2, (1 << 2), 0},  // PA2 - Button input
+    [2] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 2, (1 << 2), 0},  // PA2 - General input
     [3] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 3, (1 << 3), 0},  // PA3
     [4] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 4, (1 << 4), 0},  // PA4
     [5] = {(volatile uint32_t*)STM32G4_GPIOA_BASE, 5, (1 << 5), 0},  // PA5
@@ -38,6 +38,9 @@ const stm32g4_pin_config_t stm32g4_pin_map[16] = {
     // Arduino Pin 14-15: Additional GPIO
     [14] = {(volatile uint32_t*)STM32G4_GPIOC_BASE, 7, (1 << 7), 2},  // PC7
     [15] = {(volatile uint32_t*)STM32G4_GPIOC_BASE, 8, (1 << 8), 2},  // PC8
+    
+    // Arduino Pin 16: USER button on WeAct Studio board - PC13
+    [16] = {(volatile uint32_t*)STM32G4_GPIOC_BASE, 13, (1 << 13), 2}, // PC13 - USER button
 };
 
 // STM32G4 Platform Configuration
@@ -54,7 +57,7 @@ const stm32g4_platform_config_t stm32g4_platform_config = {
     },
     .rcc_base = (volatile uint32_t*)STM32G4_RCC_BASE,
     .pin_map = stm32g4_pin_map,
-    .pin_count = 16,
+    .pin_count = 17,
     .system_init = stm32g4_system_init,
     .gpio_clock_enable = stm32g4_gpio_clock_enable
 };
@@ -132,6 +135,37 @@ void stm32g4_simple_clock_init(void) {
     debug_print("STM32G4 Clock Init: Complete");
 }
 
+// SysTick Timer Initialization for 170MHz System Clock
+// Configures SysTick for 1ms ticks to support HAL_Delay() and timing functions
+void stm32g4_systick_init(void) {
+    volatile uint32_t* systick_ctrl = (volatile uint32_t*)(STM32G4_SYSTICK_BASE + STM32G4_SYSTICK_CTRL);
+    volatile uint32_t* systick_load = (volatile uint32_t*)(STM32G4_SYSTICK_BASE + STM32G4_SYSTICK_LOAD);
+    volatile uint32_t* systick_val = (volatile uint32_t*)(STM32G4_SYSTICK_BASE + STM32G4_SYSTICK_VAL);
+    
+    debug_print("STM32G4 SysTick Init: Configuring for 1ms ticks at 170MHz");
+    
+    // Calculate reload value for 1ms at 170MHz
+    // SysTick counts down from LOAD to 0, then reloads
+    // For 1ms: 170MHz / 1000Hz = 170,000 - 1 = 169,999
+    const uint32_t reload_value = 169999;
+    
+    // Step 1: Disable SysTick during configuration
+    *systick_ctrl = 0;
+    
+    // Step 2: Set the reload value for 1ms ticks
+    *systick_load = reload_value;
+    
+    // Step 3: Clear current value register
+    *systick_val = 0;
+    
+    // Step 4: Configure and enable SysTick
+    *systick_ctrl = STM32G4_SYSTICK_CTRL_CLKSOURCE |  // Use processor clock (HCLK = 170MHz)
+                    STM32G4_SYSTICK_CTRL_TICKINT |     // Enable SysTick interrupt for HAL_IncTick()
+                    STM32G4_SYSTICK_CTRL_ENABLE;       // Enable SysTick counter
+    
+    debug_print("STM32G4 SysTick Init: Configured for 1ms ticks, interrupts enabled");
+}
+
 // GPIO Clock Enable Function
 void stm32g4_gpio_clock_enable(uint8_t port) {
     volatile uint32_t* ahb2enr = (volatile uint32_t*)(STM32G4_RCC_BASE + STM32G4_RCC_AHB2ENR_OFFSET);
@@ -156,8 +190,12 @@ void stm32g4_gpio_clock_enable(uint8_t port) {
 void stm32g4_system_init(void) {
     debug_print("STM32G4 System Init: Starting");
     
-    // Initialize the clock system
+    // Initialize the clock system to 170MHz
     stm32g4_simple_clock_init();
+    
+    // Configure SysTick for 1ms ticks at 170MHz
+    // This ensures HAL_Delay() and timing functions work correctly
+    stm32g4_systick_init();
     
     // Enable GPIO clocks for all ports we might use
     // Better to enable them all now than debug clock issues later
@@ -165,5 +203,5 @@ void stm32g4_system_init(void) {
     stm32g4_gpio_clock_enable(1);  // GPIOB
     stm32g4_gpio_clock_enable(2);  // GPIOC
     
-    debug_print("STM32G4 System Init: Complete");
+    debug_print("STM32G4 System Init: Complete - 170MHz with 1ms SysTick");
 }

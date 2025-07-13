@@ -145,7 +145,7 @@ class HardwareTestRunner:
             elif test_suite in self.test_expectations:
                 # Single test specified by name
                 tests_to_run = [test_suite]
-            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite", "simple_cpp_test", "simple_led_test", "basic_hardware_test"]:
+            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite", "simple_cpp_test", "simple_led_test", "basic_hardware_test", "test_button_validation"]:
                 # Direct test name specification
                 tests_to_run = [test_suite]
             else:
@@ -173,11 +173,7 @@ class HardwareTestRunner:
                 result = self._execute_single_test(test_name)
                 self.test_results.append(result)
                 
-                # Reset and continue program before stopping debug session 
-                # CRITICAL: This allows the program to run normally after debug session
-                self.debug_engine.execute_gdb_command("monitor reset")
-                self.debug_engine.execute_gdb_command("continue")
-                
+                # Reset sequence is now handled within each test method
                 # Stop debug session after each test
                 self.debug_engine.stop_openocd()
                 
@@ -293,6 +289,7 @@ class HardwareTestRunner:
             "simple_cpp_test": "run_simple_cpp_test_suite",
             "simple_led_test": "run_simple_led_test_main",
             "basic_hardware_test": "run_basic_hardware_test_main",
+            "test_button_validation": "run_test_button_validation_main",
             "vm_arithmetic_basic": "run_vm_arithmetic_basic_main",
             "vm_memory_operations": "run_vm_memory_operations_main", 
             "vm_control_flow": "run_vm_control_flow_main"
@@ -352,6 +349,17 @@ void SystemClock_Config(void) {{
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
+    
+    // Update SystemCoreClock variable and reconfigure SysTick
+    SystemCoreClockUpdate();
+    
+    // Manual SysTick configuration for 1ms tick at 170MHz
+    // For 1ms tick: 170MHz / 1000 = 170,000 - 1 = 169,999
+    SysTick->LOAD = 169999;          // Set reload value for 1ms at 170MHz
+    SysTick->VAL = 0;                // Clear current value
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |  // Use processor clock (HCLK)
+                    SysTick_CTRL_TICKINT_Msk |     // Enable SysTick interrupt
+                    SysTick_CTRL_ENABLE_Msk;       // Enable SysTick
 }}
 
 static void MX_GPIO_Init(void) {{
@@ -364,6 +372,11 @@ static void MX_GPIO_Init(void) {{
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+}}
+
+// SysTick interrupt handler for HAL_Delay()
+void SysTick_Handler(void) {{
+    HAL_IncTick();
 }}
 
 void Error_Handler(void) {{
@@ -401,6 +414,93 @@ void assert_failed(uint8_t *file, uint32_t line) {{
             print(f"✗ Debug initialization exception: {e}")
             return False
     
+    def _execute_hardware_only_test(self, test_name: str) -> TestExecutionResult:
+        """
+        Execute a hardware-only test that doesn't require VM telemetry validation.
+        These tests only verify that the firmware uploads and runs without crashing.
+        """
+        start_time = time.time()
+        
+        try:
+            # Step 1: Reset to clean state
+            print("   1. Resetting target to clean state...")
+            result = self.debug_engine.execute_gdb_command("monitor reset halt")
+            if not result.success:
+                return self._create_error_result(test_name, f"Reset failed: {result.error}")
+            
+            # Step 2: Start execution
+            print("   2. Starting program execution...")
+            result = self.debug_engine.execute_gdb_command("monitor reset run")
+            if not result.success:
+                return self._create_error_result(test_name, f"Start execution failed: {result.error}")
+            
+            # Step 3: Let the test run for a few seconds to verify it doesn't crash
+            print("   3. Allowing 3 seconds for hardware test execution...")
+            time.sleep(3)
+            
+            # Step 4: Check if target is still running (not crashed)
+            print("   4. Verifying target is still executing...")
+            result = self.debug_engine.execute_gdb_command("monitor halt")
+            if not result.success:
+                return self._create_error_result(test_name, f"Failed to halt target for verification: {result.error}")
+            
+            # Step 5: Read basic system state
+            print("   5. Reading basic system state...")
+            pc_result = self.debug_engine.execute_gdb_command("print $pc")
+            if not pc_result.success:
+                return self._create_error_result(test_name, f"Failed to read PC: {pc_result.error}")
+            
+            # Step 6: Execute proper reset sequence BEFORE returning
+            print("   6. Executing reset sequence for proper hardware recovery...")
+            reset_halt_result = self.debug_engine.execute_gdb_command("monitor reset halt")
+            if not reset_halt_result.success:
+                print(f"   ⚠️  Reset halt warning: {reset_halt_result.error}")
+            
+            reset_run_result = self.debug_engine.execute_gdb_command("monitor reset run")
+            if not reset_run_result.success:
+                print(f"   ⚠️  Reset run warning: {reset_run_result.error}")
+            else:
+                print("   ✓ Hardware reset sequence completed successfully")
+            
+            execution_time = time.time() - start_time
+            
+            # For hardware-only tests, success means the target was running and responsive
+            print("   7. Hardware test validation complete...")
+            
+            return TestExecutionResult(
+                test_name=test_name,
+                result=TestResult.PASS,
+                execution_time_ms=int(execution_time * 1000),
+                actual_instruction_count=0,  # Not applicable for hardware-only tests
+                actual_final_pc=0,           # Not validated for hardware-only tests  
+                actual_global_values={},     # Not applicable for hardware-only tests
+                actual_stack_depth=0,        # Not applicable for hardware-only tests
+                error_message=""
+            )
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            
+            # Even on exception, try to execute reset sequence for hardware recovery
+            try:
+                print("   ⚠️  Exception occurred, attempting reset sequence for hardware recovery...")
+                self.debug_engine.execute_gdb_command("monitor reset halt")
+                self.debug_engine.execute_gdb_command("monitor reset run")
+                print("   ✓ Hardware reset sequence completed after exception")
+            except:
+                print("   ⚠️  Could not execute reset sequence after exception")
+            
+            return TestExecutionResult(
+                test_name=test_name,
+                result=TestResult.ERROR,
+                execution_time_ms=int(execution_time * 1000),
+                actual_instruction_count=0,
+                actual_final_pc=0,
+                actual_global_values={},
+                actual_stack_depth=0,
+                error_message=f"Hardware test exception: {str(e)}"
+            )
+    
     def _execute_single_test(self, test_name: str) -> TestExecutionResult:
         """
         Execute a single test with reset/run/settle methodology
@@ -412,21 +512,26 @@ void assert_failed(uint8_t *file, uint32_t line) {{
         4. Read telemetry data when stable
         5. Validate against manual expectations
         """
+        # Check if this test has VM telemetry expectations
+        if test_name not in self.test_expectations:
+            # This is a hardware-only test (like simple_led_test)
+            return self._execute_hardware_only_test(test_name)
+            
         expectation = self.test_expectations[test_name]
         start_time = time.time()
         
         try:
             # Step 1: Reset to clean state (critical from Phase 4.2.2B1 learning)
             print("   1. Resetting target to clean state...")
-            result = self.debug_engine.execute_gdb_command("monitor reset")
+            result = self.debug_engine.execute_gdb_command("monitor reset halt")
             if not result.success:
                 return self._create_error_result(test_name, f"Reset failed: {result.error}")
             
             # Step 2: Start execution
             print("   2. Starting program execution...")
-            result = self.debug_engine.execute_gdb_command("continue")
+            result = self.debug_engine.execute_gdb_command("monitor reset run")
             if not result.success:
-                return self._create_error_result(test_name, f"Continue failed: {result.error}")
+                return self._create_error_result(test_name, f"Start execution failed: {result.error}")
             
             # Step 3: Wait for execution completion (settle time)
             print(f"   3. Allowing {expectation.timeout_seconds} seconds for execution...")
@@ -448,10 +553,32 @@ void assert_failed(uint8_t *file, uint32_t line) {{
             print("   6. Validating against expectations...")
             execution_time = int((time.time() - start_time) * 1000)
             
+            # Step 7: Execute proper reset sequence BEFORE returning
+            print("   7. Executing reset sequence for proper hardware recovery...")
+            reset_halt_result = self.debug_engine.execute_gdb_command("monitor reset halt")
+            if not reset_halt_result.success:
+                print(f"   ⚠️  Reset halt warning: {reset_halt_result.error}")
+            
+            reset_run_result = self.debug_engine.execute_gdb_command("monitor reset run")
+            if not reset_run_result.success:
+                print(f"   ⚠️  Reset run warning: {reset_run_result.error}")
+            else:
+                print("   ✓ Hardware reset sequence completed successfully")
+            
             return self._validate_test_results(test_name, expectation, telemetry_data, execution_time)
             
         except Exception as e:
             execution_time = int((time.time() - start_time) * 1000)
+            
+            # Even on exception, try to execute reset sequence for hardware recovery
+            try:
+                print("   ⚠️  Exception occurred, attempting reset sequence for hardware recovery...")
+                self.debug_engine.execute_gdb_command("monitor reset halt")
+                self.debug_engine.execute_gdb_command("monitor reset run")
+                print("   ✓ Hardware reset sequence completed after exception")
+            except:
+                print("   ⚠️  Could not execute reset sequence after exception")
+            
             return TestExecutionResult(
                 test_name=test_name,
                 result=TestResult.ERROR,

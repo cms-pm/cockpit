@@ -46,6 +46,9 @@ typedef struct {
     bool initialized;       // Whether pin is configured
 } gpio_pin_map_t;
 
+// System initialization - call this first to setup clocks and timers
+void arduino_system_init(void);
+
 // Arduino API function implementations
 void arduino_pin_mode(uint8_t pin, pin_mode_t mode);
 void arduino_digital_write(uint8_t pin, pin_state_t state);

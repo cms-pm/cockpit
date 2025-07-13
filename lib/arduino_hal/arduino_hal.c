@@ -236,6 +236,20 @@ pin_state_t hal_get_mock_pin_state(uint8_t pin) {
 }
 #endif
 
+// Arduino system initialization
+// This should be called first to setup clocks, timers, and system resources
+void arduino_system_init(void) {
+#ifdef PLATFORM_STM32G4
+    const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
+    config->system_init();
+    debug_print("Arduino system initialized on STM32G4 with 170MHz + SysTick");
+#else
+    // For QEMU/LM3S6965, basic initialization
+    hal_gpio_init();
+    debug_print("Arduino system initialized on QEMU/LM3S6965");
+#endif
+}
+
 // Arduino API implementations
 void arduino_pin_mode(uint8_t pin, pin_mode_t mode) {
     hal_gpio_set_mode(pin, mode);
