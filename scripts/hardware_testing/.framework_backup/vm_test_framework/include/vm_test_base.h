@@ -69,8 +69,8 @@ protected:
     
 public:
     VMTestBase(const std::string& test_name) : result(test_name) {
-        // Create blackbox observer for telemetry
-        blackbox_observer = std::make_unique<BlackboxObserver>();
+        // Create blackbox observer for telemetry (C++11 compatible)
+        blackbox_observer.reset(new BlackboxObserver());
     }
     
     virtual ~VMTestBase() = default;
@@ -108,9 +108,8 @@ public:
                 }
             }
             
-        } catch (...) {
-            result.error_message = "Exception occurred during test execution";
-        }
+        // Note: Exception handling disabled in embedded build
+        // Error handling done via return values and result.error_message
         
         // Cleanup
         cleanup_test();

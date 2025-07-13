@@ -49,20 +49,14 @@ protected:
         
         debug_test_print("Executing legacy C test: " + std::string(test_data.test_name));
         
-        try {
-            // Execute the C test function
-            // Note: C tests are responsible for their own pass/fail determination
-            // We just ensure they don't crash or hang
-            test_data.test_function();
-            execution_completed = true;
-            
-            debug_test_print("Legacy C test completed without exceptions");
-            return true;
-            
-        } catch (...) {
-            result.error_message = "Legacy C test threw an exception";
-            return false;
-        }
+        // Execute the C test function
+        // Note: C tests are responsible for their own pass/fail determination
+        // Exception handling disabled in embedded build
+        test_data.test_function();
+        execution_completed = true;
+        
+        debug_test_print("Legacy C test completed");
+        return true;
     }
     
     void validate_results(const LegacyCTestData& expected) override {

@@ -24,6 +24,7 @@ struct SOSTimingTestData {
     uint32_t total_pattern_time_ms;
     uint32_t pattern_tolerance_ms;
     
+    // Default constructor for template compatibility  
     SOSTimingTestData() : total_pattern_time_ms(0), pattern_tolerance_ms(100) {}
 };
 

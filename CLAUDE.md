@@ -183,4 +183,29 @@ python scripts/switch_target.py qemu
 
 ---
 
-**Current Focus**: Phase 4.1.1 - PlatformIO board definition and minimal hardware validation on STM32G431CB WeAct Studio CoreBoard with automated testing infrastructure.
+## Critical Hardware Debugging Notes
+
+### **GDB/OpenOCD Execution Control**
+⚠️ **CRITICAL**: When automated test runner connects to GDB server via OpenOCD, program execution **HALTS IMMEDIATELY**. 
+
+**Key Behaviors:**
+- GDB connection automatically stops target execution for debugging
+- LED behavior observed during testing may be interrupted execution, not program failure
+- Must always issue `reset` + `continue` commands before disconnecting to resume normal operation
+- Hardware appears "stuck" if GDB session ends without resuming execution
+
+**Required Workflow:**
+1. Upload firmware → Program runs normally
+2. GDB connects → **Program halts** 
+3. Debug/inspect memory/telemetry
+4. **MUST**: `monitor reset` + `continue` before disconnect
+5. Program resumes normal execution
+
+**Testing Impact:**
+- Simple LED tests appear to "fail" due to GDB halt, not actual program issues
+- Need to differentiate between GDB-induced stops and real execution problems
+- Consider testing without GDB connection for continuous operation validation
+
+---
+
+**Current Focus**: Phase 4.3.3 - Hardware validation with proper GDB execution control on STM32G431CB WeAct Studio CoreBoard.

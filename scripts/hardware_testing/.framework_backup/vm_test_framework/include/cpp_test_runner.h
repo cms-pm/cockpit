@@ -73,7 +73,7 @@ public:
     // Register native C++ tests
     template<typename TestClass, typename TestDataType>
     void register_test(const std::string& test_name, const TestDataType& test_data) {
-        auto factory = std::make_unique<TypedTestFactory<TestClass, TestDataType>>(test_name, test_data);
+        auto factory = std::unique_ptr<TestFactory>(new TypedTestFactory<TestClass, TestDataType>(test_name, test_data));
         test_factories.push_back(std::move(factory));
     }
     

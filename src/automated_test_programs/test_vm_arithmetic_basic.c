@@ -21,8 +21,8 @@
 #ifdef HARDWARE_PLATFORM
 
 // Test marker for GDB inspection
-volatile uint32_t test_marker = 0xBA51C001;  // "BASIC 01" in valid hex
-volatile uint32_t test_status = 0;
+static volatile uint32_t test_marker = 0xBA51C001;  // "BASIC 01" in valid hex
+static volatile uint32_t test_status = 0;
 
 // VM test program: Basic arithmetic (PUSH 100, PUSH 50, ADD, STORE_GLOBAL 0)
 static const vm_instruction_t vm_arithmetic_basic_program[] = {

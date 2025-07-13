@@ -145,7 +145,7 @@ class HardwareTestRunner:
             elif test_suite in self.test_expectations:
                 # Single test specified by name
                 tests_to_run = [test_suite]
-            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite"]:
+            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite", "simple_cpp_test", "simple_led_test", "basic_hardware_test"]:
                 # Direct test name specification
                 tests_to_run = [test_suite]
             else:
@@ -172,6 +172,11 @@ class HardwareTestRunner:
                 
                 result = self._execute_single_test(test_name)
                 self.test_results.append(result)
+                
+                # Reset and continue program before stopping debug session 
+                # CRITICAL: This allows the program to run normally after debug session
+                self.debug_engine.execute_gdb_command("monitor reset")
+                self.debug_engine.execute_gdb_command("continue")
                 
                 # Stop debug session after each test
                 self.debug_engine.stop_openocd()
@@ -285,6 +290,9 @@ class HardwareTestRunner:
             "test_telemetry_validation": "run_telemetry_validation_main",
             "test_observer_pattern_basic": "run_observer_pattern_test_main",
             "cpp_native_test_suite": "run_cpp_native_test_suite",
+            "simple_cpp_test": "run_simple_cpp_test_suite",
+            "simple_led_test": "run_simple_led_test_main",
+            "basic_hardware_test": "run_basic_hardware_test_main",
             "vm_arithmetic_basic": "run_vm_arithmetic_basic_main",
             "vm_memory_operations": "run_vm_memory_operations_main", 
             "vm_control_flow": "run_vm_control_flow_main"

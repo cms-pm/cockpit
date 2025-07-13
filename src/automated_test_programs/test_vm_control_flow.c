@@ -21,8 +21,8 @@
 #ifdef HARDWARE_PLATFORM
 
 // Test marker for GDB inspection
-volatile uint32_t test_marker = 0xC001001;  // "CONTROL 01" in valid hex
-volatile uint32_t test_status = 0;
+static volatile uint32_t test_marker = 0xC001001;  // "CONTROL 01" in valid hex
+static volatile uint32_t test_status = 0;
 
 // VM test program: Control flow (conditional jumps, comparison operations)
 static const vm_instruction_t vm_control_flow_program[] = {

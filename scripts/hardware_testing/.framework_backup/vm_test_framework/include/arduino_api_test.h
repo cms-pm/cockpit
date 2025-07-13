@@ -23,7 +23,8 @@ struct ArduinoAPITestData {
     std::vector<APICall> api_sequence;
     std::vector<VM::Instruction> test_program;
     
-    ArduinoAPITestData() = default;
+    // Default constructor for template compatibility
+    ArduinoAPITestData() {}
 };
 
 class ArduinoAPITest : public VMTestBase<ArduinoAPITestData> {

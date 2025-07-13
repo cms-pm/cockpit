@@ -21,8 +21,8 @@
 #ifdef HARDWARE_PLATFORM
 
 // Test marker for GDB inspection
-volatile uint32_t test_marker = 0xEE00001;  // "MEMORY 01" in valid hex
-volatile uint32_t test_status = 0;
+static volatile uint32_t test_marker = 0xEE00001;  // "MEMORY 01" in valid hex
+static volatile uint32_t test_status = 0;
 
 // VM test program: Memory operations (store, load, manipulate globals)
 static const vm_instruction_t vm_memory_operations_program[] = {

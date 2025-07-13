@@ -18,6 +18,9 @@ struct GPIORegisterTestData {
     uint8_t expected_pullup;      // NOPULL=0, PULLUP=1, PULLDOWN=2
     std::vector<VM::Instruction> setup_program;  // pinMode bytecode
     
+    // Default constructor for template compatibility
+    GPIORegisterTestData() : pin(0), expected_mode(0), expected_pullup(0) {}
+    
     GPIORegisterTestData(uint8_t p, uint8_t mode, uint8_t pullup) 
         : pin(p), expected_mode(mode), expected_pullup(pullup) {}
 };
