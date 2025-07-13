@@ -37,6 +37,17 @@
 #define STM32G4_RCC_PLLCFGR_OFFSET   0x0C  // PLL configuration register
 #define STM32G4_RCC_CFGR_OFFSET      0x08  // Clock configuration register
 #define STM32G4_RCC_AHB2ENR_OFFSET   0x4C  // AHB2 peripheral clock enable
+#define STM32G4_RCC_APB2ENR_OFFSET   0x60  // APB2 peripheral clock enable
+
+// USART Register Base and Offsets
+#define STM32G4_USART1_BASE          0x40013800
+#define STM32G4_USART_CR1_OFFSET     0x00  // Control register 1
+#define STM32G4_USART_CR2_OFFSET     0x04  // Control register 2
+#define STM32G4_USART_CR3_OFFSET     0x08  // Control register 3
+#define STM32G4_USART_BRR_OFFSET     0x0C  // Baud rate register
+#define STM32G4_USART_ISR_OFFSET     0x1C  // Interrupt and status register
+#define STM32G4_USART_TDR_OFFSET     0x28  // Transmit data register
+#define STM32G4_USART_RDR_OFFSET     0x24  // Receive data register
 
 // SysTick Register Base and Offsets (Cortex-M4 Core Peripheral)
 #define STM32G4_SYSTICK_BASE         0xE000E010
@@ -62,6 +73,22 @@
 #define STM32G4_RCC_AHB2ENR_GPIOEEN  (1 << 4)
 #define STM32G4_RCC_AHB2ENR_GPIOFEN  (1 << 5)
 #define STM32G4_RCC_AHB2ENR_GPIOGEN  (1 << 6)
+
+// USART Clock Enable bits (RCC_APB2ENR)
+#define STM32G4_RCC_APB2ENR_USART1EN (1 << 14)  // USART1 clock enable
+
+// USART Control Register 1 (USART_CR1) bits
+#define STM32G4_USART_CR1_UE         (1 << 0)   // USART enable
+#define STM32G4_USART_CR1_RE         (1 << 2)   // Receiver enable
+#define STM32G4_USART_CR1_TE         (1 << 3)   // Transmitter enable
+#define STM32G4_USART_CR1_RXNEIE     (1 << 5)   // RXNE interrupt enable
+#define STM32G4_USART_CR1_TCIE       (1 << 6)   // Transmission complete interrupt enable
+#define STM32G4_USART_CR1_TXEIE      (1 << 7)   // TXE interrupt enable
+
+// USART Interrupt and Status Register (USART_ISR) bits
+#define STM32G4_USART_ISR_TXE        (1 << 7)   // Transmit data register empty
+#define STM32G4_USART_ISR_TC         (1 << 6)   // Transmission complete
+#define STM32G4_USART_ISR_RXNE       (1 << 5)   // Read data register not empty
 
 // SysTick Control Register (SYST_CSR) bits
 #define STM32G4_SYSTICK_CTRL_ENABLE      (1 << 0)  // Enable SysTick counter
@@ -112,6 +139,7 @@ void stm32g4_system_init(void);
 void stm32g4_gpio_clock_enable(uint8_t port);
 void stm32g4_simple_clock_init(void);
 void stm32g4_systick_init(void);
+void stm32g4_usart1_init(uint32_t baud_rate);
 
 // Arduino pin mapping for STM32G431CB WeAct Studio board
 // This maps Arduino pin numbers to actual STM32G4 GPIO pins

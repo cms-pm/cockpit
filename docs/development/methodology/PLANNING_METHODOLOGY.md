@@ -8,7 +8,7 @@ This document captures the systematic planning approaches that have proven succe
 ### Core Methodology
 The project has successfully used systematic "Pool Question" cycles for major architectural decisions:
 
-1. **Question Pool Structure**: 4-6 carefully crafted questions per decision domain
+1. **Question Pool Structure**: Can 4-6 carefully crafted questions per decision domain
 2. **Cycle Requirements**: Minimum 4 cycles required before major implementations
 3. **Ambiguity Resolution**: Continue cycles until zero ambiguity achieved
 4. **Documentation**: All decisions and rationale preserved for reference

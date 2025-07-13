@@ -205,3 +205,46 @@ void stm32g4_system_init(void) {
     
     debug_print("STM32G4 System Init: Complete - 170MHz with 1ms SysTick");
 }
+
+// USART1 Initialization for WeAct STM32G431CB USB-UART Bridge
+// Configures PA9 (TX) and PA10 (RX) for USART1 communication via CH340C USB bridge
+void stm32g4_usart1_init(uint32_t baud_rate) {
+    debug_print("STM32G4 USART1 Init: Starting configuration for USB-UART bridge");
+    
+    volatile uint32_t* rcc_apb2enr = (volatile uint32_t*)(STM32G4_RCC_BASE + STM32G4_RCC_APB2ENR_OFFSET);
+    volatile uint32_t* gpioa_moder = (volatile uint32_t*)(STM32G4_GPIOA_BASE + STM32G4_GPIO_MODER_OFFSET);
+    volatile uint32_t* gpioa_afr_high = (volatile uint32_t*)(STM32G4_GPIOA_BASE + 0x24);  // AFRH register
+    volatile uint32_t* usart1_base = (volatile uint32_t*)STM32G4_USART1_BASE;
+    
+    // Step 1: Enable USART1 clock on APB2 bus
+    *rcc_apb2enr |= STM32G4_RCC_APB2ENR_USART1EN;
+    debug_print("STM32G4 USART1: Clock enabled on APB2");
+    
+    // Step 2: Configure PA9 (USART1_TX) and PA10 (USART1_RX) as alternate function
+    // PA9 = bits 18-19 in MODER, PA10 = bits 20-21 in MODER
+    // Set to alternate function mode (10 binary = 0x2)
+    *gpioa_moder &= ~((0x3 << 18) | (0x3 << 20));  // Clear existing mode bits
+    *gpioa_moder |= ((0x2 << 18) | (0x2 << 20));   // Set alternate function mode
+    debug_print("STM32G4 USART1: PA9/PA10 configured as alternate function");
+    
+    // Step 3: Configure alternate function 7 (AF7) for USART1 on PA9/PA10
+    // PA9 = bits 4-7 in AFRH, PA10 = bits 8-11 in AFRH
+    // AF7 = 0111 binary = 0x7
+    *gpioa_afr_high &= ~((0xF << 4) | (0xF << 8));  // Clear existing AF bits
+    *gpioa_afr_high |= ((0x7 << 4) | (0x7 << 8));   // Set AF7 for USART1
+    debug_print("STM32G4 USART1: AF7 configured for PA9/PA10");
+    
+    // Step 4: Calculate and set baud rate
+    // Formula: BRR = PCLK / baud_rate
+    // APB2 clock = 170MHz (same as system clock)
+    uint32_t brr_value = 170000000 / baud_rate;
+    *(usart1_base + (STM32G4_USART_BRR_OFFSET / 4)) = brr_value;
+    debug_print("STM32G4 USART1: Baud rate configured");
+    
+    // Step 5: Enable USART1 transmitter and receiver
+    // Set UE (USART Enable), TE (Transmitter Enable), RE (Receiver Enable)
+    *(usart1_base + (STM32G4_USART_CR1_OFFSET / 4)) = 
+        STM32G4_USART_CR1_UE | STM32G4_USART_CR1_TE | STM32G4_USART_CR1_RE;
+    
+    debug_print("STM32G4 USART1 Init: Complete - Ready for USB-UART communication");
+}

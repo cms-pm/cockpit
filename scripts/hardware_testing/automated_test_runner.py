@@ -145,7 +145,7 @@ class HardwareTestRunner:
             elif test_suite in self.test_expectations:
                 # Single test specified by name
                 tests_to_run = [test_suite]
-            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite", "simple_cpp_test", "simple_led_test", "basic_hardware_test", "test_button_validation"]:
+            elif test_suite in ["test_telemetry_validation", "test_observer_pattern_basic", "cpp_native_test_suite", "simple_cpp_test", "simple_led_test", "basic_hardware_test", "test_button_validation", "test_uart_basic", "test_serial_verification"]:
                 # Direct test name specification
                 tests_to_run = [test_suite]
             else:
@@ -290,6 +290,8 @@ class HardwareTestRunner:
             "simple_led_test": "run_simple_led_test_main",
             "basic_hardware_test": "run_basic_hardware_test_main",
             "test_button_validation": "run_test_button_validation_main",
+            "test_uart_basic": "run_test_uart_basic_main",
+            "test_serial_verification": "run_test_serial_verification_main",
             "vm_arithmetic_basic": "run_vm_arithmetic_basic_main",
             "vm_memory_operations": "run_vm_memory_operations_main", 
             "vm_control_flow": "run_vm_control_flow_main"

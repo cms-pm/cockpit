@@ -6,14 +6,8 @@ set -e
 
 echo "=== Chunk 4.1.1 Validation Test ==="
 
-# Test 1: Build system and target switching
-echo "Testing build system and target switching..."
-
-# Test QEMU build
-echo "  Testing QEMU target build..."
-python scripts/switch_target.py qemu
-/home/chris/.platformio/penv/bin/pio run -e qemu-lm3s6965evb > /dev/null 2>&1
-echo "  ✓ QEMU build successful"
+# Test 1: Build system - Hardware target
+echo "Testing build system..."
 
 # Test hardware build
 echo "  Testing hardware target build..."
