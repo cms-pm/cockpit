@@ -8,7 +8,7 @@
 #ifdef HARDWARE_PLATFORM
 
 // Test function declarations
-extern void run_simple_led_test_main(void);
+extern void run_vm_diagnostic_test_main(void);
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -19,7 +19,7 @@ int main(void) {
     MX_GPIO_Init();
     
     // Run the specific test
-    run_simple_led_test_main();
+    run_vm_diagnostic_test_main();
     
     return 0;
 }
@@ -50,6 +50,18 @@ void SystemClock_Config(void) {
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
     HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4);
+    
+    // Update SystemCoreClock variable and reconfigure SysTick
+    SystemCoreClockUpdate();
+    
+    // Manual SysTick configuration for 1ms tick at 170MHz
+    // Option 1: SysTick at full HCLK speed (170MHz)
+    // For 1ms tick: 170MHz / 1000 = 170,000 - 1 = 169,999
+    SysTick->LOAD = 169999;          // Set reload value for 1ms at 170MHz
+    SysTick->VAL = 0;                // Clear current value
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |  // Use processor clock (HCLK)
+                    SysTick_CTRL_TICKINT_Msk |     // Enable SysTick interrupt
+                    SysTick_CTRL_ENABLE_Msk;       // Enable SysTick
 }
 
 static void MX_GPIO_Init(void) {
@@ -62,6 +74,11 @@ static void MX_GPIO_Init(void) {
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+}
+
+// SysTick interrupt handler for HAL_Delay()
+void SysTick_Handler(void) {
+    HAL_IncTick();
 }
 
 void Error_Handler(void) {

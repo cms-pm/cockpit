@@ -43,7 +43,7 @@ static void update_telemetry_if_enabled(vm_bridge_t* vm) {
 
 vm_bridge_t* vm_bridge_create(void) {
     if (vm_handle.is_valid) {
-        debug_print("WARNING: ComponentVM already created, returning existing instance");
+        // WARNING: ComponentVM already created, returning existing instance
         return &vm_handle;
     }
     
@@ -53,13 +53,13 @@ vm_bridge_t* vm_bridge_create(void) {
     vm_handle.telemetry_enabled = false;
     vm_handle.blackbox_instance = nullptr;
     
-    debug_print("ComponentVM C bridge created successfully");
+    // ComponentVM C bridge created successfully
     return &vm_handle;
 }
 
 void vm_bridge_destroy(vm_bridge_t* vm) {
     if (!vm || !vm->is_valid) {
-        debug_print("WARNING: Invalid ComponentVM handle in destroy");
+        // WARNING: Invalid ComponentVM handle in destroy
         return;
     }
     
@@ -74,24 +74,24 @@ void vm_bridge_destroy(vm_bridge_t* vm) {
     vm->is_valid = false;
     vm->telemetry_enabled = false;
     
-    debug_print("ComponentVM C bridge destroyed");
+    // ComponentVM C bridge destroyed
 }
 
 vm_result_t vm_bridge_execute_program(vm_bridge_t* vm, const vm_instruction_t* program, size_t program_size) {
     if (!vm || !vm->is_valid || !vm->vm_instance) {
-        debug_print("ERROR: Invalid ComponentVM handle");
+        // ERROR: Invalid ComponentVM handle
         return VM_RESULT_ERROR;
     }
     
     if (!program || program_size == 0) {
-        debug_print("ERROR: Invalid program parameters");
+        // ERROR: Invalid program parameters
         return VM_RESULT_ERROR;
     }
     
     // Cast C instruction format to C++ format (compatible structs)
     const VM::Instruction* cpp_program = reinterpret_cast<const VM::Instruction*>(program);
     
-    debug_print_dec("Executing program with instructions", program_size);
+    // Executing program with instructions: program_size
     
     bool result = vm->vm_instance->execute_program(cpp_program, program_size);
     
@@ -99,10 +99,10 @@ vm_result_t vm_bridge_execute_program(vm_bridge_t* vm, const vm_instruction_t* p
     update_telemetry_if_enabled(vm);
     
     if (result) {
-        debug_print("Program execution completed successfully");
+        // Program execution completed successfully
         return VM_RESULT_SUCCESS;
     } else {
-        debug_print("Program execution failed");
+        // Program execution failed
         return VM_RESULT_ERROR;
     }
 }
@@ -141,7 +141,7 @@ void vm_bridge_reset(vm_bridge_t* vm) {
     }
     
     vm->vm_instance->reset_vm();
-    debug_print("ComponentVM reset completed");
+    // ComponentVM reset completed
 }
 
 bool vm_bridge_is_running(const vm_bridge_t* vm) {
@@ -213,7 +213,7 @@ const char* vm_bridge_get_error_string(vm_result_t result) {
 // Phase 4.2.2B: Telemetry integration functions
 void vm_bridge_enable_telemetry(vm_bridge_t* vm, bool enable) {
     if (!vm || !vm->is_valid) {
-        debug_print("ERROR: Invalid ComponentVM handle for telemetry");
+        // ERROR: Invalid ComponentVM handle for telemetry
         return;
     }
     
@@ -222,12 +222,12 @@ void vm_bridge_enable_telemetry(vm_bridge_t* vm, bool enable) {
         vm->blackbox_instance = vm_blackbox_create();
         if (vm->blackbox_instance) {
             vm->telemetry_enabled = true;
-            debug_print("ComponentVM telemetry enabled");
+            // ComponentVM telemetry enabled
             
             // Initialize with current VM state
             update_telemetry_if_enabled(vm);
         } else {
-            debug_print("ERROR: Failed to create blackbox instance");
+            // ERROR: Failed to create blackbox instance
         }
     } else if (!enable && vm->telemetry_enabled) {
         // Disable telemetry
@@ -236,7 +236,7 @@ void vm_bridge_enable_telemetry(vm_bridge_t* vm, bool enable) {
             vm->blackbox_instance = nullptr;
         }
         vm->telemetry_enabled = false;
-        debug_print("ComponentVM telemetry disabled");
+        // ComponentVM telemetry disabled
     }
 }
 
