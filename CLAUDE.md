@@ -208,4 +208,41 @@ python scripts/switch_target.py qemu
 
 ---
 
-**Current Focus**: Phase 4.3.3 - Hardware validation with proper GDB execution control on STM32G431CB WeAct Studio CoreBoard.
+## Phase 4.5.2 Bootloader System (In Progress)
+
+### **Implementation Status**
+- ✅ **Design Complete**: Comprehensive bootloader architecture documented
+- ✅ **Hardware Ready**: USART1 validated with 168MHz + 48MHz USB clock configuration
+- ✅ **Test Framework**: Dual-pass validation system ready for bootloader testing
+- ⏳ **Implementation Ready**: UART transport bootloader with modular design
+
+### **Revised Technical Architecture**
+```yaml
+Phase 1 (Development):  Host Tool ←UART→ STM32 Bootloader (USB-Serial adapter)
+Phase 2 (Production):   OTA Server ←WiFi→ ESP32 ←UART→ STM32 Bootloader
+```
+
+### **Implementation Strategy - UART First**
+**Rationale**: UART transport is fastest and most reliable given validated USART1 configuration
+- **Phase 1**: Implement UART transport bootloader using USB-to-Serial adapter
+- **Phase 2**: Add USB CDC transport as drop-in replacement (quick implementation)
+- **Phase 3**: ESP32 bridge for production OTA (eventual goal)
+
+**Key Design Decisions:**
+- **UART Transport First**: Leverage validated USART1 hardware configuration
+- **USB CDC Drop-in**: Designed for quick implementation once UART system validated
+- **Modular Transport**: Clean abstractions for easy transport layer swapping
+- **KISS Protocol**: Simple text commands, CRC verification
+- **Safety First**: Bootloader protection, atomic operations
+
+### **Implementation Plan**
+```yaml
+Chunk 4.5.2A: UART Transport Foundation (2-3h)
+Chunk 4.5.2B: Command Protocol Implementation (2-3h)  
+Chunk 4.5.2C: Flash Programming Operations (2-3h)
+Chunk 4.5.2D: Host Upload Tool (1-2h)
+Chunk 4.5.2E: USB CDC Transport Addition (1-2h) - Drop-in replacement
+Chunk 4.5.2F: Application Integration (1-2h)
+```
+
+**Current Focus**: Ready to begin Phase 4.5.2A implementation - UART transport bootloader foundation with modular architecture for easy USB CDC integration.
