@@ -248,7 +248,7 @@ bool uart_validate_registers(void) {
     
     // Check USART1_BRR - Should have reasonable baud rate value
     uint32_t brr_value = REG32(USART1_BRR);
-    uint32_t expected_brr = 170000000 / uart_config.baud_rate;
+    uint32_t expected_brr = 168000000 / uart_config.baud_rate;
     
     // Allow ±10% tolerance for baud rate calculation
     if (brr_value < (expected_brr * 9 / 10) || brr_value > (expected_brr * 11 / 10)) {

@@ -242,7 +242,7 @@ void arduino_system_init(void) {
 #ifdef PLATFORM_STM32G4
     const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
     config->system_init();
-    debug_print("Arduino system initialized on STM32G4 with 170MHz + SysTick");
+    debug_print("Arduino system initialized on STM32G4 with 168MHz + SysTick");
 #else
     // For QEMU/LM3S6965, basic initialization
     hal_gpio_init();
