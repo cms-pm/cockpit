@@ -1,0 +1,167 @@
+# STM32G4 Platform Definition
+# Register addresses and bit definitions for STM32G431CB
+
+platform: stm32g4
+target_name: stm32g431cbux
+description: "STM32G431CB WeAct Studio CoreBoard"
+
+# Memory map
+memory_map:
+  flash:
+    base: 0x08000000
+    size: 128KB
+  ram:
+    base: 0x20000000
+    size: 32KB
+  
+# Peripheral definitions
+peripherals:
+  # UART peripherals
+  uart:
+    uart1:
+      base_address: 0x40013800
+      enable_register: 0x40021060      # RCC APB2ENR
+      enable_bit: 14                   # USART1EN
+      registers:
+        CR1: 0x00                      # Control register 1
+        CR2: 0x04                      # Control register 2
+        CR3: 0x08                      # Control register 3
+        BRR: 0x0C                      # Baud rate register
+        GTPR: 0x10                     # Guard time and prescaler
+        RTOR: 0x14                     # Receiver timeout register
+        RQR: 0x18                      # Request register
+        ISR: 0x1C                      # Interrupt and status register
+        ICR: 0x20                      # Interrupt flag clear register
+        RDR: 0x24                      # Receive data register
+        TDR: 0x28                      # Transmit data register
+      status_register_offset: 0x1C     # ISR register
+      baud_rate_register_offset: 0x0C  # BRR register
+      tx_ready_mask: 0x80              # TXE bit in ISR
+      rx_ready_mask: 0x20              # RXNE bit in ISR
+    
+    uart2:
+      base_address: 0x40004400
+      enable_register: 0x40021058      # RCC APB1ENR1
+      enable_bit: 17                   # USART2EN
+      status_register_offset: 0x1C
+      baud_rate_register_offset: 0x0C
+      tx_ready_mask: 0x80
+      rx_ready_mask: 0x20
+
+  # GPIO peripherals
+  gpio:
+    gpioa:
+      base_address: 0x48000000
+      enable_register: 0x4002104C      # RCC AHB2ENR
+      enable_bit: 0                    # GPIOAEN
+      registers:
+        MODER: 0x00                    # Mode register
+        OTYPER: 0x04                   # Output type register
+        OSPEEDR: 0x08                  # Output speed register
+        PUPDR: 0x0C                    # Pull-up/pull-down register
+        IDR: 0x10                      # Input data register
+        ODR: 0x14                      # Output data register
+        BSRR: 0x18                     # Bit set/reset register
+        LCKR: 0x1C                     # Configuration lock register
+        AFRL: 0x20                     # Alternate function low register
+        AFRH: 0x24                     # Alternate function high register
+      mode_register_offset: 0x00
+      output_register_offset: 0x14
+      input_register_offset: 0x10
+      
+    gpiob:
+      base_address: 0x48000400
+      enable_register: 0x4002104C      # RCC AHB2ENR
+      enable_bit: 1                    # GPIOBEN
+      mode_register_offset: 0x00
+      output_register_offset: 0x14
+      input_register_offset: 0x10
+      
+    gpioc:
+      base_address: 0x48000800
+      enable_register: 0x4002104C      # RCC AHB2ENR
+      enable_bit: 2                    # GPIOCEN
+      mode_register_offset: 0x00
+      output_register_offset: 0x14
+      input_register_offset: 0x10
+
+  # SPI peripherals
+  spi:
+    spi1:
+      base_address: 0x40013000
+      enable_register: 0x40021060      # RCC APB2ENR
+      enable_bit: 12                   # SPI1EN
+      registers:
+        CR1: 0x00                      # Control register 1
+        CR2: 0x04                      # Control register 2
+        SR: 0x08                       # Status register
+        DR: 0x0C                       # Data register
+      status_register_offset: 0x08
+      tx_ready_mask: 0x02              # TXE bit
+      rx_ready_mask: 0x01              # RXNE bit
+
+  # Timer peripherals
+  timer:
+    tim1:
+      base_address: 0x40012C00
+      enable_register: 0x40021060      # RCC APB2ENR
+      enable_bit: 11                   # TIM1EN
+      registers:
+        CR1: 0x00                      # Control register 1
+        CR2: 0x04                      # Control register 2
+        SMCR: 0x08                     # Slave mode control register
+        DIER: 0x0C                     # Interrupt enable register
+        SR: 0x10                       # Status register
+        EGR: 0x14                      # Event generation register
+        CNT: 0x24                      # Counter register
+        PSC: 0x28                      # Prescaler register
+        ARR: 0x2C                      # Auto-reload register
+
+# Clock system
+clock_system:
+  rcc_base: 0x40021000
+  registers:
+    CR: 0x00                           # Clock control register
+    ICSCR: 0x04                        # Internal clock sources calibration register
+    CFGR: 0x08                         # Clock configuration register
+    PLLCFGR: 0x0C                      # PLL configuration register
+    CIER: 0x18                         # Clock interrupt enable register
+    CIFR: 0x1C                         # Clock interrupt flag register
+    CICR: 0x20                         # Clock interrupt clear register
+    AHB1RSTR: 0x28                     # AHB1 peripheral reset register
+    AHB2RSTR: 0x2C                     # AHB2 peripheral reset register
+    AHB3RSTR: 0x30                     # AHB3 peripheral reset register
+    APB1RSTR1: 0x38                    # APB1 peripheral reset register 1
+    APB1RSTR2: 0x3C                    # APB1 peripheral reset register 2
+    APB2RSTR: 0x40                     # APB2 peripheral reset register
+    AHB1ENR: 0x48                      # AHB1 peripheral clock enable register
+    AHB2ENR: 0x4C                      # AHB2 peripheral clock enable register
+    AHB3ENR: 0x50                      # AHB3 peripheral clock enable register
+    APB1ENR1: 0x58                     # APB1 peripheral clock enable register 1
+    APB1ENR2: 0x5C                     # APB1 peripheral clock enable register 2
+    APB2ENR: 0x60                      # APB2 peripheral clock enable register
+
+# Common validation patterns
+validation_patterns:
+  system_clocks:
+    pll_ready:
+      address: 0x40021000              # RCC base
+      offset: 0x00                     # CR register
+      mask: 0x02000000                 # PLLRDY bit
+      expected: 0x02000000
+      description: "PLL ready"
+    
+    system_clock_pll:
+      address: 0x40021000              # RCC base
+      offset: 0x08                     # CFGR register
+      mask: 0x0C                       # SWS bits [3:2]
+      expected: 0x08                   # PLL selected
+      description: "System clock using PLL"
+
+  common_peripherals:
+    gpio_clocks_enabled:
+      address: 0x40021000              # RCC base
+      offset: 0x4C                     # AHB2ENR
+      mask: 0x07                       # GPIOA, GPIOB, GPIOC
+      expected: 0x07                   # All enabled
+      description: "GPIO clocks enabled"

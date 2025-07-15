@@ -20,3 +20,7 @@ docs/feasibility/ESP32_C6_IMPLEMENTATION_PLAN.md
 *.orig
 *.swp
 .gooseignore
+
+# New test system - ignore runtime artifacts
+active_workspaces/
+legacy_backup/

@@ -1,0 +1,26 @@
+# ComponentVM Hardware Test System Dependencies
+# Python package requirements for workspace-isolated test execution
+
+# YAML parsing for test catalog
+PyYAML>=6.0
+
+# Path manipulation utilities
+pathlib2>=2.3.7; python_version < '3.4'
+
+# Enhanced subprocess handling
+subprocess32>=3.5.4; python_version < '3.2'
+
+# Optional: Enhanced debugging capabilities
+pexpect>=4.8.0
+
+# Optional: Better logging
+colorlog>=6.7.0
+
+# Optional: Progress bars for long operations  
+tqdm>=4.64.0
+
+# Optional: Enhanced error reporting
+rich>=13.0.0
+
+# Hardware validation and debugging
+pyocd>=0.37.0

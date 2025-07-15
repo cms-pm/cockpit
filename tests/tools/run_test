@@ -1,0 +1,35 @@
+#!/bin/bash
+# ComponentVM Hardware Test Runner
+# Simple CLI entry point for workspace-isolated test execution
+
+set -e
+
+# Check if test name provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <test_name> [--debug]"
+    echo ""
+    echo "Available tests:"
+    echo "  Use 'list_tests' to see available tests"
+    exit 1
+fi
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="$(dirname "$SCRIPT_DIR")"
+
+echo "🚀 ComponentVM Hardware Test Runner"
+echo "Test System: Workspace-Isolated Architecture"  
+echo "Working Directory: $TEST_DIR"
+echo ""
+
+# Change to test directory
+cd "$TEST_DIR"
+
+# Activate virtual environment if it exists
+if [ -d "test_venv" ]; then
+    echo "Activating test virtual environment..."
+    source test_venv/bin/activate
+fi
+
+# Run executor with proper Python environment
+python3 workspace_manager/test_executor.py "$@"

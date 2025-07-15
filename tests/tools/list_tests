@@ -1,0 +1,60 @@
+#!/bin/bash
+# ComponentVM Hardware Test Lister
+# Shows available tests from the test catalog
+
+set -e
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="$(dirname "$SCRIPT_DIR")"
+
+echo "📋 ComponentVM Available Hardware Tests"
+echo "Test System: Workspace-Isolated Architecture"
+echo ""
+
+# Change to test directory
+cd "$TEST_DIR"
+
+# Activate virtual environment if it exists
+if [ -d "test_venv" ]; then
+    source test_venv/bin/activate
+fi
+
+# Simple Python script to read the catalog
+python3 -c "
+import yaml
+import sys
+from pathlib import Path
+
+catalog_path = Path('test_registry/test_catalog.yaml')
+if not catalog_path.exists():
+    print('Test catalog not found')
+    sys.exit(1)
+
+with open(catalog_path, 'r') as f:
+    catalog = yaml.safe_load(f)
+
+tests = catalog.get('tests', {})
+suites = catalog.get('test_suites', {})
+
+print('INDIVIDUAL TESTS:')
+print('-' * 40)
+for test_name, test_info in tests.items():
+    status = test_info.get('stability', 'unknown')
+    desc = test_info.get('description', 'No description')
+    print(f'  {test_name:20} [{status:15}] {desc}')
+
+print()
+print('TEST SUITES:')
+print('-' * 40)
+for suite_name, suite_info in suites.items():
+    desc = suite_info.get('description', 'No description')
+    test_count = len(suite_info.get('tests', []))
+    print(f'  {suite_name:20} [{test_count} tests] {desc}')
+
+print()
+print('USAGE:')
+print('  ./tools/run_test <test_name>     # Run individual test')
+print('  ./tools/debug_test <test_name>   # Debug individual test')
+print('  ./tools/run_test <suite_name>    # Run test suite (future)')
+"

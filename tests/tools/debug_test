@@ -1,0 +1,35 @@
+#!/bin/bash
+# ComponentVM Hardware Test Debugger
+# Simple CLI entry point for interactive debugging
+
+set -e
+
+# Check if test name provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <test_name>"
+    echo ""
+    echo "This will start an interactive debug session for the specified test."
+    echo "The test will be built and uploaded, then you can debug interactively."
+    exit 1
+fi
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_DIR="$(dirname "$SCRIPT_DIR")"
+
+echo "🔍 ComponentVM Hardware Test Debugger"
+echo "Test System: Workspace-Isolated Architecture"
+echo "Debug Mode: Interactive"
+echo ""
+
+# Change to test directory
+cd "$TEST_DIR"
+
+# Activate virtual environment if it exists
+if [ -d "test_venv" ]; then
+    echo "Activating test virtual environment..."
+    source test_venv/bin/activate
+fi
+
+# Run executor in debug mode with proper Python environment
+python3 workspace_manager/test_executor.py "$1" --debug

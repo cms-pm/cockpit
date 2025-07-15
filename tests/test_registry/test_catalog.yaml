@@ -1,0 +1,205 @@
+# ComponentVM Hardware Test Catalog
+# Defines all available tests with metadata for workspace-isolated execution
+
+tests:
+  pc6_led_focused:
+    source: test_pc6_led_focused.c
+    dependencies: []  # Self-contained test
+    description: "Focused PC6 LED test - confirmed working on WeAct STM32G431CB"
+    timeout: 15s
+    expected_patterns:
+      - "PC6 LED test complete"
+      - "workspace isolation working"
+    hardware_requirements:
+      - led_pc6
+    category: hardware_validation
+    stability: confirmed_working
+    notes: "This test successfully validates our workspace isolation system"
+    validation:
+      execution_strategy: dual_pass
+      required: false
+      authority:
+        overall: supplemental
+        semihosting: optional
+        memory: required
+        timeout_strategy: fail_graceful
+      timeout: 30s
+      
+      # Pass 1: Semihosting validation
+      semihosting_checks:
+        - contains: "PC6 LED test complete"
+        - contains: "workspace isolation working"
+        - not_contains: "ERROR"
+      semihosting_timeout: 20s
+      
+      # Pass 2: Memory validation
+      common_checks:
+        - gpio_pc6_output
+      memory_checks:
+        gpioc_pc6_output_mode:
+          address: 0x48000800        # GPIOC base
+          offset: 0x00               # MODER register
+          mask: 0x3000               # PC6 mode bits [13:12]
+          expected: 0x1000           # Output mode (01)
+          description: "PC6 configured as output mode"
+      peripheral_checks:
+        pc6:
+          mode: output
+          state: high
+      
+      # Rich diagnostics
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_both_passes: true
+    
+  # Additional tests to be migrated from legacy system
+  led_basic:
+    source: test_led_basic.c  # To be migrated
+    dependencies: []
+    description: "Basic LED toggle validation"
+    timeout: 10s
+    expected_patterns:
+      - "LED test complete"
+    hardware_requirements:
+      - led_pc6
+    category: hardware_validation
+    stability: to_be_migrated
+    
+  uart_basic:
+    source: test_uart_basic.c
+    dependencies: []  # Self-contained test, no semihosting
+    description: "UART communication validation - no semihosting, output via UART only"
+    timeout: 45s
+    expected_patterns:
+      - "UART test complete"
+      - "All UART functions validated"
+    hardware_requirements:
+      - usart1_pa9_pa10
+      - led_pc6
+    category: communication
+    stability: development
+    semihosting: false  # Disable semihosting for this test
+    notes: "Test output via UART (PA9/PA10) - monitor with serial terminal at 115200 baud"
+    
+  usart1_comprehensive:
+    source: test_usart1_comprehensive.c
+    dependencies: []  # Self-contained test with semihosting
+    description: "Comprehensive USART1 test with Serial output and register validation"
+    timeout: 60s
+    expected_patterns:
+      - "USART1 Test Complete"
+      - "All USART1 functions validated successfully"
+      - "Register states analyzed and documented"
+    hardware_requirements:
+      - usart1_pa9_pa10
+      - led_pc6
+    category: communication
+    stability: development
+    semihosting: true  # Enable semihosting for debug output
+    notes: "Comprehensive USART1 validation with register analysis and optional interactive testing"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: required
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      # Pass 1: Semihosting validation
+      semihosting_checks:
+        - contains: "USART1 Comprehensive Test Starting"
+        - contains: "USART1 initialized successfully"
+        - contains: "USART1 comprehensive test execution complete"
+        - contains: "CR1.UE: PASS"
+        - contains: "CR1.TE: PASS"
+        - contains: "ISR.TXE: PASS"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+        - sequence:
+          - "Test 1: USART1 initialization"
+          - "Test 2: Initial register validation"
+          - "Test 3: Transmission pattern testing"
+          - "Test 4: Post-transmission register validation"
+          - "Test 5: Interactive reception testing"
+          - "Test 6: Final register state validation"
+      semihosting_timeout: 30s
+      
+      # Pass 2: Memory validation - USART1 register states
+      memory_checks:
+        usart1_enabled:
+          address: 0x40013800        # USART1 base
+          offset: 0x00               # CR1 register
+          mask: 0x01                 # UE bit
+          expected: 0x01             # USART enabled
+          description: "USART1 enabled (CR1.UE)"
+        usart1_transmitter_enabled:
+          address: 0x40013800        # USART1 base
+          offset: 0x00               # CR1 register
+          mask: 0x08                 # TE bit
+          expected: 0x08             # Transmitter enabled
+          description: "USART1 transmitter enabled (CR1.TE)"
+        usart1_receiver_enabled:
+          address: 0x40013800        # USART1 base
+          offset: 0x00               # CR1 register
+          mask: 0x04                 # RE bit
+          expected: 0x04             # Receiver enabled
+          description: "USART1 receiver enabled (CR1.RE)"
+        usart1_tx_empty:
+          address: 0x40013800        # USART1 base
+          offset: 0x1C               # ISR register
+          mask: 0x80                 # TXE bit
+          expected: 0x80             # TX empty
+          description: "USART1 TX empty (ISR.TXE)"
+        usart1_clock_enabled:
+          address: 0x40021060        # RCC APB2ENR
+          offset: 0x00               # APB2ENR register
+          mask: 0x4000               # USART1EN bit
+          expected: 0x4000           # USART1 clock enabled
+          description: "USART1 clock enabled (RCC.APB2ENR.USART1EN)"
+        usart1_baud_rate_configured:
+          address: 0x40013800        # USART1 base
+          offset: 0x0C               # BRR register
+          mask: 0xFFFF               # Full BRR value
+          expected: 0x05B2           # ~115200 baud at 168MHz (1458 decimal)
+          description: "USART1 baud rate configured"
+          
+      # Cross-platform peripheral checks
+      peripheral_checks:
+        uart1:
+          enabled: true
+          baud_rate: 115200
+          tx_ready: true
+          
+      # Rich diagnostics
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x40
+        include_peripheral_summary: true
+        include_both_passes: true
+
+# Test suites for batch execution
+test_suites:
+  smoke_tests:
+    description: "Quick validation tests for CI/CD"
+    tests:
+      - pc6_led_focused
+    timeout: 30s
+    
+  hardware_validation:
+    description: "Complete hardware validation suite"
+    tests:
+      - pc6_led_focused
+      - led_basic
+    timeout: 60s
+    
+  full_regression:
+    description: "Complete regression test suite"
+    tests:
+      - pc6_led_focused
+      - led_basic  
+      - uart_basic
+    timeout: 120s
