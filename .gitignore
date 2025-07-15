@@ -21,6 +21,19 @@ docs/feasibility/ESP32_C6_IMPLEMENTATION_PLAN.md
 *.swp
 .gooseignore
 
+# Build artifacts and generated files
+**/__pycache__/
+*.pyc
+*.pyo
+*.checksum
+
+# Documentation diagrams and images
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.pdf
+
 # New test system - ignore runtime artifacts
 active_workspaces/
 legacy_backup/
