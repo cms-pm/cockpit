@@ -17,47 +17,56 @@ Embedded hypervisor project featuring ComponentVM - enabling C bytecode executio
 
 ---
 
-## 🚀 Current Status: **🎉 ComponentVM Running on Hardware!**
+## 🚀 Current Development Status
 
-### **Phase 4.3.3 COMPLETE: Hardware Execution Success**
-- ✅ **STM32G431CB Hardware Validated**: Real ARM Cortex-M4 @ 170MHz execution
-- ✅ **ComponentVM on Hardware**: C++ VM executing bytecode on real silicon
-- ✅ **VM Bridge Working**: C wrapper layer functional for embedded integration
-- ✅ **Hardware HAL**: SysTick timing, GPIO control, memory management
-- ✅ **Diagnostic Framework**: LED breadcrumb debugging, automated validation
+### **Phase 4.5.1: Hardware Validation System**
+- **STM32G431CB Hardware**: Basic ARM Cortex-M4 @ 168MHz execution working
+- **ComponentVM on Hardware**: Basic VM bytecode execution on hardware
+- **Dual-Pass Validation**: Test framework for semihosting + hardware state validation
+- **USART1 Testing**: Basic serial communication and register validation
+- **Test Framework**: Workspace-isolated testing system
+- **Clock Configuration**: 168MHz system clock + 48MHz USB clock configured
 
-### **ComponentVM Core Features**
-- ✅ **32-bit VM Architecture**: ARM Cortex-M4 optimized with HandlerReturn PC management
-- ✅ **Arduino Integration**: digitalWrite, digitalRead, analogWrite, analogRead, delay, pinMode, millis, micros, printf
-- ✅ **C Compiler**: ANTLR4-based with functions, control flow, expressions
-- ✅ **Testing**: 181/181 tests passing on QEMU, hardware validation confirmed
-- ✅ **Memory Protection**: Stack canaries, bounds checking, corruption detection
+### **ComponentVM Core Features (Development)**
+- **32-bit VM Architecture**: ARM Cortex-M4 implementation with PC management
+- **Arduino Integration**: Basic digitalWrite, digitalRead, delay, pinMode, printf functions
+- **C Compiler**: ANTLR4-based compiler with basic functions and control flow
+- **Testing**: 181/181 tests passing on QEMU, basic hardware validation
+- **Memory Protection**: Stack canaries, bounds checking, corruption detection
 
-### **Hardware Performance (STM32G431CB)**
+### **Hardware Configuration (STM32G431CB)**
 ```yaml
 Platform: STM32G431CB WeAct Studio CoreBoard
-CPU: ARM Cortex-M4F @ 170MHz 
-Flash: 12.5KB used (9.5% of 128KB) - excellent headroom
+CPU: ARM Cortex-M4F @ 168MHz
+Flash: 12.5KB used (9.5% of 128KB)
 RAM: 15KB used (46.2% of 32KB) - 8KB system + 24KB VM
-VM Execution: VERIFIED - bytecode programs execute successfully
-Hardware Status: ✅ PRODUCTION READY
+VM Execution: Basic bytecode programs execute
+USART1: Basic serial communication working
+Test Framework: Development testing framework
+Hardware Status: Development prototype
 ```
 
 ---
 
-## 🎯 Phase 4 Progress: Hardware Transition **[75% Complete]**
+## 🎯 Phase 4 Progress: Hardware Transition
 
 **Target**: STM32G431CB WeAct Studio CoreBoard
 
 ### **Completed Phases**
 - ✅ **4.1 Hardware Foundation**: PlatformIO board, HAL adaptation, SysTick configuration
 - ✅ **4.2 VM Integration**: Hardware HAL, C++ ComponentVM integration, VM Bridge layer
-- ✅ **4.3 Hardware Validation**: VM execution confirmed, diagnostic framework, LED feedback
+- ✅ **4.3 Automated Testing**: SWD test automation, GDB/OpenOCD integration
+- ✅ **4.4 Button Validation**: Hardware input validation with register verification
+- ✅ **4.5.1 Advanced Testing**: Dual-pass validation system, USART1 comprehensive testing
+
+### **Current Phase**
+- 🔄 **4.5.2 UART Bootloader**: UART transport foundation, command protocol, flash programming
+  - **Strategy**: UART first (validated hardware), USB CDC as drop-in replacement
+  - **Architecture**: Host Tool ←UART→ STM32 Bootloader (USB-Serial adapter)
+  - **Modular Design**: Clean transport abstractions for easy USB CDC integration
 
 ### **Remaining Phases**
-- 🔄 **4.4 Automated Testing**: GDB/OpenOCD integration, SWD test automation
-- ⏳ **4.5 Bootloader System**: UART protocol, flash programming, OTA updates
-- ⏳ **4.6 Production Tools**: Bytecode upload utility, deployment automation
+- ⏳ **4.5.3 Development Tools**: Host upload utility, deployment automation, end-to-end integration
 
 ---
 
@@ -74,15 +83,18 @@ git clone <repository> && cd cockpit
 # QEMU development (proven)
 make build && make test
 
-# Hardware execution (working!)
+# Hardware execution (development)
 ~/.platformio/penv/bin/pio run --environment weact_g431cb_hardware
 ~/.platformio/penv/bin/pio run --target upload --environment weact_g431cb_hardware
 
-# Automated testing (Phase 4.4)
-python scripts/hardware_testing/automated_test_runner.py
+# Hardware testing (Phase 4.5.1)
+cd tests/
+./setup_test_environment.sh
+./tools/run_test pc6_led_focused        # GPIO with dual-pass validation
+./tools/run_test usart1_comprehensive   # USART1 with register analysis
 ```
 
-### **ComponentVM Example (Running on Hardware!)**
+### **ComponentVM Example (Basic Hardware Execution)**
 ```c
 // This C code compiles to bytecode and executes on STM32G431CB
 void setup() {
@@ -92,13 +104,13 @@ void setup() {
 
 void loop() {
     digitalWrite(13, HIGH);  // LED on
-    delay(1000);             // Hardware-validated timing
+    delay(1000);             // Basic timing
     digitalWrite(13, LOW);   // LED off  
-    delay(1000);             // ComponentVM execution confirmed
+    delay(1000);             // Basic VM execution
 }
 ```
 
-**Hardware Validation**: VM programs execute with LED feedback indicating success/failure
+**Hardware Testing**: VM programs execute with LED feedback + basic validation system
 
 ---
 
@@ -113,11 +125,12 @@ Instruction        Bounds Checking    GPIO/Printf
 Dispatch          Memory Protection   Timing
 ```
 
-### **Memory Layout (Hardware Validated)**
+### **Memory Layout (Development)**
 ```
-Flash (128KB): ComponentVM (12.5KB) + Bytecode Storage (115KB available)
+Flash (128KB): ComponentVM (12.5KB) + Bootloader (16KB planned) + Bytecode Storage (99KB available)
 RAM (32KB): System Stack (8KB) + VM Memory (24KB)
-Performance: >100 instructions/second, 1ms timing precision
+Performance: Basic instruction execution, 1ms timing
+Clock: 168MHz system + 48MHz USB (for future bootloader)
 ```
 
 ### **Instruction Format**
@@ -131,9 +144,9 @@ typedef struct {
 
 ---
 
-## 🏆 **Major Milestone Achieved**
+## 🏆 **Development Milestone**
 
-ComponentVM successfully executes on real STM32G431CB hardware! The transition from QEMU simulation to actual ARM Cortex-M4 silicon is complete, with full VM functionality validated through comprehensive hardware testing.
+ComponentVM now executes basic programs on STM32G431CB hardware. The transition from QEMU simulation to actual ARM Cortex-M4 silicon is underway, with basic VM functionality working on real hardware.
 
 ---
 

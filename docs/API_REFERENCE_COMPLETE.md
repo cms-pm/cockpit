@@ -25,14 +25,14 @@
 
 ## Overview
 
-The ComponentVM provides a complete embedded hypervisor solution for running C bytecode on ARM Cortex-M4 microcontrollers. This API reference covers the **C wrapper interface** designed for seamless integration with embedded C applications.
+The ComponentVM is a development prototype for an embedded hypervisor that runs C bytecode on ARM Cortex-M4 microcontrollers. This API reference covers the **C wrapper interface** designed for embedded C applications.
 
-### **Key Features**
+### **Key Features (Development)**
 - **Memory Safety**: Stack canaries, bounds checking, memory corruption detection
 - **Performance**: 32-bit ARM-optimized instruction format, O(1) instruction dispatch
-- **Hardware Integration**: Full Arduino API compatibility, HAL abstraction
-- **Debug Support**: Printf integration, semihosting, comprehensive error reporting
-- **Production Ready**: 100% test coverage, hardware deployment validated
+- **Hardware Integration**: Arduino API compatibility, HAL abstraction
+- **Debug Support**: Printf integration, semihosting, error reporting
+- **Development Status**: 100% test coverage on QEMU, hardware testing in progress
 
 ### **System Requirements**
 ```c

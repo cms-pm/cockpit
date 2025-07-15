@@ -7,14 +7,14 @@
 
 ## 🎯 What is ComponentVM?
 
-ComponentVM is a **embedded hypervisor** that runs C bytecode programs on ARM Cortex-M4 microcontrollers. It provides:
+ComponentVM is a **development prototype** for an embedded hypervisor that runs C bytecode programs on ARM Cortex-M4 microcontrollers. It provides:
 
-- **Memory-safe execution** with stack canaries and bounds checking
-- **Arduino-compatible API** for familiar embedded development
-- **C-to-bytecode compilation** with full toolchain integration
-- **Hardware abstraction** enabling portable embedded applications
+- **Memory-safe execution** with stack canaries and bounds checking (in development)
+- **Arduino-compatible API** for familiar embedded development (basic functions)
+- **C-to-bytecode compilation** with basic toolchain integration
+- **Hardware abstraction** enabling portable embedded applications (prototype)
 
-**Target Use Cases**: IoT devices, embedded control systems, safety-critical applications, educational platforms
+**Target Use Cases**: Research, educational platforms, embedded development experimentation
 
 **Currently under heavy development - things will break - not for production use**
 
@@ -51,22 +51,22 @@ RAM (32KB):    [System 8KB][VM Memory 24KB]
 
 ## 🎯 Current Status & Next Steps
 
-### **✅ Phase 3 Complete**
-- Complete VM architecture with 32-bit instruction set
-- Full Arduino API integration (GPIO, timing, printf)
-- Comprehensive memory protection and testing
-- 181/181 tests passing (100% success rate)
+### **Phase 3 Development Status**
+- VM architecture with 32-bit instruction set (development)
+- Arduino API integration (GPIO, timing, printf - basic functions)
+- Memory protection and testing framework
+- 181/181 tests passing on QEMU (hardware testing in progress)
 
-### **🚀 Phase 4: Hardware Transition**
+### **Phase 4: Hardware Transition (In Progress)**
 - **Target**: STM32G431CB WeAct Studio CoreBoard
-- **Goal**: Hardware validation and custom bootloader
-- **Timeline**: 5 phases, 13-15 hours estimated
+- **Goal**: Hardware validation and custom bootloader development
+- **Status**: Basic hardware execution working, bootloader in development
 
-### **🔄 Your Next Steps**
+### **Getting Started with Development**
 1. **Explore Architecture**: [Architecture Documentation](architecture/)
-2. **Review API**: [Complete API Reference](API_REFERENCE_COMPLETE.md)
-3. **Hardware Planning**: [Hardware Integration Guide](hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
-4. **Join Development**: See current [TODO.md](TODO.md)
+2. **Review API**: [API Reference](API_REFERENCE_COMPLETE.md)
+3. **Hardware Setup**: [Hardware Integration Guide](hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
+4. **Development Tasks**: See current [TODO.md](TODO.md)
 
 ---
 
@@ -111,9 +111,9 @@ RAM (32KB):    [System 8KB][VM Memory 24KB]
 ## 🎓 Learning Path
 
 ### **Beginner (1-2 hours)**
-1. Build and run existing examples
+1. Build and run existing examples on QEMU
 2. Write simple C programs (LED blink, printf)
-3. Understand Arduino API compatibility
+3. Understand basic Arduino API compatibility
 
 ### **Intermediate (3-5 hours)**  
 1. Review architecture documentation
@@ -122,7 +122,7 @@ RAM (32KB):    [System 8KB][VM Memory 24KB]
 
 ### **Advanced (5+ hours)**
 1. Study component architecture and integration
-2. Contribute to Phase 4 hardware transition
+2. Contribute to Phase 4 hardware development
 3. Extend instruction set or hardware support
 
 ---
