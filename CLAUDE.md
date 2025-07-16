@@ -235,14 +235,26 @@ Phase 2 (Production):   OTA Server ←WiFi→ ESP32 ←UART→ STM32 Bootloader
 - **KISS Protocol**: Simple text commands, CRC verification
 - **Safety First**: Bootloader protection, atomic operations
 
-### **Implementation Plan**
+### **Implementation Plan (Updated with Reliability Improvements)**
 ```yaml
-Chunk 4.5.2A: UART Transport Foundation (2-3h)
-Chunk 4.5.2B: Command Protocol Implementation (2-3h)  
+Chunk 4.5.2A: UART Transport Foundation + Critical Reliability (3-4h)
+  - Transport interface and UART implementation
+  - Hierarchical error states with diagnostic context
+  - Overflow-safe timeout management
+  - Resource cleanup framework
+  - Enhanced state machine with reliability improvements
+  
+Chunk 4.5.2B: Command Protocol + Near-Term Reliability (2-3h)
+  - Protocol implementation with error recovery
+  - Interrupt-safe state management
+  - Progressive error recovery strategies
+  
 Chunk 4.5.2C: Flash Programming Operations (2-3h)
 Chunk 4.5.2D: Host Upload Tool (1-2h)
 Chunk 4.5.2E: USB CDC Transport Addition (1-2h) - Drop-in replacement
 Chunk 4.5.2F: Application Integration (1-2h)
 ```
 
-**Current Focus**: Ready to begin Phase 4.5.2A implementation - UART transport bootloader foundation with modular architecture for easy USB CDC integration.
+**Current Focus**: Ready to begin Phase 4.5.2A implementation - UART transport bootloader foundation with **production-critical reliability improvements** including hierarchical error states, overflow-safe timeouts, and resource cleanup framework.
+
+**Quality Assurance**: Comprehensive QA testing plan developed for validation of reliability improvements with hardware-in-the-loop testing framework.

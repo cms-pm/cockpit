@@ -62,8 +62,10 @@ Hardware Status: Development prototype
 ### **Current Phase**
 - 🔄 **4.5.2 UART Bootloader**: UART transport foundation, command protocol, flash programming
   - **Strategy**: UART first (validated hardware), USB CDC as drop-in replacement
-  - **Architecture**: Host Tool ←UART→ STM32 Bootloader (USB-Serial adapter)
+  - **Architecture**: Host Tool ←UART→ ComponentVM Bootloader (complements STM32 system bootloader)
   - **Modular Design**: Clean transport abstractions for easy USB CDC integration
+  - **Purpose**: Handles bytecode updates (user applications) vs firmware updates (complete system)
+  - **Documentation**: [Bootloader Design](docs/hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)
 
 ### **Remaining Phases**
 - ⏳ **4.5.3 Development Tools**: Host upload utility, deployment automation, end-to-end integration

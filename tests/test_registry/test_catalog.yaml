@@ -181,6 +181,49 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
+  # Bootloader foundation tests (Phase 4.5.2A validation)
+  bootloader_foundation:
+    source: bootloader/test_bootloader_foundation.c
+    dependencies: 
+      - common/bootloader_test_framework.h
+    description: "Foundation validation for Phase 4.5.2A bootloader implementation"
+    timeout: 15s
+    expected_patterns:
+      - "Bootloader Foundation Test"
+      - "Test 1: Basic execution - PASS"
+      - "Test 2: Memory operations - PASS" 
+      - "Test 3: Stack operations - PASS"
+      - "BOOTLOADER FOUNDATION TEST: PASS"
+    hardware_requirements: []
+    category: bootloader_foundation
+    priority: high
+    stability: phase_4_5_2a
+    notes: "Essential validation for bootloader Phase 4.5.2A foundation"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 30s
+      
+      semihosting_checks:
+        - contains: "=== Bootloader Foundation Test ==="
+        - contains: "Test 1: Basic execution - PASS"
+        - contains: "Test 2: Memory operations - PASS"
+        - contains: "Test 3: Stack operations - PASS"
+        - contains: "=== BOOTLOADER FOUNDATION TEST: PASS ==="
+        - not_contains: "FAIL"
+      semihosting_timeout: 20s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
 # Test suites for batch execution
 test_suites:
   smoke_tests:
@@ -196,10 +239,17 @@ test_suites:
       - led_basic
     timeout: 60s
     
+  bootloader_foundation:
+    description: "Bootloader Phase 4.5.2A foundation tests"
+    tests:
+      - bootloader_foundation
+    timeout: 30s
+    
   full_regression:
     description: "Complete regression test suite"
     tests:
       - pc6_led_focused
       - led_basic  
       - uart_basic
+      - bootloader_foundation
     timeout: 120s

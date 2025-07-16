@@ -4,11 +4,10 @@
  * This file is generated automatically by workspace_builder.py
  */
 
-#include "stm32g4xx_hal.h"
-
-#ifdef HARDWARE_PLATFORM
+ #ifdef HARDWARE_PLATFORM
 
 #ifdef PLATFORM_STM32G4
+#include "stm32g4xx_hal.h"
 #include "platforms/stm32g4_config.h"
 #endif
 

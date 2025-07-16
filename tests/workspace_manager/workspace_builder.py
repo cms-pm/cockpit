@@ -119,6 +119,8 @@ class WorkspaceBuilder:
         if not test_source_path.exists():
             raise FileNotFoundError(f"Test source not found: {test_source_path}")
             
+        # Create directory structure if needed (for subdirectory sources)
+        workspace_source.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(test_source_path, workspace_source)
         print(f"   Copied test source: {source_file}")
         

@@ -61,6 +61,7 @@ Hardware-specific documentation and planning:
 - **[High Level Plan](hardware/phase-4/PHASE_4_HIGH_LEVEL_PLAN.md)** - Strategic hardware transition
 - **[Step 1 Plan](hardware/phase-4/PHASE_4_STEP_1_PLAN.md)** - Detailed first steps
 - **[Tooling Opportunities](hardware/phase-4/PHASE_4_TOOLING_OPPORTUNITIES.md)** - Development tools
+- **[Bootloader Design](hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)** - ComponentVM bootloader system architecture
 
 #### **Feasibility Studies**
 - **[ESP32-C6 Feasibility](hardware/feasibility/ESP32_C6_FEASIBILITY_STUDY.md)** - Alternative platform evaluation

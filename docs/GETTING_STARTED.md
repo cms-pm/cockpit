@@ -16,6 +16,27 @@ ComponentVM is a **development prototype** for an embedded hypervisor that runs 
 
 **Target Use Cases**: Research, educational platforms, embedded development experimentation
 
+### **System Architecture Overview**
+
+ComponentVM operates as a **layered system** that complements the STM32 hardware:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Update & Development Flow                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  STM32 System Bootloader  →  ComponentVM Bootloader  →  User    │
+│  (Firmware Updates)           (Bytecode Updates)        Apps    │
+│                                                                 │
+│  • Complete system          • C bytecode transfer    • LED      │
+│  • Factory programming      • Dual-bank management   • Sensors  │
+│  • Development flashing     • UART/USB protocols     • Serial   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Distinction**: The ComponentVM bootloader handles **user application updates** (bytecode), while the STM32 system bootloader handles **firmware updates** (complete system). Both work together to provide a complete development and deployment solution.
+
 **Currently under heavy development - things will break - not for production use**
 
 ---

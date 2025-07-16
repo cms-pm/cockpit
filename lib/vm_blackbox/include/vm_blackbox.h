@@ -4,6 +4,9 @@
  * 
  * Provides basic VM execution monitoring with expandable design
  * for future circular buffer and advanced telemetry features.
+ * The telemetry format is intentionally simple and extensible, and 
+ * lives in a single memory region far away from anything else, yet
+ * accessible from the outside world via gdb.
  */
 
 #pragma once
@@ -42,7 +45,7 @@ typedef struct {
     _Static_assert(sizeof(simple_telemetry_t) == 32, "Simple telemetry must be exactly 32 bytes");
 #endif
 
-// Component interface - KISS design for Phase 4
+// Component interface functions
 vm_blackbox_t* vm_blackbox_create(void);
 void vm_blackbox_destroy(vm_blackbox_t* blackbox);
 
