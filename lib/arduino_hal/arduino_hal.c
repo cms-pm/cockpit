@@ -242,7 +242,10 @@ void arduino_system_init(void) {
 #ifdef PLATFORM_STM32G4
     const stm32g4_platform_config_t* config = CURRENT_PLATFORM;
     config->system_init();
-    debug_print("Arduino system initialized on STM32G4 with 168MHz + SysTick");
+    
+    // Initialize unified timing system
+    timing_init();
+    debug_print("Arduino system initialized on STM32G4 with 168MHz + ComponentVM timing");
 #else
     // For QEMU/LM3S6965, basic initialization
     hal_gpio_init();
@@ -290,13 +293,6 @@ uint16_t arduino_analog_read(uint8_t pin) {
 }
 
 void arduino_delay(uint32_t milliseconds) {
-#ifdef PLATFORM_STM32G4
-    // Use STM32 HAL delay function
-    extern void HAL_Delay(uint32_t Delay);
-    HAL_Delay(milliseconds);
-#else
-    // Simplified busy-wait delay for QEMU
-    volatile uint32_t cycles = milliseconds * 1000;
-    while (cycles--);
-#endif
+    // Use unified timing system
+    delay_nanoseconds(milliseconds * 1000000U);
 }

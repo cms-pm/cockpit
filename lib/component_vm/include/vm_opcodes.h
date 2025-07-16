@@ -43,7 +43,7 @@ enum class VMOpcode : uint8_t {
     OP_DIGITAL_READ = 0x11,            // digitalRead(pin) -> value
     OP_ANALOG_WRITE = 0x12,            // analogWrite(pin, value)
     OP_ANALOG_READ = 0x13,             // analogRead(pin) -> value
-    OP_DELAY = 0x14,                   // delay(milliseconds)
+    OP_DELAY = 0x14,                   // delay(nanoseconds) - compiler converts ms to ns
     OP_BUTTON_PRESSED = 0x15,          // buttonPressed(pin) -> bool
     OP_BUTTON_RELEASED = 0x16,         // buttonReleased(pin) -> bool
     OP_PIN_MODE = 0x17,                // pinMode(pin, mode)

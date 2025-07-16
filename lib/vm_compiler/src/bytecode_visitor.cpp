@@ -427,11 +427,25 @@ antlrcpp::Any BytecodeVisitor::visitFunctionCall(ArduinoCParser::FunctionCallCon
     }
     
     // Regular function call processing
-    // Process arguments first (push them onto stack in reverse order for correct parameter order)
-    if (ctx->argumentList()) {
-        auto args = ctx->argumentList()->expression();
-        for (auto arg : args) {
-            visit(arg);
+    // Special handling for delay function - convert milliseconds to nanoseconds
+    if (funcName == "delay") {
+        if (ctx->argumentList()) {
+            auto args = ctx->argumentList()->expression();
+            if (args.size() == 1) {
+                // Visit the argument to get the millisecond value
+                visit(args[0]);
+                // Convert milliseconds to nanoseconds by multiplying by 1,000,000
+                emitInstruction(VMOpcode::OP_PUSH, 0, 1000000);
+                emitInstruction(VMOpcode::OP_MUL);
+            }
+        }
+    } else {
+        // Process arguments first (push them onto stack in reverse order for correct parameter order)
+        if (ctx->argumentList()) {
+            auto args = ctx->argumentList()->expression();
+            for (auto arg : args) {
+                visit(arg);
+            }
         }
     }
     

@@ -55,7 +55,10 @@ void arduino_digital_write(uint8_t pin, pin_state_t state);
 pin_state_t arduino_digital_read(uint8_t pin);
 void arduino_analog_write(uint8_t pin, uint16_t value);
 uint16_t arduino_analog_read(uint8_t pin);
-void arduino_delay(uint32_t milliseconds);
+void arduino_delay(uint32_t milliseconds);  // Deprecated - use timing.h functions
+
+// Include unified timing system
+#include "timing.h"
 
 // Hardware abstraction layer
 void hal_gpio_init(void);

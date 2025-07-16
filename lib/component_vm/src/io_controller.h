@@ -24,6 +24,7 @@ public:
     
     // Timing functions
     void delay(uint32_t ms) noexcept;
+    void delay_nanoseconds(uint32_t ns) noexcept;
     uint32_t millis() const noexcept;
     uint32_t micros() const noexcept;
     

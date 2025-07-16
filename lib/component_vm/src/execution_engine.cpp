@@ -448,11 +448,11 @@ bool ExecutionEngine::execute_io_op(uint8_t opcode, uint8_t flags, uint16_t imme
         }
         
         case VMOpcode::OP_DELAY: {
-            int32_t ms;
-            if (!pop(ms)) {
+            int32_t ns;
+            if (!pop(ns)) {
                 return false;
             }
-            io.delay(static_cast<uint32_t>(ms));
+            io.delay_nanoseconds(static_cast<uint32_t>(ns));
             return true;
         }
         

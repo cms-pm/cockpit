@@ -113,18 +113,26 @@ bool IOController::analog_read(uint8_t pin, uint16_t& value) noexcept
 
 void IOController::delay(uint32_t ms) noexcept
 {
+    delay_nanoseconds(ms * 1000000U); // Convert milliseconds to nanoseconds
+}
+
+void IOController::delay_nanoseconds(uint32_t ns) noexcept
+{
     #ifdef ARDUINO_PLATFORM
-    ::delay(ms);
+    // Use our new arduino_hal timing system
+    ::delay_nanoseconds(ns);
 #elif defined(QEMU_PLATFORM)
     // Simple delay simulation for QEMU (busy wait)
-    uint32_t start = millis();
-    while (millis() - start < ms) {
+    uint32_t start_us = micros();
+    uint32_t delay_us = ns / 1000U; // Convert nanoseconds to microseconds
+    while (micros() - start_us < delay_us) {
         // Busy wait - in QEMU this is sufficient
     }
     #else
     // Busy wait fallback (not ideal for real embedded)
-    uint32_t start = millis();
-    while (millis() - start < ms) {
+    uint32_t start_us = micros();
+    uint32_t delay_us = ns / 1000U; // Convert nanoseconds to microseconds
+    while (micros() - start_us < delay_us) {
         // Busy wait
     }
     #endif
