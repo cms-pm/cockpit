@@ -25,7 +25,7 @@ class DualPassValidator:
     Pass 2: Hardware state validation via memory inspection
     """
     
-    def __init__(self, target_type: str = "stm32g431cb"):
+    def __init__(self, target_type: str = "cortex_m"):
         self.target_type = target_type
         self.semihosting_validator = SemihostingValidator()
         self.memory_validator = MemoryValidator()

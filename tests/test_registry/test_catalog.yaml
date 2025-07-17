@@ -224,6 +224,266 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
+  vm_arithmetic_comprehensive:
+    source: test_vm_arithmetic_comprehensive.c
+    dependencies: []
+    description: "Comprehensive ComponentVM arithmetic operations validation"
+    timeout: 30s
+    expected_patterns:
+      - "ComponentVM Arithmetic Comprehensive Test"
+      - "Basic arithmetic operations: PASS"
+      - "Negative arithmetic operations: PASS"
+      - "Zero arithmetic edge cases: PASS"
+      - "Complex arithmetic expressions: PASS"
+      - "Arithmetic with loop iterations: PASS"
+      - "Large number arithmetic: PASS"
+      - "VM Arithmetic Comprehensive Test: PASS"
+    hardware_requirements: []
+    category: vm_operations
+    priority: high
+    stability: phase_4_5_3b
+    notes: "Validates all arithmetic operations: ADD, SUB, MUL, DIV, MOD with unified timing"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "ComponentVM Arithmetic Comprehensive Test"
+        - contains: "Basic arithmetic operations: PASS"
+        - contains: "Negative arithmetic operations: PASS"
+        - contains: "Zero arithmetic edge cases: PASS"
+        - contains: "Complex arithmetic expressions: PASS"
+        - contains: "Arithmetic with loop iterations: PASS"
+        - contains: "Large number arithmetic: PASS"
+        - contains: "VM Arithmetic Comprehensive Test: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 30s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
+  # Minimal Memory Validation Test (Dual-Pass Validation Proof)
+  memory_validation_minimal:
+    source: test_memory_validation_minimal.c
+    dependencies: []
+    description: "Minimal dual-pass memory validation test using GPIOC MODER"
+    timeout: 20s
+    expected_patterns:
+      - "Minimal Memory Validation Test (Dual-Pass)"
+      - "PC6 configured as output"
+      - "PC6 configuration: OUTPUT MODE - PASS"
+      - "PC6 mask validation: PASS"
+      - "Minimal Memory Validation Test: COMPLETE"
+    hardware_requirements:
+      - led_pc6
+    category: memory_validation
+    priority: high
+    stability: development
+    notes: "Proves dual-pass memory validation works - firmware validation + external validation"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: required
+        timeout_strategy: fail_graceful
+      timeout: 30s
+      
+      # Pass 1: Semihosting validation (firmware validation)
+      semihosting_checks:
+        - contains: "Minimal Memory Validation Test (Dual-Pass)"
+        - contains: "PC6 configured as output"
+        - contains: "PC6 configuration: OUTPUT MODE - PASS"
+        - contains: "PC6 mask validation: PASS"
+        - contains: "Minimal Memory Validation Test: COMPLETE"
+        - not_contains: "FAIL"
+        - sequence:
+          - "Step 1: Configure PC6 as output"
+          - "Step 2: Firmware validation (Pass 1)"
+          - "Step 3: LED functionality test"
+          - "Step 4: Ready for external validation (Pass 2)"
+      semihosting_timeout: 25s
+      
+      # Pass 2: Memory validation (external validation via pyOCD)
+      memory_checks:
+        gpioc_pc6_output_mode:
+          address: 0x48000800        # GPIOC MODER register
+          mask: 0x3000               # PC6 mode bits [13:12]
+          expected: 0x1000           # Output mode (01)
+          description: "PC6 configured as output mode (GPIOC MODER)"
+        gpioc_clock_enabled:
+          address: 0x4002104C        # RCC AHB2ENR register
+          mask: 0x04                 # GPIOC clock enable bit
+          expected: 0x04             # GPIOC clock enabled
+          description: "GPIOC clock enabled (RCC AHB2ENR)"
+      
+      # Rich diagnostics for debugging
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_both_passes: true
+
+  vm_comparison_comprehensive:
+    source: test_vm_comparison_comprehensive.c
+    dependencies: []
+    description: "Comprehensive ComponentVM comparison operations validation"
+    timeout: 30s
+    expected_patterns:
+      - "ComponentVM Comparison Comprehensive Test"
+      - "Equality comparisons: PASS"
+      - "Less than comparisons: PASS"
+      - "Greater than comparisons: PASS"
+      - "Negative number comparisons: PASS"
+      - "Zero comparisons: PASS"
+      - "Comparisons in control flow: PASS"
+      - "Comparisons with timing integration: PASS"
+      - "VM Comparison Comprehensive Test: PASS"
+    hardware_requirements: []
+    category: vm_operations
+    priority: high
+    stability: phase_4_5_3b
+    notes: "Validates all comparison operations: EQ, NE, LT, GT, LE, GE with control flow"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "ComponentVM Comparison Comprehensive Test"
+        - contains: "Equality comparisons: PASS"
+        - contains: "Less than comparisons: PASS"
+        - contains: "Greater than comparisons: PASS"
+        - contains: "Negative number comparisons: PASS"
+        - contains: "Zero comparisons: PASS"
+        - contains: "Comparisons in control flow: PASS"
+        - contains: "Comparisons with timing integration: PASS"
+        - contains: "VM Comparison Comprehensive Test: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 30s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
+  vm_logical_comprehensive:
+    source: test_vm_logical_comprehensive.c
+    dependencies: []
+    description: "Comprehensive ComponentVM logical operations validation"
+    timeout: 30s
+    expected_patterns:
+      - "ComponentVM Logical Comprehensive Test"
+      - "Logical AND operations: PASS"
+      - "Logical OR operations: PASS"
+      - "Logical NOT operations: PASS"
+      - "Complex logical expressions: PASS"
+      - "Logical operations with comparisons: PASS"
+      - "Logical operations in control flow: PASS"
+      - "Logical operations with timing integration: PASS"
+      - "VM Logical Comprehensive Test: PASS"
+    hardware_requirements: []
+    category: vm_operations
+    priority: high
+    stability: phase_4_5_3b
+    notes: "Validates all logical operations: AND, OR, NOT with control flow and timing"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "ComponentVM Logical Comprehensive Test"
+        - contains: "Logical AND operations: PASS"
+        - contains: "Logical OR operations: PASS"
+        - contains: "Logical NOT operations: PASS"
+        - contains: "Complex logical expressions: PASS"
+        - contains: "Logical operations with comparisons: PASS"
+        - contains: "Logical operations in control flow: PASS"
+        - contains: "Logical operations with timing integration: PASS"
+        - contains: "VM Logical Comprehensive Test: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 30s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
+  vm_bitwise_comprehensive:
+    source: test_vm_bitwise_comprehensive.c
+    dependencies: []
+    description: "Comprehensive ComponentVM bitwise operations validation"
+    timeout: 30s
+    expected_patterns:
+      - "ComponentVM Bitwise Comprehensive Test"
+      - "Bitwise AND operations: PASS"
+      - "Bitwise OR operations: PASS"
+      - "Bitwise XOR operations: PASS"
+      - "Bitwise NOT operations: PASS"
+      - "Left shift operations: PASS"
+      - "Right shift operations: PASS"
+      - "Complex bitwise expressions: PASS"
+      - "Bitwise operations with timing integration: PASS"
+      - "VM Bitwise Comprehensive Test: PASS"
+    hardware_requirements: []
+    category: vm_operations
+    priority: high
+    stability: phase_4_5_3b
+    notes: "Validates all bitwise operations: BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, shifts"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "ComponentVM Bitwise Comprehensive Test"
+        - contains: "Bitwise AND operations: PASS"
+        - contains: "Bitwise OR operations: PASS"
+        - contains: "Bitwise XOR operations: PASS"
+        - contains: "Bitwise NOT operations: PASS"
+        - contains: "Left shift operations: PASS"
+        - contains: "Right shift operations: PASS"
+        - contains: "Complex bitwise expressions: PASS"
+        - contains: "Bitwise operations with timing integration: PASS"
+        - contains: "VM Bitwise Comprehensive Test: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 30s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
 # Test suites for batch execution
 test_suites:
   smoke_tests:
@@ -245,6 +505,15 @@ test_suites:
       - bootloader_foundation
     timeout: 30s
     
+  vm_comprehensive:
+    description: "ComponentVM comprehensive operations validation suite"
+    tests:
+      - vm_arithmetic_comprehensive
+      - vm_comparison_comprehensive
+      - vm_logical_comprehensive
+      - vm_bitwise_comprehensive
+    timeout: 180s
+    
   full_regression:
     description: "Complete regression test suite"
     tests:
@@ -252,4 +521,8 @@ test_suites:
       - led_basic  
       - uart_basic
       - bootloader_foundation
-    timeout: 120s
+      - vm_arithmetic_comprehensive
+      - vm_comparison_comprehensive
+      - vm_logical_comprehensive
+      - vm_bitwise_comprehensive
+    timeout: 300s

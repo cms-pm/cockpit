@@ -83,6 +83,16 @@ class ValidationResult:
     def is_skipped(self) -> bool:
         return self.final_status == ValidationStatus.SKIPPED
     
+    @property
+    def is_success(self) -> bool:
+        """Alias for is_passed for backward compatibility"""
+        return self.is_passed
+    
+    @property
+    def description(self) -> str:
+        """Get validation description (message)"""
+        return self.message
+    
     def get_pass_result(self, pass_name: str) -> Optional[Dict[str, Any]]:
         """Get result from a specific validation pass"""
         return self.pass_results.get(pass_name)
@@ -140,3 +150,34 @@ class ValidationResult:
                 lines.append(f"  {key}: {value}")
         
         return "\n".join(lines)
+    
+    @staticmethod
+    def error(name: str, error_exception: Exception, description: str = "") -> 'ValidationResult':
+        """Create an error ValidationResult"""
+        result = ValidationResult(name)
+        result.final_status = ValidationStatus.ERROR
+        result.message = description or f"Error in {name}: {error_exception}"
+        result.add_context('error', str(error_exception))
+        return result
+    
+    @staticmethod
+    def failed(name: str, description: str, expected: Any, actual: Any, address: int = 0) -> 'ValidationResult':
+        """Create a failed ValidationResult"""
+        result = ValidationResult(name)
+        result.final_status = ValidationStatus.FAILED
+        result.message = description
+        result.add_context('expected', expected)
+        result.add_context('actual', actual)
+        result.add_context('address', address)
+        return result
+    
+    @staticmethod
+    def success(name: str, description: str, expected: Any, actual: Any, address: int = 0) -> 'ValidationResult':
+        """Create a successful ValidationResult"""
+        result = ValidationResult(name)
+        result.final_status = ValidationStatus.PASSED
+        result.message = description
+        result.add_context('expected', expected)
+        result.add_context('actual', actual)
+        result.add_context('address', address)
+        return result

@@ -27,12 +27,12 @@ class ValidationEngine:
     following the architectural principles established.
     """
     
-    def __init__(self, target_type: str = "stm32g431cbux", connect_timeout: int = 10):
+    def __init__(self, target_type: str = "cortex_m", connect_timeout: int = 10):
         """
         Initialize validation engine
         
         Args:
-            target_type: Target MCU type (e.g., "stm32g431cbux")
+            target_type: Target MCU type (e.g., "cortex_m")
             connect_timeout: Connection timeout in seconds
         """
         if not PYOCD_AVAILABLE:
