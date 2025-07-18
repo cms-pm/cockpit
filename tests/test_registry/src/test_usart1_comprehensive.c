@@ -236,9 +236,9 @@ static void validate_usart1_registers(void) {
     result = check_register_bits("ISR.TC", USART1_ISR, 0x40, 0x40, "TX Complete");
     debug_print(result.passed ? "ISR.TC: PASS" : "ISR.TC: FAIL");
     
-    // BRR register validation (for 115200 baud at 168MHz)
+    // BRR register validation (for 115200 baud at 160MHz)
     uint32_t brr_value = REG32(USART1_BRR);
-    uint32_t expected_brr = 168000000 / TEST_BAUD_RATE;  // Approximate calculation
+    uint32_t expected_brr = 160000000 / TEST_BAUD_RATE;  // 160MHz / 115200 = 1388 (0x056C)
     
     char brr_msg[100];
     snprintf(brr_msg, sizeof(brr_msg), "BRR: 0x%08X (expected ~0x%08X for %d baud)", 

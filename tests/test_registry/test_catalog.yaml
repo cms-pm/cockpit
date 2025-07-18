@@ -164,7 +164,7 @@ tests:
           address: 0x40013800        # USART1 base
           offset: 0x0C               # BRR register
           mask: 0xFFFF               # Full BRR value
-          expected: 0x05B2           # ~115200 baud at 168MHz (1458 decimal)
+          expected: 0x056C           # 115200 baud at 160MHz (1388 decimal)
           description: "USART1 baud rate configured"
           
       # Cross-platform peripheral checks

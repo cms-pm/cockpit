@@ -5,7 +5,6 @@ Runs firmware twice: first for semihosting output, then for hardware state valid
 """
 
 import time
-import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import pyocd
@@ -13,9 +12,10 @@ from pyocd.core.helpers import ConnectHelper
 from pyocd.core.memory_map import MemoryType
 
 from .validation_result import ValidationResult, ValidationStatus
-from .validation_authority import ValidationAuthority
+from .validation_authority import ValidationAuthority, ComponentRequirement
 from .semihosting_validator import SemihostingValidator
 from .memory_validator import MemoryValidator
+from .pyocd_semihosting_capture import PyOCDSemihostingCapture
 
 
 class DualPassValidator:
@@ -30,6 +30,7 @@ class DualPassValidator:
         self.semihosting_validator = SemihostingValidator()
         self.memory_validator = MemoryValidator()
         self.authority = ValidationAuthority()
+        self.pyocd_capture = PyOCDSemihostingCapture(target_type)
         
     def validate_test(self, test_name: str, validation_config: Dict[str, Any]) -> ValidationResult:
         """
@@ -102,11 +103,10 @@ class DualPassValidator:
         timeout_seconds = self._parse_timeout(semihosting_timeout)
         
         try:
-            # Reset target and enable semihosting
-            self._reset_target_for_semihosting()
-            
-            # Capture semihosting output
-            semihosting_output = self._capture_semihosting_output(timeout_seconds)
+            # Use pyOCD-based semihosting capture
+            semihosting_output = self.pyocd_capture.capture_semihosting_output(
+                timeout_seconds=timeout_seconds
+            )
             
             # Validate output against configuration
             validation_result = self.semihosting_validator.validate_output(
@@ -208,9 +208,9 @@ class DualPassValidator:
         semihosting_status = semihosting_result['status']
         memory_status = memory_result['status']
         
-        # Extract authority requirements
-        semihosting_required = authority.get('semihosting', 'required') == 'required'
-        memory_required = authority.get('memory', 'required') == 'required'
+        # Use proper authority methods to check requirements
+        semihosting_required = self.authority.is_component_required(authority, 'semihosting')
+        memory_required = self.authority.is_component_required(authority, 'memory')
         
         # Apply "both must pass" rule for required components
         if semihosting_required and memory_required:
@@ -246,109 +246,30 @@ class DualPassValidator:
             'message': message
         }
     
-    def _reset_target_for_semihosting(self):
-        """Reset target and prepare for semihosting execution"""
-        # Use OpenOCD for semihosting (proven approach)
-        openocd_cmd = [
-            "/home/chris/.platformio/packages/tool-openocd/bin/openocd",
-            "-s", "/home/chris/.platformio/packages/tool-openocd/openocd/scripts",
-            "-f", "scripts/gdb/openocd_debug.cfg",
-            "-c", "init",
-            "-c", "reset halt",
-            "-c", "arm semihosting enable",
-            "-c", "reset run"
-        ]
-        
-        # Change to project root for relative paths
-        project_root = Path(__file__).parent.parent.parent
-        original_dir = Path.cwd()
-        
-        try:
-            import os
-            os.chdir(project_root)
-            
-            # Start OpenOCD process for semihosting
-            self.openocd_process = subprocess.Popen(
-                openocd_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            
-            # Give OpenOCD time to start
-            time.sleep(2)
-            
-        finally:
-            os.chdir(original_dir)
-    
-    def _capture_semihosting_output(self, timeout_seconds: int) -> str:
-        """Capture semihosting output for specified timeout"""
-        start_time = time.time()
-        output_lines = []
-        
-        try:
-            while time.time() - start_time < timeout_seconds:
-                if self.openocd_process.poll() is not None:
-                    # Process finished
-                    break
-                
-                # Read available output
-                try:
-                    line = self.openocd_process.stdout.readline()
-                    if line:
-                        output_lines.append(line.strip())
-                        print(f"   Semihosting: {line.strip()}")
-                except:
-                    pass
-                
-                time.sleep(0.1)
-            
-            # Terminate OpenOCD process
-            if self.openocd_process.poll() is None:
-                self.openocd_process.terminate()
-                self.openocd_process.wait(timeout=5)
-            
-            return "\n".join(output_lines)
-            
-        except Exception as e:
-            if hasattr(self, 'openocd_process') and self.openocd_process.poll() is None:
-                self.openocd_process.terminate()
-            raise e
+    # PyOCD-based semihosting capture is now handled by PyOCDSemihostingCapture class
     
     def _reset_target_for_memory_validation(self):
         """Reset target and run firmware to completion for memory validation"""
-        # Use OpenOCD for simple reset and run
-        openocd_cmd = [
-            "/home/chris/.platformio/packages/tool-openocd/bin/openocd",
-            "-s", "/home/chris/.platformio/packages/tool-openocd/openocd/scripts",
-            "-f", "scripts/gdb/openocd_debug.cfg",
-            "-c", "init",
-            "-c", "reset halt",
-            "-c", "reset run",
-            "-c", "sleep 5000",  # Let firmware run
-            "-c", "shutdown"
-        ]
-        
-        # Change to project root for relative paths
-        project_root = Path(__file__).parent.parent.parent
-        original_dir = Path.cwd()
-        
+        # Use pyOCD for simple reset and run
         try:
-            import os
-            os.chdir(project_root)
-            
-            result = subprocess.run(
-                openocd_cmd,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            if result.returncode != 0:
-                print(f"   Warning: Reset for memory validation failed: {result.stderr}")
-            
-        finally:
-            os.chdir(original_dir)
+            with ConnectHelper.session_with_chosen_probe(
+                target_override=self.target_type,
+                connect_mode="halt"
+            ) as session:
+                target = session.target
+                
+                # Reset and run firmware
+                target.reset_and_halt()
+                target.resume()
+                
+                # Wait for firmware to complete
+                time.sleep(5)
+                
+                # Halt target for memory validation
+                target.halt()
+                
+        except Exception as e:
+            print(f"   Warning: Reset for memory validation failed: {e}")
     
     def _parse_timeout(self, timeout_str: str) -> int:
         """Parse timeout string to seconds"""

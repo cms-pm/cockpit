@@ -88,19 +88,18 @@ void stm32g4_simple_clock_init(void) {
         debug_print("HSE started successfully");
     }
     
-    // Step 2: Configure PLL for 168MHz System Clock + 48MHz USB Clock
-    // HSE = 8MHz, we want 168MHz SYSCLK and 48MHz USB clock
+    // Step 2: Configure PLL for 160MHz System Clock (per clock diagram)
+    // HSE = 8MHz, target 160MHz SYSCLK per /clk_conf_test.png
     // PLL = HSE * (PLLN / PLLM) / PLLR
-    // 168MHz = 8MHz * (84 / 2) / 2 = 8MHz * 42 / 2 = 168MHz
-    // USB: 48MHz = 336MHz / 7 (PLLQ = 7)
-    // PLLM = 2, PLLN = 84, PLLR = 2, PLLQ = 7
+    // 160MHz = 8MHz * (40 / 1) / 2 = 8MHz * 40 / 2 = 160MHz
+    // PLLM = 1 (no division), PLLN = 40, PLLR = 2, PLLQ = 4 (80MHz output)
     
-    *rcc_pllcfgr = (2 << 4) |       // PLLM = 2 (HSE/2 = 4MHz)
-                   (84 << 8) |      // PLLN = 84 (4MHz * 84 = 336MHz)
-                   (1 << 25) |      // PLLR = 2 (336MHz / 2 = 168MHz)
+    *rcc_pllcfgr = (0 << 4) |       // PLLM = 1 (HSE/1 = 8MHz) - encoded as 0
+                   (40 << 8) |      // PLLN = 40 (8MHz * 40 = 320MHz VCO)
+                   (0 << 25) |      // PLLR = 2 (320MHz / 2 = 160MHz) - encoded as 0
                    (1 << 24) |      // PLLREN = 1 (enable PLLR output)
-                   (6 << 21) |      // PLLQ = 7 (336MHz / 7 = 48MHz for USB)
-                   (1 << 20) |      // PLLQEN = 1 (enable PLLQ output for USB)
+                   (1 << 21) |      // PLLQ = 4 (320MHz / 4 = 80MHz) - encoded as 1
+                   (1 << 20) |      // PLLQEN = 1 (enable PLLQ output)
                    (1 << 1);        // PLLSRC = HSE
     
     // Step 3: Enable PLL
@@ -116,7 +115,7 @@ void stm32g4_simple_clock_init(void) {
         debug_print("ERROR: PLL failed to lock");
         return;
     } else {
-        debug_print("PLL locked successfully at 168MHz (with 48MHz USB clock)");
+        debug_print("PLL locked successfully at 160MHz (with 80MHz PLLQ output)");
     }
     
     // Step 4: Switch system clock to PLL
@@ -132,25 +131,25 @@ void stm32g4_simple_clock_init(void) {
         debug_print("ERROR: Clock switch failed");
         return;
     } else {
-        debug_print("System clock switched to PLL (168MHz)");
+        debug_print("System clock switched to PLL (160MHz)");
     }
     
     debug_print("STM32G4 Clock Init: Complete");
 }
 
-// SysTick Timer Initialization for 168MHz System Clock
+// SysTick Timer Initialization for 160MHz System Clock
 // Configures SysTick for 1ms ticks to support HAL_Delay() and timing functions
 void stm32g4_systick_init(void) {
     volatile uint32_t* systick_ctrl = (volatile uint32_t*)(STM32G4_SYSTICK_BASE + STM32G4_SYSTICK_CTRL);
     volatile uint32_t* systick_load = (volatile uint32_t*)(STM32G4_SYSTICK_BASE + STM32G4_SYSTICK_LOAD);
     volatile uint32_t* systick_val = (volatile uint32_t*)(STM32G4_SYSTICK_BASE + STM32G4_SYSTICK_VAL);
     
-    debug_print("STM32G4 SysTick Init: Configuring for 1ms ticks at 168MHz");
+    debug_print("STM32G4 SysTick Init: Configuring for 1ms ticks at 160MHz");
     
-    // Calculate reload value for 1ms at 168MHz
+    // Calculate reload value for 1ms at 160MHz
     // SysTick counts down from LOAD to 0, then reloads
-    // For 1ms: 168MHz / 1000Hz = 168,000 - 1 = 167,999
-    const uint32_t reload_value = 167999;
+    // For 1ms: 160MHz / 1000Hz = 160,000 - 1 = 159,999
+    const uint32_t reload_value = 159999;
     
     // Step 1: Disable SysTick during configuration
     *systick_ctrl = 0;
@@ -162,11 +161,11 @@ void stm32g4_systick_init(void) {
     *systick_val = 0;
     
     // Step 4: Configure and enable SysTick
-    *systick_ctrl = STM32G4_SYSTICK_CTRL_CLKSOURCE |  // Use processor clock (HCLK = 168MHz)
+    *systick_ctrl = STM32G4_SYSTICK_CTRL_CLKSOURCE |  // Use processor clock (HCLK = 160MHz)
                     STM32G4_SYSTICK_CTRL_TICKINT |     // Enable SysTick interrupt for HAL_IncTick()
                     STM32G4_SYSTICK_CTRL_ENABLE;       // Enable SysTick counter
     
-    debug_print("STM32G4 SysTick Init: Configured for 1ms ticks, interrupts enabled");
+    debug_print("STM32G4 SysTick Init: Configured for 1ms ticks at 160MHz, interrupts enabled");
 }
 
 // GPIO Clock Enable Function
@@ -206,7 +205,7 @@ void stm32g4_system_init(void) {
     stm32g4_gpio_clock_enable(1);  // GPIOB
     stm32g4_gpio_clock_enable(2);  // GPIOC
     
-    debug_print("STM32G4 System Init: Complete - 168MHz with 1ms SysTick");
+    debug_print("STM32G4 System Init: Complete - 160MHz with 1ms SysTick");
 }
 
 // USART1 Initialization for WeAct STM32G431CB USB-UART Bridge
@@ -239,8 +238,8 @@ void stm32g4_usart1_init(uint32_t baud_rate) {
     
     // Step 4: Calculate and set baud rate
     // Formula: BRR = PCLK / baud_rate
-    // APB2 clock = 168MHz (same as system clock)
-    uint32_t brr_value = 168000000 / baud_rate;
+    // APB2 clock = 160MHz (same as system clock)
+    uint32_t brr_value = 160000000 / baud_rate;
     *(usart1_base + (STM32G4_USART_BRR_OFFSET / 4)) = brr_value;
     debug_print("STM32G4 USART1: Baud rate configured");
     
