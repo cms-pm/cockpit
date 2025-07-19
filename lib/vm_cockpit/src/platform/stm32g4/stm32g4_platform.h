@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef PLATFORM_STM32G4
+#if defined(PLATFORM_STM32G4) && !defined(QEMU_PLATFORM)
 #include "stm32g4xx_hal.h"
 #endif
 
@@ -39,6 +39,8 @@ void SystemClock_Config(void);
  * @brief Error handler (defined in application)
  */
 extern void Error_Handler(void);
+
+#if defined(PLATFORM_STM32G4) && !defined(QEMU_PLATFORM)
 
 // =================================================================
 // GPIO Platform Interface
@@ -101,6 +103,8 @@ bool stm32g4_uart_data_available(void);
  */
 HAL_StatusTypeDef stm32g4_uart_receive(uint8_t* data);
 
+#endif // PLATFORM_STM32G4 && !QEMU_PLATFORM
+
 // =================================================================
 // Timing Platform Interface
 // =================================================================
@@ -121,6 +125,8 @@ uint32_t stm32g4_get_tick_ms(void);
 // Pin Mapping Configuration
 // =================================================================
 
+#if defined(PLATFORM_STM32G4) && !defined(QEMU_PLATFORM)
+
 // Pin mapping for WeAct Studio STM32G431CB board
 typedef struct {
     GPIO_TypeDef* port;
@@ -134,6 +140,8 @@ typedef struct {
  * @return Pointer to pin mapping structure, NULL if invalid
  */
 const stm32g4_pin_mapping_t* stm32g4_get_pin_mapping(uint8_t logical_pin);
+
+#endif // PLATFORM_STM32G4 && !QEMU_PLATFORM
 
 #ifdef __cplusplus
 }

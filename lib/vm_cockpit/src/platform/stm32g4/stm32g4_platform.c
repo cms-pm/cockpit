@@ -5,7 +5,7 @@
 
 #include "stm32g4_platform.h"
 
-#ifdef PLATFORM_STM32G4
+#if defined(PLATFORM_STM32G4) && !defined(QEMU_PLATFORM)
 
 // Global UART handle for USART1
 static UART_HandleTypeDef huart1;
