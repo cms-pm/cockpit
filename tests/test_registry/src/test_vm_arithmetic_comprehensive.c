@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "semihosting.h"
-#include "arduino_hal.h"
+#include "test_vm_cockpit_bridge.h"
 
 /**
  * @brief Test basic arithmetic operations

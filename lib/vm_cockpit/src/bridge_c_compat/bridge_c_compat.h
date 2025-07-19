@@ -55,6 +55,20 @@ bridge_c_result_t bridge_c_translate_instruction(
  */
 bool bridge_c_register_function(uint8_t opcode, void* function_ptr);
 
+/**
+ * @brief Check if opcode has registered C function
+ * @param opcode VM opcode to check
+ * @return true if registered, false otherwise
+ */
+bool bridge_c_is_opcode_registered(uint8_t opcode);
+
+/**
+ * @brief Get C function pointer for opcode
+ * @param opcode VM opcode to lookup
+ * @return Function pointer or NULL if not found
+ */
+void* bridge_c_get_function_ptr(uint8_t opcode);
+
 // =================================================================
 // Future: Native C++ Support Foundation (Placeholder)
 // =================================================================
