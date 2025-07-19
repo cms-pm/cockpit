@@ -3,7 +3,7 @@
  * VM Bytecode ↔ C Translation Implementation
  */
 
-#include "bridge_c_compat.h"
+#include "bridge_c.h"
 #include "../host_interface/host_interface.h"
 #include <string.h>
 

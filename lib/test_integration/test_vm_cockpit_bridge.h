@@ -6,7 +6,7 @@
 #pragma once
 
 #include "../vm_cockpit/src/host_interface/host_interface.h"
-#include "../vm_cockpit/src/bridge_c_compat/bridge_c_compat.h"
+#include "../vm_cockpit/src/bridge_c/bridge_c.h"
 #include "../vm_cockpit/src/platform/platform_interface.h"
 
 #ifdef __cplusplus

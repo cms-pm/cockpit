@@ -166,7 +166,7 @@ enum class VMOpcode : uint8_t {
  * @param opcode The opcode to validate
  * @return true if opcode is implemented, false otherwise
  */
-constexpr bool is_opcode_implemented(VMOpcode opcode) {
+inline bool is_opcode_implemented(VMOpcode opcode) {
     uint8_t op = static_cast<uint8_t>(opcode);
     
     // Core operations
