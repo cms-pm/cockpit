@@ -4,9 +4,14 @@
  */
 
 #include "host_interface.h"
+#include "../platform/platform_interface.h"
 
 #ifdef PLATFORM_STM32G4
 #include "../platform/stm32g4/stm32g4_platform.h"
+#endif
+
+#ifdef QEMU_PLATFORM
+#include "../platform/qemu/qemu_platform.h"
 #endif
 
 // =================================================================
@@ -14,9 +19,8 @@
 // =================================================================
 
 void host_interface_init(void) {
-#ifdef PLATFORM_STM32G4
-    stm32g4_platform_init();
-#endif
+    // Use common platform interface
+    platform_init();
 }
 
 // =================================================================
