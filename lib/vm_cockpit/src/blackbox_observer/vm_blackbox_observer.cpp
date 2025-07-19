@@ -3,11 +3,11 @@
  * Phase 4.3.2A: Simple bridge between ComponentVM and vm_blackbox
  */
 
-#include "../include/vm_blackbox_observer.h"
+#include "vm_blackbox_observer.h"
 
 // Semihosting for debug output
 extern "C" {
-    #include "../../semihosting/semihosting.h"
+    #include "semihosting.h"
 }
 
 BlackboxObserver::BlackboxObserver() 

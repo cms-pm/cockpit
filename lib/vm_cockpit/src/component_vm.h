@@ -1,8 +1,8 @@
 #pragma once
 
-#include "execution_engine.h"
-#include "memory_manager.h"
-#include "io_controller.h"
+#include "execution_engine/execution_engine.h"
+#include "memory_manager/memory_manager.h"
+#include "io_controller/io_controller.h"
 #include "vm_errors.h"
 #include <cstdint>
 #include <cstddef>

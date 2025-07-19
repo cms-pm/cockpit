@@ -9,7 +9,7 @@ class MemoryManager;
 class IOController;
 
 // Include unified error system
-#include "../include/vm_errors.h"
+#include "../vm_errors.h"
 
 namespace VM {
     struct Instruction {

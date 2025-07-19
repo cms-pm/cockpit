@@ -1,7 +1,7 @@
 #include "component_vm.h"
-#include "execution_engine.h"
-#include "memory_manager.h"
-#include "io_controller.h"
+#include "execution_engine/execution_engine.h"
+#include "memory_manager/memory_manager.h"
+#include "io_controller/io_controller.h"
 #include <algorithm>
 
 ComponentVM::ComponentVM() noexcept

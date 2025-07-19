@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "../../component_vm/include/component_vm.h"
-#include "../../vm_blackbox/include/vm_blackbox.h"
+#include "../component_vm.h"
+#include "vm_blackbox.h"
 #include <cstdint>
 
 class BlackboxObserver : public ITelemetryObserver {

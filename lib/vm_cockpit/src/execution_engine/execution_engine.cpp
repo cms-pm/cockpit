@@ -1,7 +1,7 @@
 #include "execution_engine.h"
-#include "memory_manager.h"
-#include "io_controller.h"
-#include "../include/vm_opcodes.h"
+#include "../memory_manager/memory_manager.h"
+#include "../io_controller/io_controller.h"
+#include "../vm_opcodes.h"
 #include <cstring>  // for memset
 
 // Opcodes now defined in shared/vm_opcodes.h
