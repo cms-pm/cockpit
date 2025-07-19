@@ -76,12 +76,12 @@ tests:
       - "UART test complete"
       - "All UART functions validated"
     hardware_requirements:
-      - usart1_pa9_pa10
+      - usart2_pa2_pa3
       - led_pc6
     category: communication
     stability: development
     semihosting: false  # Disable semihosting for this test
-    notes: "Test output via UART (PA9/PA10) - monitor with serial terminal at 115200 baud"
+    notes: "Test output via UART (PA2/PA3) - monitor with serial terminal at 115200 baud"
     
   usart1_comprehensive:
     source: test_usart1_comprehensive.c
@@ -93,12 +93,12 @@ tests:
       - "All USART1 functions validated successfully"
       - "Register states analyzed and documented"
     hardware_requirements:
-      - usart1_pa9_pa10
+      - usart2_pa2_pa3
       - led_pc6
     category: communication
     stability: development
     semihosting: true  # Enable semihosting for debug output
-    notes: "Comprehensive USART1 validation with register analysis and optional interactive testing"
+    notes: "Comprehensive USART2 validation with register analysis and optional interactive testing"
     validation:
       execution_strategy: dual_pass
       required: true
@@ -128,48 +128,48 @@ tests:
           - "Test 6: Final register state validation"
       semihosting_timeout: 30s
       
-      # Pass 2: Memory validation - USART1 register states
+      # Pass 2: Memory validation - USART2 register states
       memory_checks:
-        usart1_enabled:
-          address: 0x40013800        # USART1 base
+        usart2_enabled:
+          address: 0x40004400        # USART2 base
           offset: 0x00               # CR1 register
           mask: 0x01                 # UE bit
           expected: 0x01             # USART enabled
-          description: "USART1 enabled (CR1.UE)"
-        usart1_transmitter_enabled:
-          address: 0x40013800        # USART1 base
+          description: "USART2 enabled (CR1.UE)"
+        usart2_transmitter_enabled:
+          address: 0x40004400        # USART2 base
           offset: 0x00               # CR1 register
           mask: 0x08                 # TE bit
           expected: 0x08             # Transmitter enabled
-          description: "USART1 transmitter enabled (CR1.TE)"
-        usart1_receiver_enabled:
-          address: 0x40013800        # USART1 base
+          description: "USART2 transmitter enabled (CR1.TE)"
+        usart2_receiver_enabled:
+          address: 0x40004400        # USART2 base
           offset: 0x00               # CR1 register
           mask: 0x04                 # RE bit
           expected: 0x04             # Receiver enabled
-          description: "USART1 receiver enabled (CR1.RE)"
-        usart1_tx_empty:
-          address: 0x40013800        # USART1 base
+          description: "USART2 receiver enabled (CR1.RE)"
+        usart2_tx_empty:
+          address: 0x40004400        # USART2 base
           offset: 0x1C               # ISR register
           mask: 0x80                 # TXE bit
           expected: 0x80             # TX empty
-          description: "USART1 TX empty (ISR.TXE)"
-        usart1_clock_enabled:
-          address: 0x40021060        # RCC APB2ENR
-          offset: 0x00               # APB2ENR register
-          mask: 0x4000               # USART1EN bit
-          expected: 0x4000           # USART1 clock enabled
-          description: "USART1 clock enabled (RCC.APB2ENR.USART1EN)"
-        usart1_baud_rate_configured:
-          address: 0x40013800        # USART1 base
+          description: "USART2 TX empty (ISR.TXE)"
+        usart2_clock_enabled:
+          address: 0x40021058        # RCC APB1ENR1
+          offset: 0x00               # APB1ENR1 register
+          mask: 0x20000              # USART2EN bit (bit 17)
+          expected: 0x20000          # USART2 clock enabled
+          description: "USART2 clock enabled (RCC.APB1ENR1.USART2EN)"
+        usart2_baud_rate_configured:
+          address: 0x40004400        # USART2 base
           offset: 0x0C               # BRR register
           mask: 0xFFFF               # Full BRR value
-          expected: 0x056C           # 115200 baud at 160MHz (1388 decimal)
-          description: "USART1 baud rate configured"
+          expected: 0x015B           # 115200 baud at 40MHz effective (347 decimal, with DIV4 prescaler)
+          description: "USART2 baud rate configured"
           
       # Cross-platform peripheral checks
       peripheral_checks:
-        uart1:
+        uart2:
           enabled: true
           baud_rate: 115200
           tx_ready: true

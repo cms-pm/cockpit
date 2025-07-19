@@ -16,8 +16,8 @@
  * 7. LED indicators for test status
  * 
  * Hardware connections:
- * - PA9 (USART1 TX) - Connect to USB-Serial RX or terminal
- * - PA10 (USART1 RX) - Connect to USB-Serial TX for interactive testing
+ * - PA2 (USART2 TX) - Connect to USB-Serial RX or terminal
+ * - PA3 (USART2 RX) - Connect to USB-Serial TX for interactive testing
  * - PC6 (LED) - Status indication
  */
 
@@ -33,19 +33,20 @@
 #include "uart_hal.h"
 #include "semihosting.h"
 
-// USART1 register addresses for validation
-#define USART1_BASE     0x40013800
-#define USART1_CR1      (USART1_BASE + 0x00)  // Control register 1
-#define USART1_CR2      (USART1_BASE + 0x04)  // Control register 2
-#define USART1_CR3      (USART1_BASE + 0x08)  // Control register 3
-#define USART1_BRR      (USART1_BASE + 0x0C)  // Baud rate register
-#define USART1_GTPR     (USART1_BASE + 0x10)  // Guard time and prescaler
-#define USART1_RTOR     (USART1_BASE + 0x14)  // Receiver timeout register
-#define USART1_RQR      (USART1_BASE + 0x18)  // Request register
-#define USART1_ISR      (USART1_BASE + 0x1C)  // Interrupt and status register
-#define USART1_ICR      (USART1_BASE + 0x20)  // Interrupt clear register
-#define USART1_RDR      (USART1_BASE + 0x24)  // Receive data register
-#define USART1_TDR      (USART1_BASE + 0x28)  // Transmit data register
+// USART2 register addresses for validation (migrated from USART1)
+#define USART2_BASE     0x40004400
+#define USART2_CR1      (USART2_BASE + 0x00)  // Control register 1
+#define USART2_CR2      (USART2_BASE + 0x04)  // Control register 2
+#define USART2_CR3      (USART2_BASE + 0x08)  // Control register 3
+#define USART2_BRR      (USART2_BASE + 0x0C)  // Baud rate register
+#define USART2_GTPR     (USART2_BASE + 0x10)  // Guard time and prescaler
+#define USART2_RTOR     (USART2_BASE + 0x14)  // Receiver timeout register
+#define USART2_RQR      (USART2_BASE + 0x18)  // Request register
+#define USART2_ISR      (USART2_BASE + 0x1C)  // Interrupt and status register
+#define USART2_ICR      (USART2_BASE + 0x20)  // Interrupt clear register
+#define USART2_RDR      (USART2_BASE + 0x24)  // Receive data register
+#define USART2_TDR      (USART2_BASE + 0x28)  // Transmit data register
+#define USART2_PRESC    (USART2_BASE + 0x2C)  // Prescaler register
 
 // Register access macro
 #define REG32(addr) (*(volatile uint32_t*)(addr))
@@ -80,33 +81,33 @@ static void delay_ms(uint32_t ms);
  * @brief Main test function for comprehensive USART1 validation
  */
 void run_usart1_comprehensive_main(void) {
-    debug_print("=== USART1 Comprehensive Test Starting ===");
+    debug_print("=== USART2 Comprehensive Test Starting ===");
     
     // Configure LED for status indication
     configure_led();
     led_status(false);  // LED off initially
     
-    // === Test 1: USART1 Initialization ===
-    debug_print("Test 1: USART1 initialization...");
+    // === Test 1: USART2 Initialization ===
+    debug_print("Test 1: USART2 initialization...");
     Serial_begin(TEST_BAUD_RATE);
     
     // Wait for initialization to complete
     delay_ms(100);
     
     if (!Serial_ready()) {
-        debug_print("USART1 initialization failed");
+        debug_print("USART2 initialization failed");
         led_blink_pattern(10, 100);  // Fast blink on failure
         return;
     }
     
-    debug_print("USART1 initialized successfully");
+    debug_print("USART2 initialized successfully");
     led_status(true);
     delay_ms(200);
     led_status(false);
     
     // === Test 2: Initial Register Validation ===
     debug_print("Test 2: Initial register validation...");
-    Serial_println("=== USART1 Comprehensive Test ===");
+    Serial_println("=== USART2 Comprehensive Test ===");
     Serial_println("ComponentVM UART HAL Validation");
     Serial_println("Phase 4.5.1 - Register State Analysis");
     Serial_println("");
@@ -208,11 +209,12 @@ static void validate_usart1_registers(void) {
     Serial_println("--- USART1 Register Analysis ---");
     
     // Print all register states
-    print_register_state("CR1 (Control 1)", USART1_CR1);
-    print_register_state("CR2 (Control 2)", USART1_CR2);
-    print_register_state("CR3 (Control 3)", USART1_CR3);
-    print_register_state("BRR (Baud Rate)", USART1_BRR);
-    print_register_state("ISR (Status)", USART1_ISR);
+    print_register_state("CR1 (Control 1)", USART2_CR1);
+    print_register_state("CR2 (Control 2)", USART2_CR2);
+    print_register_state("CR3 (Control 3)", USART2_CR3);
+    print_register_state("BRR (Baud Rate)", USART2_BRR);
+    print_register_state("PRESC (Prescaler)", USART2_PRESC);
+    print_register_state("ISR (Status)", USART2_ISR);
     
     // Validate critical configuration bits
     Serial_println("--- Critical Bit Validation ---");
@@ -220,25 +222,34 @@ static void validate_usart1_registers(void) {
     // CR1 register validation
     register_test_result_t result;
     
-    result = check_register_bits("CR1.UE", USART1_CR1, 0x01, 0x01, "USART Enable");
+    result = check_register_bits("CR1.UE", USART2_CR1, 0x01, 0x01, "USART Enable");
     debug_print(result.passed ? "CR1.UE: PASS" : "CR1.UE: FAIL");
     
-    result = check_register_bits("CR1.TE", USART1_CR1, 0x08, 0x08, "Transmitter Enable");
+    result = check_register_bits("CR1.TE", USART2_CR1, 0x08, 0x08, "Transmitter Enable");
     debug_print(result.passed ? "CR1.TE: PASS" : "CR1.TE: FAIL");
     
-    result = check_register_bits("CR1.RE", USART1_CR1, 0x04, 0x04, "Receiver Enable");
+    result = check_register_bits("CR1.RE", USART2_CR1, 0x04, 0x04, "Receiver Enable");
     debug_print(result.passed ? "CR1.RE: PASS" : "CR1.RE: FAIL");
     
     // ISR register validation
-    result = check_register_bits("ISR.TXE", USART1_ISR, 0x80, 0x80, "TX Empty");
+    result = check_register_bits("ISR.TXE", USART2_ISR, 0x80, 0x80, "TX Empty");
     debug_print(result.passed ? "ISR.TXE: PASS" : "ISR.TXE: FAIL");
     
-    result = check_register_bits("ISR.TC", USART1_ISR, 0x40, 0x40, "TX Complete");
+    result = check_register_bits("ISR.TC", USART2_ISR, 0x40, 0x40, "TX Complete");
     debug_print(result.passed ? "ISR.TC: PASS" : "ISR.TC: FAIL");
     
-    // BRR register validation (for 115200 baud at 160MHz)
-    uint32_t brr_value = REG32(USART1_BRR);
-    uint32_t expected_brr = 160000000 / TEST_BAUD_RATE;  // 160MHz / 115200 = 1388 (0x056C)
+    // PRESC register validation (should be 0x3 for DIV4 prescaler)
+    uint32_t presc_value = REG32(USART2_PRESC);
+    uint32_t expected_presc = 0x3;  // DIV4 prescaler encoded as 3
+    
+    char presc_msg[100];
+    snprintf(presc_msg, sizeof(presc_msg), "PRESC: 0x%08X (expected 0x%08X for DIV4)", 
+             (unsigned int)presc_value, (unsigned int)expected_presc);
+    Serial_println(presc_msg);
+    
+    // BRR register validation (for 115200 baud at 40MHz effective with DIV4 prescaler)
+    uint32_t brr_value = REG32(USART2_BRR);
+    uint32_t expected_brr = 40000000 / TEST_BAUD_RATE;  // 40MHz / 115200 = 347 (0x015B)
     
     char brr_msg[100];
     snprintf(brr_msg, sizeof(brr_msg), "BRR: 0x%08X (expected ~0x%08X for %d baud)", 
@@ -379,7 +390,7 @@ static bool wait_for_tx_complete(uint32_t timeout_ms) {
     uint32_t start_time = HAL_GetTick();
     
     while ((HAL_GetTick() - start_time) < timeout_ms) {
-        uint32_t isr = REG32(USART1_ISR);
+        uint32_t isr = REG32(USART2_ISR);
         if (isr & 0x40) {  // TC bit
             return true;
         }

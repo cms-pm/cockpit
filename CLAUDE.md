@@ -75,40 +75,53 @@ Bitwise: [BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, LEFT_SHIFT, RIGHT_SHIFT]
 
 ### **Phase 4 Sequential Chunks**
 ```yaml
-Phase 4.1 - Hardware Foundation (4-5 hours):
+Phase 4.1 - Hardware Foundation (4-5 hours): ✅ COMPLETED
   4.1.1: PlatformIO board definition, minimal hardware validation
   4.1.2: HAL adaptation, Arduino API hardware implementation
 
-Phase 4.2 - VM Integration (4-5 hours):
+Phase 4.2 - VM Integration (4-5 hours): ✅ COMPLETED
   4.2.1: VM core hardware integration, hardcoded bytecode execution  
   4.2.2: Complete system integration, interrupt handling, printf debugging
 
-Phase 4.3 - Automated Testing (3-4 hours):
+Phase 4.3 - Automated Testing (3-4 hours): ✅ COMPLETED
   4.3.1: SWD-based automated test framework, Claude-accessible testing
   4.3.2: Hardware vs QEMU validation, performance benchmarking
 
-Phase 4.4 - Bootloader System (5-6 hours):
-  4.4.1: Bootloader foundation, UART interface, DTR trigger
-  4.4.2: UART protocol, packet reception, CRC validation
-  4.4.3: Flash programming, data verification, integrity checking
+Phase 4.5.4 - Fresh Architecture Restructuring (4-5 hours): ⏳ IN PROGRESS
+  4.5.4.1: Core library structure migration (lib/componentvm → lib/vm_cockpit)
+  4.5.4.2: Environment alignment (vm_cockpit_qemu, vm_cockpit_stm32g474)
+  4.5.4.3: Platform layer foundation (QEMU platform + semihosting HAL)
+  4.5.4.4: Host interface modularization per specification
+  4.5.4.5: STM32G4 platform modularization
+  4.5.4.6: bridge_c_compat implementation (VM bytecode ↔ C translation)
+  4.5.4.7: Test framework updates for fresh architecture
+  4.5.4.8: Final integration and validation
 
-Phase 4.5 - Production Tools (3-4 hours):
-  4.5.1: Host-side bytecode upload tool, deployment automation
-  4.5.2: End-to-end integration, production readiness validation
+Phase 4.6 - Bootloader System (5-6 hours): PENDING
+  4.6.1: Bootloader foundation, UART interface, DTR trigger
+  4.6.2: UART protocol, packet reception, CRC validation
+  4.6.3: Flash programming, data verification, integrity checking
+  4.6.4: Host-side bytecode upload tool, deployment automation
+  4.6.5: End-to-end integration, production readiness validation
 ```
 
-### **Automated Testing Integration**
+### **Workspace-Isolated Testing Integration**
 ```bash
-# Claude-accessible hardware testing
-python scripts/hardware_testing/automated_test_runner.py \
-  --target stm32g431cb \
-  --test-suite comprehensive \
-  --output-format claude-readable \
-  --swd-interface openocd
+# Setup comprehensive testing environment (one-time)
+cd tests/
+./setup_test_environment.sh
 
-# Hardware validation via OpenOCD
-openocd -f tools/openocd/stm32g431cb.cfg \
-  -c "program_and_test firmware.elf verify reset; shutdown"
+# Run validated hardware tests with workspace isolation
+./tools/run_test pc6_led_focused           # GPIO validation with dual-pass validation
+./tools/run_test usart1_comprehensive      # USART with register analysis
+./tools/run_test vm_arithmetic_comprehensive # VM instruction validation
+
+# Interactive debugging with preserved sophisticated tools
+./tools/debug_test pc6_led_focused
+./tools/list_tests                         # Show all available tests
+
+# Dual-pass validation: semihosting output + hardware state verification
+# Memory validator understands fresh architecture layer boundaries
 ```
 
 ---
@@ -126,22 +139,23 @@ openocd -f tools/openocd/stm32g431cb.cfg \
 ```yaml
 QEMU Target: scripts/switch_target.py qemu
 Hardware Target: scripts/switch_target.py hardware
-Automated Testing: make test-hardware
-Performance Analysis: make benchmark-hardware
+Workspace Testing: cd tests/ && ./tools/run_test <test_name>
+Performance Analysis: Dual-pass validation with memory inspection
 Deployment: python tools/bytecode_uploader/bytecode_uploader.py
 ```
 
 ### **Target Switching**
 ```bash
-# Switch to hardware development
-python scripts/switch_target.py hardware
+# Switch to hardware development (updated environment names)
+python scripts/switch_target.py hardware  # vm_cockpit_stm32g474
 pio run --target upload
 
-# Automated hardware testing
-python scripts/hardware_testing/automated_test_runner.py
+# Workspace-isolated hardware testing (preserves sophisticated debugging)
+cd tests/
+./tools/run_test pc6_led_focused
 
-# Return to QEMU development
-python scripts/switch_target.py qemu
+# Return to QEMU development  
+python scripts/switch_target.py qemu      # vm_cockpit_qemu
 ```
 
 ---
@@ -161,10 +175,11 @@ python scripts/switch_target.py qemu
 - **Flash Programming**: Bootloader system enables field updates while maintaining safety
 
 ### **Testing Strategy Evolution**
-- **QEMU Validation**: Comprehensive development and regression testing
-- **Hardware Validation**: Automated testing via SWD for production confidence
+- **QEMU Validation**: Comprehensive development and regression testing via platform/qemu/
+- **Workspace-Isolated Hardware Validation**: Dual-pass validation (semihosting + memory state)
+- **Fresh Architecture Testing**: Layer boundary validation with memory inspector
 - **Performance Benchmarking**: Hardware vs QEMU comparative analysis
-- **Production Testing**: End-to-end workflow validation
+- **Production Testing**: End-to-end workflow validation with sophisticated debugging preserved
 
 ---
 
@@ -179,7 +194,8 @@ python scripts/switch_target.py qemu
 ### **Development History**
 - **[Development Journey](docs/development/)**: Phase implementation and learning insights
 - **[Technical Evolution](docs/technical/)**: Architecture evolution and implementation details
-- **[Testing Framework](docs/development/testing/)**: Comprehensive testing strategy and QA reports
+- **[Testing Framework](docs/testing/)**: Workspace-isolated testing system with dual-pass validation
+- **[Quick Start Guide](docs/testing/QUICK_START_GUIDE.md)**: Production-ready testing workflow
 
 ---
 
@@ -255,6 +271,76 @@ Chunk 4.5.2E: USB CDC Transport Addition (1-2h) - Drop-in replacement
 Chunk 4.5.2F: Application Integration (1-2h)
 ```
 
-**Current Focus**: Ready to begin Phase 4.5.2A implementation - UART transport bootloader foundation with **production-critical reliability improvements** including hierarchical error states, overflow-safe timeouts, and resource cleanup framework.
+**Current Focus**: Phase 4.5.4 Fresh Architecture Restructuring - systematic migration to VM_COCKPIT_FRESH_ARCHITECTURE.md specification with workspace-isolated testing validation.
 
-**Quality Assurance**: Comprehensive QA testing plan developed for validation of reliability improvements with hardware-in-the-loop testing framework.
+**Quality Assurance**: Each restructuring chunk validated through workspace-isolated testing system with dual-pass validation (semihosting + hardware state verification).
+
+---
+
+## Phase 4.5.4 Fresh Architecture Restructuring (In Progress)
+
+### **Implementation Status**
+- ✅ **Fresh Architecture Working**: Host Interface → Platform Layer → STM32 HAL validated on STM32G474CEU
+- ✅ **Workspace Testing Ready**: Dual-pass validation system with sophisticated debugging preserved  
+- ✅ **Hardware Validated**: USART1 PA9/PA10 + LED PC6 working at 160MHz with clean layer boundaries
+- ⏳ **Restructuring Ready**: Systematic migration to specification-compliant structure
+
+### **Chunked Implementation Strategy**
+```yaml
+Phase 4.5.4.1: Core Library Structure (30 min)
+  - Rename lib/componentvm → lib/vm_cockpit per specification
+  - Update platformio.ini library references  
+  - Create missing bridge_c_compat/ directory
+  - Validation: Build both QEMU and hardware targets successfully
+
+Phase 4.5.4.2: Environment Alignment (20 min)
+  - Rename environments: vm_cockpit_qemu, vm_cockpit_stm32g474  
+  - Update scripts/switch_target.py accordingly
+  - Validation: Target switching works correctly
+
+Phase 4.5.4.3: Platform Layer Foundation (45 min)
+  - Create lib/vm_cockpit/src/platform/qemu/ structure
+  - Copy semihosting as QEMU's HAL equivalent
+  - Create common platform interface header
+  - Validation: QEMU build uses new platform structure
+
+Phase 4.5.4.4: Host Interface Modularization (40 min)
+  - Split host_interface.c → gpio.c, uart.c, timing.c per specification
+  - All modules share host_interface.h header
+  - Validation: Both platforms build and function identically
+
+Phase 4.5.4.5: STM32G4 Platform Modularization (35 min)
+  - Split stm32g4_platform.c → clock.c, gpio.c, uart.c
+  - Validation: Hardware LED+UART test still works
+
+Phase 4.5.4.6: bridge_c_compat Implementation (30 min)
+  - VM bytecode ↔ C translation bridge (not Arduino compatibility)
+  - Foundation for user C++ code support (future)
+  - Validation: Placeholder implementation builds
+
+Phase 4.5.4.7: Test Framework Updates (45 min)
+  - Update test_registry/ programs to use fresh architecture headers
+  - Update memory validators for new layer boundaries
+  - Validation: Workspace test suite passes
+
+Phase 4.5.4.8: Final Integration (30 min)
+  - Remove remaining legacy references
+  - Documentation updates
+  - Validation: Complete test suite passes both platforms
+```
+
+### **Layer Boundary Validation**
+**Memory Validator Updates**: Track proper Layer N → Layer N-1 progression
+- **Layer 6 VM**: execution_engine, memory_manager, io_controller isolation
+- **Layer 5 Host**: host_interface API parameter validation and bounds checking
+- **Layer 4 Platform**: stm32g4/qemu platform function calls with proper resource access
+- **Layer 3 HAL**: STM32 HAL calls (hardware) or semihosting (QEMU) with no layer skipping
+
+### **Branch Strategy**
+Each phase creates dedicated branch (phase-4.5.4.1-core-library-rename, etc.) with:
+- **Commit current state** before starting new phase
+- **Isolated changes** for easy rollback if needed  
+- **Validation checkpoint** before proceeding to next phase
+- **Traceable history** for architecture evolution
+
+**Next Phase**: Ready to begin Phase 4.5.4.1 with git branch creation and core library rename.

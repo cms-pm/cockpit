@@ -1,0 +1,28 @@
+{
+    "name": "arduino_hal",
+    "version": "1.0.0",
+    "description": "Arduino HAL abstraction for ComponentVM hardware testing",
+    "keywords": ["arduino", "hal", "stm32", "embedded"],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/your-repo/componentvm"
+    },
+    "authors": [
+        {
+            "name": "ComponentVM Team",
+            "email": "team@componentvm.com"
+        }
+    ],
+    "license": "MIT",
+    "frameworks": ["stm32cube"],
+    "platforms": ["ststm32"],
+    "build": {
+        "flags": [
+            "-DPLATFORM_STM32G4"
+        ],
+        "srcFilter": [
+            "+<*>",
+            "+<platforms/*>"
+        ]
+    }
+}

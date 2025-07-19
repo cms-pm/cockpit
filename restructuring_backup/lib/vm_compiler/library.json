@@ -1,0 +1,53 @@
+{
+  "name": "VM_Compiler",
+  "version": "3.10.0",
+  "description": "C to ComponentVM Bytecode Compiler Library with Development Tools",
+  "keywords": ["embedded", "compiler", "bytecode", "vm", "antlr4"],
+  "authors": [
+    {
+      "name": "Embedded Systems Team",
+      "maintainer": true
+    }
+  ],
+  "license": "MIT",
+  "dependencies": [
+    {
+      "name": "ComponentVM",
+      "version": "^3.9.0"
+    }
+  ],
+  "frameworks": ["arduino"],
+  "platforms": ["*"],
+  "build": {
+    "flags": ["-std=c++17", "-Wall", "-Wextra"],
+    "srcFilter": [
+      "+<src/>",
+      "+<grammar/ArduinoC.g4>",
+      "-<grammar/antlr-4.13.1-complete.jar>",
+      "-<validation/>",
+      "-<development/>", 
+      "-<tools/>",
+      "-<examples/>"
+    ]
+  },
+  "export": {
+    "include": "include"
+  },
+  "scripts": {
+    "build_grammar": "cd grammar && ./generate.sh",
+    "build_dev_tools": "cd tools && ./build_dev_tools.sh",
+    "run_validation": "cd tools && ./run_validation.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/embedded-systems/componentvm"
+  },
+  "homepage": "https://github.com/embedded-systems/componentvm",
+  "examples": [
+    {
+      "name": "Basic Compilation",
+      "base": "examples/basic_compilation",
+      "files": ["basic_compilation.cpp"]
+    }
+  ]
+}

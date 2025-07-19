@@ -1,0 +1,13 @@
+{
+    "name": "semihosting",
+    "version": "1.0.0", 
+    "description": "Semihosting debug output for ComponentVM",
+    "keywords": ["semihosting", "debug", "embedded"],
+    "frameworks": ["stm32cube"],
+    "platforms": ["ststm32"],
+    "build": {
+        "srcFilter": [
+            "+<*>"
+        ]
+    }
+}

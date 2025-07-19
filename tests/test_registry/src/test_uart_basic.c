@@ -3,7 +3,7 @@
  * @brief Basic UART functionality test - no semihosting
  * 
  * This test validates UART HAL functions without using semihosting.
- * Output is sent via UART (PA9/PA10 - USART1) which can be monitored
+ * Output is sent via UART (PA2/PA3 - USART2) which can be monitored
  * with a serial terminal or USB-to-serial adapter.
  * 
  * Test sequence:
