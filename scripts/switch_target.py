@@ -5,8 +5,8 @@ import os
 import sys
 
 # Define environment names
-QEMU_ENV = "qemu-lm3s6965evb"
-HARDWARE_ENV = "weact_g431cb_hardware"
+QEMU_ENV = "vm_cockpit_qemu"
+HARDWARE_ENV = "vm_cockpit_stm32g474"
 PIO_INI = "platformio.ini"
 
 def switch_pio_target(target, dry_run=False):
