@@ -3,7 +3,7 @@
 
 # Configuration
 PIO_PATH := /home/chris/.platformio/penv/bin/pio
-FIRMWARE := .pio/build/qemu-lm3s6965evb/firmware.bin
+FIRMWARE := .pio/build/vm_cockpit_qemu/firmware.bin
 QEMU_RUNNER := ./scripts/qemu_runner.py
 
 # Ensure PlatformIO is in PATH

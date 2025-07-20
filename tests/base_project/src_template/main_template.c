@@ -8,7 +8,7 @@
 
 #ifdef PLATFORM_STM32G4
 #include "stm32g4xx_hal.h"
-#include "platforms/stm32g4_config.h"
+#include "platform/stm32g4/stm32g4_platform.h"
 #endif
 
 // Test function declaration - will be replaced with actual test function
@@ -20,8 +20,8 @@ int main(void) {
     // Initialize STM32Cube HAL foundation
     HAL_Init();
     
-    // Use our proven clock configuration (168MHz SYSCLK + proper timing)
-    stm32g4_system_init();
+    // Use fresh architecture platform initialization  
+    stm32g4_platform_init();
 #else
     // Fallback for other platforms
     HAL_Init();
