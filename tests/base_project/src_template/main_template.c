@@ -9,6 +9,13 @@
 #ifdef PLATFORM_STM32G4
 #include "stm32g4xx_hal.h"
 #include "platform/stm32g4/stm32g4_platform.h"
+
+// Platform test interface includes
+#include "test_platform/platform_test_interface.h"
+
+// STM32G4 platform test interface implementation
+extern const uart_test_interface_t stm32g4_uart_test;
+const uart_test_interface_t* platform_uart_test = &stm32g4_uart_test;
 #endif
 
 // Test function declaration - will be replaced with actual test function

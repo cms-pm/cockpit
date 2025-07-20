@@ -165,6 +165,20 @@ class WorkspaceBuilder:
             
         print(f"   Generated main.c calling: {test_function}")
         
+        # Copy platform test implementation if needed
+        self._copy_platform_test_implementation(src_dir)
+        
+    def _copy_platform_test_implementation(self, src_dir):
+        """Copy platform test implementation source file"""
+        platform_test_template = self.base_project_dir / "src_template" / "platform_test_stm32g4.c"
+        platform_test_dest = src_dir / "platform_test_stm32g4.c"
+        
+        if platform_test_template.exists():
+            shutil.copy2(platform_test_template, platform_test_dest)
+            print(f"   Copied platform test implementation: platform_test_stm32g4.c")
+        else:
+            print(f"   Warning: Platform test template not found: {platform_test_template}")
+        
     def _create_lib_symlink(self, workspace_path):
         """Create symlink to shared libraries"""
         workspace_lib = workspace_path / "lib"

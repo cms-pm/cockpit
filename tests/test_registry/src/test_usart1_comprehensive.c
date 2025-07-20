@@ -25,31 +25,18 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifdef PLATFORM_STM32G4
 #include "stm32g4xx_hal.h"
 #endif
 
 #include "host_interface/host_interface.h"
+#include "test_platform/platform_test_interface.h"
 #include "semihosting.h"
 
-// USART2 register addresses for validation (migrated from USART1)
-#define USART2_BASE     0x40004400
-#define USART2_CR1      (USART2_BASE + 0x00)  // Control register 1
-#define USART2_CR2      (USART2_BASE + 0x04)  // Control register 2
-#define USART2_CR3      (USART2_BASE + 0x08)  // Control register 3
-#define USART2_BRR      (USART2_BASE + 0x0C)  // Baud rate register
-#define USART2_GTPR     (USART2_BASE + 0x10)  // Guard time and prescaler
-#define USART2_RTOR     (USART2_BASE + 0x14)  // Receiver timeout register
-#define USART2_RQR      (USART2_BASE + 0x18)  // Request register
-#define USART2_ISR      (USART2_BASE + 0x1C)  // Interrupt and status register
-#define USART2_ICR      (USART2_BASE + 0x20)  // Interrupt clear register
-#define USART2_RDR      (USART2_BASE + 0x24)  // Receive data register
-#define USART2_TDR      (USART2_BASE + 0x28)  // Transmit data register
-#define USART2_PRESC    (USART2_BASE + 0x2C)  // Prescaler register
-
-// Register access macro
-#define REG32(addr) (*(volatile uint32_t*)(addr))
+// Platform test interface (injected by workspace builder)
+extern const uart_test_interface_t* platform_uart_test;
 
 // Test configuration
 #define TEST_BAUD_RATE 115200
@@ -57,25 +44,17 @@
 #define LED_PIN GPIO_PIN_6
 #define LED_PORT GPIOC
 
-// Test result structure
-typedef struct {
-    bool passed;
-    const char* description;
-    uint32_t expected_value;
-    uint32_t actual_value;
-} register_test_result_t;
 
 // Forward declarations
 static void configure_led(void);
 static void led_status(bool success);
 static void led_blink_pattern(int count, int delay_ms);
-static void validate_usart1_registers(void);
-static register_test_result_t check_register_bits(const char* reg_name, uint32_t reg_addr, uint32_t mask, uint32_t expected, const char* description);
-static void print_register_state(const char* reg_name, uint32_t reg_addr);
+static void validate_uart_configuration(void);
+static void validate_uart_status(void);
 static void test_transmission_patterns(void);
 static void test_interactive_reception(void);
 static bool wait_for_tx_complete(uint32_t timeout_ms);
-static void delay_ms(uint32_t ms);
+static void test_delay_ms(uint32_t ms);
 
 /**
  * @brief Main test function for comprehensive USART1 validation
@@ -92,7 +71,7 @@ void run_usart1_comprehensive_main(void) {
     uart_begin(TEST_BAUD_RATE);
     
     // Wait for initialization to complete
-    delay_ms(100);
+    test_delay_ms(100);
     
     // Fresh architecture doesn't expose ready status - trust the host interface
     bool uart_ready = true;
@@ -104,7 +83,7 @@ void run_usart1_comprehensive_main(void) {
     
     debug_print("USART2 initialized successfully");
     led_status(true);
-    delay_ms(200);
+    test_delay_ms(200);
     led_status(false);
     
     // === Test 2: Initial Register Validation ===
@@ -114,7 +93,7 @@ void run_usart1_comprehensive_main(void) {
     uart_write_string("Phase 4.5.1 - Register State Analysis\r\n");
     uart_write_string("\r\n");
     
-    validate_usart1_registers();
+    validate_uart_configuration();
     
     // === Test 3: Transmission Pattern Testing ===
     debug_print("Test 3: Transmission pattern testing...");
@@ -125,7 +104,7 @@ void run_usart1_comprehensive_main(void) {
     debug_print("Test 4: Post-transmission register validation...");
     uart_write_string("");
     uart_write_string("Test 4: Post-Transmission Register Analysis");
-    validate_usart1_registers();
+    validate_uart_configuration();
     
     // === Test 5: Interactive Reception Testing (Optional) ===
     debug_print("Test 5: Interactive reception testing...");
@@ -138,7 +117,7 @@ void run_usart1_comprehensive_main(void) {
     debug_print("Test 6: Final register state validation...");
     uart_write_string("");
     uart_write_string("Test 6: Final Register State Analysis");
-    validate_usart1_registers();
+    validate_uart_configuration();
     
     // === Test Complete ===
     debug_print("=== USART1 Comprehensive Test Complete ===");
@@ -157,9 +136,9 @@ void run_usart1_comprehensive_main(void) {
         uart_write_string("");
         
         led_status(true);
-        delay_ms(300);
+        test_delay_ms(300);
         led_status(false);
-        delay_ms(700);
+        test_delay_ms(700);
     }
     
     debug_print("USART1 comprehensive test execution complete");
@@ -205,95 +184,117 @@ static void led_blink_pattern(int count, int delay_ms) {
 }
 
 /**
- * @brief Comprehensive USART1 register validation
+ * @brief Comprehensive UART configuration validation using platform test interface
  */
-static void validate_usart1_registers(void) {
-    uart_write_string("--- USART1 Register Analysis ---");
+static void validate_uart_configuration(void) {
+    debug_print("=== UART Configuration Validation (Platform Interface) ===");
     
-    // Print all register states
-    print_register_state("CR1 (Control 1)", USART2_CR1);
-    print_register_state("CR2 (Control 2)", USART2_CR2);
-    print_register_state("CR3 (Control 3)", USART2_CR3);
-    print_register_state("BRR (Baud Rate)", USART2_BRR);
-    print_register_state("PRESC (Prescaler)", USART2_PRESC);
-    print_register_state("ISR (Status)", USART2_ISR);
+    // Test 1: Basic enablement using platform interface
+    if (!platform_uart_test->uart_is_enabled()) {
+        debug_print("FAIL: UART not enabled (CR1.UE)");
+        uart_write_string("FAIL: UART not enabled");
+        return;
+    }
+    debug_print("PASS: UART enabled (CR1.UE)");
+    uart_write_string("PASS: UART enabled (CR1.UE)");
     
-    // Validate critical configuration bits
-    uart_write_string("--- Critical Bit Validation ---");
+    // Test 2: Transmitter using HAL bit definitions via interface
+    if (!platform_uart_test->uart_transmitter_enabled()) {
+        debug_print("FAIL: Transmitter not enabled (CR1.TE)");
+        uart_write_string("FAIL: Transmitter not enabled");
+        return;
+    }
+    debug_print("PASS: Transmitter enabled (CR1.TE)");
+    uart_write_string("PASS: Transmitter enabled (CR1.TE)");
     
-    // CR1 register validation
-    register_test_result_t result;
+    // Test 3: Receiver validation
+    if (!platform_uart_test->uart_receiver_enabled()) {
+        debug_print("FAIL: Receiver not enabled (CR1.RE)");
+        uart_write_string("FAIL: Receiver not enabled");
+        return;
+    }
+    debug_print("PASS: Receiver enabled (CR1.RE)");
+    uart_write_string("PASS: Receiver enabled (CR1.RE)");
     
-    result = check_register_bits("CR1.UE", USART2_CR1, 0x01, 0x01, "USART Enable");
-    debug_print(result.passed ? "CR1.UE: PASS" : "CR1.UE: FAIL");
+    // Test 4: Baud rate validation with proper calculation
+    uint32_t actual_baud = platform_uart_test->uart_get_configured_baud();
+    uint32_t expected_baud = TEST_BAUD_RATE;
+    uint32_t tolerance = expected_baud / 100; // 1% tolerance
     
-    result = check_register_bits("CR1.TE", USART2_CR1, 0x08, 0x08, "Transmitter Enable");
-    debug_print(result.passed ? "CR1.TE: PASS" : "CR1.TE: FAIL");
+    char baud_msg[100];
+    snprintf(baud_msg, sizeof(baud_msg), 
+             "Baud rate: expected %lu, actual %lu", 
+             (unsigned long)expected_baud, (unsigned long)actual_baud);
+    uart_write_string(baud_msg);
+    debug_print(baud_msg);
     
-    result = check_register_bits("CR1.RE", USART2_CR1, 0x04, 0x04, "Receiver Enable");
-    debug_print(result.passed ? "CR1.RE: PASS" : "CR1.RE: FAIL");
+    if (abs((int)(actual_baud - expected_baud)) > (int)tolerance) {
+        debug_print("FAIL: Baud rate outside tolerance");
+        uart_write_string("FAIL: Baud rate outside tolerance");
+        return;
+    }
+    debug_print("PASS: Baud rate within tolerance");
+    uart_write_string("PASS: Baud rate within tolerance");
     
-    // ISR register validation
-    result = check_register_bits("ISR.TXE", USART2_ISR, 0x80, 0x80, "TX Empty");
-    debug_print(result.passed ? "ISR.TXE: PASS" : "ISR.TXE: FAIL");
+    // Test 5: Prescaler validation
+    uint32_t prescaler = platform_uart_test->uart_get_prescaler_value();
+    char prescaler_msg[60];
+    snprintf(prescaler_msg, sizeof(prescaler_msg), "Prescaler value: %lu", (unsigned long)prescaler);
+    uart_write_string(prescaler_msg);
+    debug_print(prescaler_msg);
     
-    result = check_register_bits("ISR.TC", USART2_ISR, 0x40, 0x40, "TX Complete");
-    debug_print(result.passed ? "ISR.TC: PASS" : "ISR.TC: FAIL");
-    
-    // PRESC register validation (should be 0x3 for DIV4 prescaler)
-    uint32_t presc_value = REG32(USART2_PRESC);
-    uint32_t expected_presc = 0x3;  // DIV4 prescaler encoded as 3
-    
-    char presc_msg[100];
-    snprintf(presc_msg, sizeof(presc_msg), "PRESC: 0x%08X (expected 0x%08X for DIV4)", 
-             (unsigned int)presc_value, (unsigned int)expected_presc);
-    uart_write_string(presc_msg);
-    
-    // BRR register validation (for 115200 baud at 40MHz effective with DIV4 prescaler)
-    uint32_t brr_value = REG32(USART2_BRR);
-    uint32_t expected_brr = 40000000 / TEST_BAUD_RATE;  // 40MHz / 115200 = 347 (0x015B)
-    
-    char brr_msg[100];
-    snprintf(brr_msg, sizeof(brr_msg), "BRR: 0x%08X (expected ~0x%08X for %d baud)", 
-             (unsigned int)brr_value, (unsigned int)expected_brr, TEST_BAUD_RATE);
-    uart_write_string(brr_msg);
-    
-    uart_write_string("--- Register Analysis Complete ---");
+    debug_print("=== UART Configuration Validation Complete ===");
+    uart_write_string("=== UART Configuration Validation Complete ===");
 }
 
 /**
- * @brief Check specific register bits
+ * @brief UART status validation using platform test interface
  */
-static register_test_result_t check_register_bits(const char* reg_name, uint32_t reg_addr, 
-                                                  uint32_t mask, uint32_t expected, 
-                                                  const char* description) {
-    register_test_result_t result;
-    uint32_t reg_value = REG32(reg_addr);
-    uint32_t masked_value = reg_value & mask;
+static void validate_uart_status(void) {
+    debug_print("=== UART Status Validation (Platform Interface) ===");
     
-    result.passed = (masked_value == expected);
-    result.description = description;
-    result.expected_value = expected;
-    result.actual_value = masked_value;
+    // Test 1: TX ready status
+    if (!platform_uart_test->uart_tx_ready()) {
+        debug_print("WARN: TX not ready (ISR.TXE)");
+        uart_write_string("WARN: TX not ready (ISR.TXE)");
+    } else {
+        debug_print("PASS: TX ready (ISR.TXE)");
+        uart_write_string("PASS: TX ready (ISR.TXE)");
+    }
     
-    char result_msg[150];
-    snprintf(result_msg, sizeof(result_msg), "%s: %s (0x%08X & 0x%08X = 0x%08X, expected 0x%08X)",
-             reg_name, result.passed ? "PASS" : "FAIL",
-             (unsigned int)reg_value, (unsigned int)mask, 
-             (unsigned int)masked_value, (unsigned int)expected);
-    uart_write_string(result_msg);
+    // Test 2: TX complete status
+    if (!platform_uart_test->uart_tx_complete()) {
+        debug_print("INFO: TX not complete (ISR.TC)");
+        uart_write_string("INFO: TX not complete (ISR.TC)");
+    } else {
+        debug_print("PASS: TX complete (ISR.TC)");
+        uart_write_string("PASS: TX complete (ISR.TC)");
+    }
     
-    return result;
-}
-
-/**
- * @brief Print register state in hex
- */
-static void print_register_state(const char* reg_name, uint32_t reg_addr) {
-    uint32_t reg_value = REG32(reg_addr);
-    char msg[100];
-    snprintf(msg, sizeof(msg), "%s: 0x%08X", reg_name, (unsigned int)reg_value);
-    uart_write_string(msg);
+    // Test 3: Error flag checking
+    if (platform_uart_test->uart_check_error_flags()) {
+        debug_print("WARN: UART error flags detected");
+        uart_write_string("WARN: UART error flags detected");
+        uint32_t status = platform_uart_test->uart_get_status_register();
+        char status_msg[50];
+        snprintf(status_msg, sizeof(status_msg), "Status register: 0x%08X", 
+                 (unsigned int)status);
+        debug_print(status_msg);
+        uart_write_string(status_msg);
+    } else {
+        debug_print("PASS: No UART error flags");
+        uart_write_string("PASS: No UART error flags");
+    }
+    
+    // Test 4: Full status register dump
+    uint32_t status_reg = platform_uart_test->uart_get_status_register();
+    char full_status[60];
+    snprintf(full_status, sizeof(full_status), "Full status register: 0x%08X", (unsigned int)status_reg);
+    uart_write_string(full_status);
+    debug_print(full_status);
+    
+    debug_print("=== UART Status Validation Complete ===");
+    uart_write_string("=== UART Status Validation Complete ===");
 }
 
 /**
@@ -352,7 +353,7 @@ static void test_interactive_reception(void) {
     
     while ((HAL_GetTick() - start_time) < INTERACTIVE_TIMEOUT_MS) {
         if (uart_data_available()) {
-            char received = uart_getchar();
+            char received = uart_read_char();
             if (received != 0) {
                 char_count++;
                 char msg[50];
@@ -386,14 +387,13 @@ static void test_interactive_reception(void) {
 }
 
 /**
- * @brief Wait for transmission to complete
+ * @brief Wait for transmission to complete using platform interface
  */
 static bool wait_for_tx_complete(uint32_t timeout_ms) {
     uint32_t start_time = HAL_GetTick();
     
     while ((HAL_GetTick() - start_time) < timeout_ms) {
-        uint32_t isr = REG32(USART2_ISR);
-        if (isr & 0x40) {  // TC bit
+        if (platform_uart_test->uart_tx_complete()) {
             return true;
         }
         HAL_Delay(1);
@@ -405,7 +405,7 @@ static bool wait_for_tx_complete(uint32_t timeout_ms) {
 /**
  * @brief Simple delay function
  */
-static void delay_ms(uint32_t ms) {
+static void test_delay_ms(uint32_t ms) {
 #ifdef PLATFORM_STM32G4
     HAL_Delay(ms);
 #endif
