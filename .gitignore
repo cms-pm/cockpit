@@ -37,4 +37,5 @@ docs/feasibility/ESP32_C6_IMPLEMENTATION_PLAN.md
 # New test system - ignore runtime artifacts
 active_workspaces/
 legacy_backup/
-blog/restructuring_backup/
+blog/
+restructuring_backup/
