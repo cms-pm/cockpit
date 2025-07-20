@@ -20,7 +20,7 @@ Embedded hypervisor project featuring ComponentVM - enabling C bytecode executio
 ## 🚀 Current Development Status
 
 ### **Fresh Architecture Complete (Phase 4.5.4)**
-- **7-Layer Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware
+- **6-Layer Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware
 - **Platform Test Interface**: Cross-platform hardware validation with STM32 HAL structures as single source of truth
 - **Workspace-Isolated Testing**: Sophisticated test system with comprehensive hardware validation
 - **STM32G431CB Implementation**: Clean layer boundaries, reliable hardware operation
@@ -41,7 +41,7 @@ Memory: 128KB Flash, 32KB RAM
 Peripherals: GPIO (PC6 LED), USART1 (PA9/PA10), SWD debug
 VM Execution: Full bytecode programs with host interface API
 Testing: Platform test interface with cross-platform validation
-Architecture: 7-layer fresh architecture with clean boundaries
+Architecture: 6-layer fresh architecture with clean boundaries
 Hardware Status: Research implementation with comprehensive validation
 ```
 
@@ -55,7 +55,7 @@ Hardware Status: Research implementation with comprehensive validation
 - ✅ **4.1 Hardware Foundation**: PlatformIO board, HAL adaptation, embedded native API
 - ✅ **4.2 VM Integration**: Fresh architecture implementation, clean layer boundaries
 - ✅ **4.3 Automated Testing**: Workspace-isolated testing with OpenOCD/GDB integration
-- ✅ **4.5.4 Fresh Architecture**: Complete 7-layer architecture with platform test interface
+- ✅ **4.5.4 Fresh Architecture**: Complete 6-layer architecture with platform test interface
   - **Platform Test Interface**: STM32 HAL structures as single source of truth
   - **Cross-Platform Testing**: Same test logic, platform-specific validation
   - **Workspace Template Enhancement**: Platform-aware workspace generation
@@ -121,7 +121,7 @@ void loop() {
 
 ## 📊 Architecture
 
-### **Fresh Architecture (7-Layer)**
+### **Fresh Architecture (6-Layer)**
 ```
 Layer 7: Guest Application (Bytecode Programs)
          ↓
@@ -164,7 +164,7 @@ typedef struct {
 
 ## 🏆 **Development Milestone**
 
-ComponentVM fresh architecture complete with research-grade 7-layer design. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth. Ready for bootloader implementation.
+ComponentVM fresh architecture complete with research-grade 6-layer design. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth. Ready for bootloader implementation.
 
 ---
 

@@ -15,8 +15,8 @@ Start here for the development overview:
 
 ### **🏗️ Architecture & Design**
 Fresh architecture documentation:
-- **[Architecture Suite](architecture/)** - Complete 7-layer architecture documentation
-  - [VM Cockpit Fresh Architecture](architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md) - Complete 7-layer specification
+- **[Architecture Suite](architecture/)** - Complete 6-layer architecture documentation
+  - [VM Cockpit Fresh Architecture](architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md) - Complete 6-layer specification
   - [System Overview](architecture/01-system-overview.md) - Mission, philosophy, design principles
   - [Memory & Instructions](architecture/02-memory-instruction-architecture.md) - Memory layout, instruction format
   - [Component Integration](architecture/03-component-integration-flows.md) - Component interactions, data flows
@@ -145,7 +145,7 @@ Research implementation hardware documentation:
 ## 🧭 Navigation by Role
 
 ### **System Architects**
-1. Start with [VM Cockpit Fresh Architecture](architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md) for 7-layer design
+1. Start with [VM Cockpit Fresh Architecture](architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md) for 6-layer design
 2. Review [Platform Test Interface Architecture](testing/PLATFORM_TEST_INTERFACE_ARCHITECTURE.md) for testing strategy
 3. Examine [Development Methodology](development/methodology/) for proven patterns
 
@@ -175,7 +175,7 @@ Research implementation hardware documentation:
 
 ### **Scale & Coverage**
 - **Total Documentation**: ~60 files, ~20,000 lines
-- **Fresh Architecture**: Complete 7-layer specification with platform test interface
+- **Fresh Architecture**: Complete 6-layer specification with platform test interface
 - **Hardware Integration**: Research implementation STM32G431CB integration
 - **Testing Framework**: Cross-platform testing with workspace isolation
 - **Bootloader System**: Complete dual-bank bootloader design

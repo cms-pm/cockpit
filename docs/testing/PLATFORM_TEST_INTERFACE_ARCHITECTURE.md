@@ -45,7 +45,7 @@ This question revealed the tension between **hardware specificity** (essential f
 **Discovery**: The workspace-isolated test system was architecturally incomplete - it could abstract build environments but not platform validation logic.
 
 ### The Breakthrough Moment
-Recognition that our **7-layer fresh architecture** should be mirrored in our **test validation architecture**:
+Recognition that our **6-layer fresh architecture** should be mirrored in our **test validation architecture**:
 
 ```
 Runtime System:          Test Validation System:
