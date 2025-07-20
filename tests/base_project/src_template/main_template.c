@@ -1,6 +1,7 @@
 /*
  * ComponentVM Hardware Test Main Template
  * Generated for test: {{TEST_NAME}}
+ * Platform: {{PLATFORM_NAME}}
  * This file is generated automatically by workspace_builder.py
  */
 

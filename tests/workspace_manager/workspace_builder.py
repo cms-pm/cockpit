@@ -155,29 +155,74 @@ class WorkspaceBuilder:
         # Determine test function name (convention: run_<test_name>_main)
         test_function = f"run_{test_name}_main"
         
-        # Replace template placeholders
+        # Determine platform configuration
+        platform_config = self._get_platform_config(test_metadata)
+        
+        # Replace template placeholders with platform-aware substitutions
         main_content = template_content.replace("{{TEST_NAME}}", test_name)
         main_content = main_content.replace("{{TEST_FUNCTION}}", test_function)
+        main_content = main_content.replace("{{PLATFORM_NAME}}", platform_config.get('name', 'stm32g4'))
+        
+        # Add platform-specific template validation
+        if platform_config.get('requires_test_interface', False):
+            self._validate_platform_test_interface_availability(platform_config)
         
         # Write generated main.c
         with open(main_c_path, 'w') as f:
             f.write(main_content)
             
         print(f"   Generated main.c calling: {test_function}")
+        print(f"   Platform configuration: {platform_config.get('name', 'stm32g4')}")
         
         # Copy platform test implementation if needed
-        self._copy_platform_test_implementation(src_dir)
+        self._copy_platform_test_implementation(src_dir, platform_config)
         
-    def _copy_platform_test_implementation(self, src_dir):
-        """Copy platform test implementation source file"""
-        platform_test_template = self.base_project_dir / "src_template" / "platform_test_stm32g4.c"
-        platform_test_dest = src_dir / "platform_test_stm32g4.c"
+    def _get_platform_config(self, test_metadata):
+        """Extract platform configuration from test metadata"""
+        # Default to STM32G4 for backward compatibility
+        default_config = {
+            'name': 'stm32g4',
+            'interface': 'stm32g4_uart_test',
+            'includes': ['test_platform/platform_test_interface.h'],
+            'requires_test_interface': True,
+            'implementation_file': 'platform_test_stm32g4.c'
+        }
+        
+        # Future: support platform selection from test metadata
+        # platform = test_metadata.get('platform', 'stm32g4')
+        
+        return default_config
+    
+    def _validate_platform_test_interface_availability(self, platform_config):
+        """Validate that platform test interface components are available"""
+        # Check if platform test interface header exists
+        interface_header = self.base_dir.parent / "lib" / "vm_cockpit" / "src" / "test_platform" / "platform_test_interface.h"
+        if not interface_header.exists():
+            raise FileNotFoundError(f"Platform test interface header not found: {interface_header}")
+            
+        # Check if platform implementation exists
+        impl_name = platform_config.get('implementation_file', 'platform_test_stm32g4.c')
+        impl_template = self.base_project_dir / "src_template" / impl_name
+        if not impl_template.exists():
+            raise FileNotFoundError(f"Platform test implementation template not found: {impl_template}")
+            
+        print(f"   ✓ Platform test interface validated for: {platform_config['name']}")
+    
+    def _copy_platform_test_implementation(self, src_dir, platform_config):
+        """Copy platform test implementation source file with platform awareness"""
+        impl_name = platform_config.get('implementation_file', 'platform_test_stm32g4.c')
+        platform_test_template = self.base_project_dir / "src_template" / impl_name
+        platform_test_dest = src_dir / impl_name
         
         if platform_test_template.exists():
             shutil.copy2(platform_test_template, platform_test_dest)
-            print(f"   Copied platform test implementation: platform_test_stm32g4.c")
+            print(f"   Copied platform test implementation: {impl_name}")
+            print(f"   Platform interface: {platform_config.get('interface', 'unknown')}")
         else:
-            print(f"   Warning: Platform test template not found: {platform_test_template}")
+            if platform_config.get('requires_test_interface', False):
+                raise FileNotFoundError(f"Required platform test template not found: {platform_test_template}")
+            else:
+                print(f"   Info: Platform test interface not required for this test")
         
     def _create_lib_symlink(self, workspace_path):
         """Create symlink to shared libraries"""
