@@ -15,6 +15,7 @@
 
 #ifdef PLATFORM_STM32G4
 #include "stm32g4xx_hal.h"
+#define LED_PIN 13
 #endif
 
 // Function prototypes
@@ -30,7 +31,7 @@ int main(void) {
     host_interface_init();
     
     // Configure LED pin (PC6 = logical pin 13)
-    gpio_pin_config(13, GPIO_MODE_OUTPUT);
+    gpio_pin_config(LED_PIN, GPIO_OUTPUT);
     
     // Initialize UART at 115200 baud for PA9 TX
     uart_begin(115200);
@@ -46,7 +47,7 @@ int main(void) {
     // Main test loop
     while(1) {
         // Turn LED ON and send status
-        gpio_pin_write(13, true);
+        gpio_pin_write(LED_PIN, true);
         uart_write_string("LED ON  - Counter: ");
         
         // Simple integer to string conversion
@@ -77,7 +78,7 @@ int main(void) {
         delay_ms(500);
         
         // Turn LED OFF and send status
-        gpio_pin_write(13, false);
+        gpio_pin_write(LED_PIN, false);
         uart_write_string("LED OFF - System tick: ");
         
         // Show system uptime in ms
