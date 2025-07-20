@@ -439,7 +439,7 @@ Our ComponentVM canaries represent the best of embedded systems engineering: sim
 
 ---
 
-*This document serves as both technical documentation and a celebration of the engineering wisdom that guides robust embedded systems development. The canary protection system stands as a bridge between ComponentVM's current capabilities and its future as a production-ready embedded hypervisor.*
+*This document serves as both technical documentation and a celebration of the engineering wisdom that guides robust embedded systems development. The canary protection system stands as a bridge between ComponentVM's current capabilities and its future as a research-grade embedded hypervisor.*
 
 **Document Classification**: Technical Architecture / Learning Document / Historical Perspective  
 **Date**: July 2025  

@@ -8,7 +8,7 @@
 ## 🎯 Mission & Vision
 
 ### **ComponentVM Mission Statement**
-ComponentVM is a **production-ready embedded hypervisor** that enables running C bytecode programs on ARM Cortex-M4 microcontrollers with **hardware-level safety**, **predictable performance**, and **Arduino-compatible development experience**.
+ComponentVM is a **research-grade embedded hypervisor** that enables running C bytecode programs on ARM Cortex-M4 microcontrollers with **hardware-level safety**, **predictable performance**, and **Arduino-compatible development experience**.
 
 ### **Core Value Proposition**
 ```yaml
@@ -178,7 +178,7 @@ Benefits:
   - Testable components with well-defined interfaces
 ```
 
-### **5. Production-Ready Quality**
+### **5. Research Implementation Quality**
 **Embedded Systems Engineering Standards**
 ```yaml
 Quality Measures:

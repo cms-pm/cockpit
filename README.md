@@ -23,10 +23,10 @@ Embedded hypervisor project featuring ComponentVM - enabling C bytecode executio
 - **7-Layer Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware
 - **Platform Test Interface**: Cross-platform hardware validation with STM32 HAL structures as single source of truth
 - **Workspace-Isolated Testing**: Sophisticated test system with comprehensive hardware validation
-- **STM32G431CB Production Ready**: Clean layer boundaries, reliable hardware operation
+- **STM32G431CB Implementation**: Clean layer boundaries, reliable hardware operation
 - **Embedded Native API**: Professional gpio_pin_write, uart_begin interface (Arduino compatibility removed)
 
-### **ComponentVM Core Features (Production Ready)**
+### **ComponentVM Core Features (Research Implementation)**
 - **32-bit VM Architecture**: ARM Cortex-M4 implementation with explicit PC management
 - **Host Interface API**: gpio_pin_write, uart_begin, delay_ms - embedded native naming
 - **C Compiler**: ANTLR4-based compiler with functions, control flow, expressions
@@ -42,7 +42,7 @@ Peripherals: GPIO (PC6 LED), USART1 (PA9/PA10), SWD debug
 VM Execution: Full bytecode programs with host interface API
 Testing: Platform test interface with cross-platform validation
 Architecture: 7-layer fresh architecture with clean boundaries
-Hardware Status: Production-ready with comprehensive validation
+Hardware Status: Research implementation with comprehensive validation
 ```
 
 ---
@@ -62,10 +62,10 @@ Hardware Status: Production-ready with comprehensive validation
   - **Hardware Validation**: Comprehensive testing on real STM32G431CB hardware
 
 ### **Current Phase**
-- 🎯 **4.5.2 Bootloader System**: Production-ready bootloader with dual-bank strategy
+- 🎯 **4.5.2 Bootloader System**: Research bootloader with dual-bank strategy
   - **Transport Abstraction**: UART first, USB CDC drop-in capability
   - **Dual-Bank Architecture**: Atomic bytecode updates with rollback capability
-  - **Production Reliability**: Hierarchical error states, overflow-safe timeouts, resource cleanup
+  - **Research Implementation**: Hierarchical error states, overflow-safe timeouts, resource cleanup
   - **Complements STM32 Bootloader**: Bytecode updates vs firmware updates
   - **Documentation**: [Bootloader Design](docs/hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)
 
@@ -87,7 +87,7 @@ git clone <repository> && cd cockpit
 # QEMU development (proven)
 make build && make test
 
-# Hardware execution (production ready)
+# Hardware execution (research implementation)
 python scripts/switch_target.py hardware
 ~/.platformio/penv/bin/pio run --target upload
 
@@ -136,7 +136,7 @@ Layer 3: STM32 HAL (Vendor library)
 Layer 2: Hardware (STM32G431CB)
 ```
 
-### **Memory Layout (Production)**
+### **Memory Layout (Research Implementation)**
 ```
 Flash (128KB):
   Bootloader: 16KB     (ComponentVM bootloader)
@@ -164,7 +164,7 @@ typedef struct {
 
 ## 🏆 **Development Milestone**
 
-ComponentVM fresh architecture complete with production-ready 7-layer design. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth. Ready for bootloader implementation.
+ComponentVM fresh architecture complete with research-grade 7-layer design. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth. Ready for bootloader implementation.
 
 ---
 

@@ -23,7 +23,7 @@ Fresh architecture documentation:
   - [Build System](architecture/04-build-system-workflow.md) - Development pipeline, C→bytecode→firmware
 
 ### **🔧 Hardware Integration**
-Production-ready hardware documentation:
+Research implementation hardware documentation:
 - **[Hardware Directory](hardware/)** - Complete hardware integration documentation
   - [Hardware Integration Guide](hardware/integration/HARDWARE_INTEGRATION_GUIDE.md) - STM32G431CB comprehensive guide
   - [Phase 4 Planning](hardware/phase-4/) - Bootloader system design and implementation
@@ -176,7 +176,7 @@ Production-ready hardware documentation:
 ### **Scale & Coverage**
 - **Total Documentation**: ~60 files, ~20,000 lines
 - **Fresh Architecture**: Complete 7-layer specification with platform test interface
-- **Hardware Integration**: Production-ready STM32G431CB implementation
+- **Hardware Integration**: Research implementation STM32G431CB integration
 - **Testing Framework**: Cross-platform testing with workspace isolation
 - **Bootloader System**: Complete dual-bank bootloader design
 
@@ -194,4 +194,4 @@ Production-ready hardware documentation:
 
 ---
 
-*This documentation hub provides navigation to all ComponentVM documentation, featuring the complete fresh architecture implementation with production-ready platform test interface and cross-platform testing capabilities.*
+*This documentation hub provides navigation to all ComponentVM documentation, featuring the complete fresh architecture implementation with research-grade platform test interface and cross-platform testing capabilities.*
