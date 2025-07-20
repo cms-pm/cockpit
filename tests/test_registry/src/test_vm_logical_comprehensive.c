@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "semihosting.h"
+#include "host_interface/host_interface.h"
 
 /**
  * @brief Test basic logical AND operations

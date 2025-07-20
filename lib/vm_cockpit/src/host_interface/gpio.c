@@ -15,16 +15,16 @@ void gpio_pin_config(uint8_t pin, gpio_mode_t mode) {
     
     // Translate host interface GPIO mode to platform mode
     switch (mode) {
-        case GPIO_MODE_INPUT:
+        case GPIO_INPUT:
             platform_mode = PLATFORM_GPIO_INPUT;
             break;
-        case GPIO_MODE_OUTPUT:
+        case GPIO_OUTPUT:
             platform_mode = PLATFORM_GPIO_OUTPUT;
             break;
-        case GPIO_MODE_INPUT_PULLUP:
+        case GPIO_INPUT_PULLUP:
             platform_mode = PLATFORM_GPIO_INPUT_PULLUP;
             break;
-        case GPIO_MODE_INPUT_PULLDOWN:
+        case GPIO_INPUT_PULLDOWN:
             platform_mode = PLATFORM_GPIO_INPUT_PULLDOWN;
             break;
         default:

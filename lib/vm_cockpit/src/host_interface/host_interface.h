@@ -31,10 +31,10 @@ void host_interface_init(void);
 // =================================================================
 
 typedef enum {
-    GPIO_MODE_INPUT = 0,
-    GPIO_MODE_OUTPUT,
-    GPIO_MODE_INPUT_PULLUP,
-    GPIO_MODE_INPUT_PULLDOWN
+    GPIO_INPUT = 0,
+    GPIO_OUTPUT,
+    GPIO_INPUT_PULLUP,
+    GPIO_INPUT_PULLDOWN
 } gpio_mode_t;
 
 /**

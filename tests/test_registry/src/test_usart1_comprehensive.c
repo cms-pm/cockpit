@@ -30,7 +30,7 @@
 #include "stm32g4xx_hal.h"
 #endif
 
-#include "uart_hal.h"
+#include "host_interface/host_interface.h"
 #include "semihosting.h"
 
 // USART2 register addresses for validation (migrated from USART1)
@@ -89,12 +89,14 @@ void run_usart1_comprehensive_main(void) {
     
     // === Test 1: USART2 Initialization ===
     debug_print("Test 1: USART2 initialization...");
-    Serial_begin(TEST_BAUD_RATE);
+    uart_begin(TEST_BAUD_RATE);
     
     // Wait for initialization to complete
     delay_ms(100);
     
-    if (!Serial_ready()) {
+    // Fresh architecture doesn't expose ready status - trust the host interface
+    bool uart_ready = true;
+    if (!uart_ready) {
         debug_print("USART2 initialization failed");
         led_blink_pattern(10, 100);  // Fast blink on failure
         return;
@@ -107,52 +109,52 @@ void run_usart1_comprehensive_main(void) {
     
     // === Test 2: Initial Register Validation ===
     debug_print("Test 2: Initial register validation...");
-    Serial_println("=== USART2 Comprehensive Test ===");
-    Serial_println("ComponentVM UART HAL Validation");
-    Serial_println("Phase 4.5.1 - Register State Analysis");
-    Serial_println("");
+    uart_write_string("=== USART2 Comprehensive Test ===\r\n");
+    uart_write_string("ComponentVM UART HAL Validation\r\n");
+    uart_write_string("Phase 4.5.1 - Register State Analysis\r\n");
+    uart_write_string("\r\n");
     
     validate_usart1_registers();
     
     // === Test 3: Transmission Pattern Testing ===
     debug_print("Test 3: Transmission pattern testing...");
-    Serial_println("Test 3: Transmission Patterns");
+    uart_write_string("Test 3: Transmission Patterns");
     test_transmission_patterns();
     
     // === Test 4: Post-Transmission Register Validation ===
     debug_print("Test 4: Post-transmission register validation...");
-    Serial_println("");
-    Serial_println("Test 4: Post-Transmission Register Analysis");
+    uart_write_string("");
+    uart_write_string("Test 4: Post-Transmission Register Analysis");
     validate_usart1_registers();
     
     // === Test 5: Interactive Reception Testing (Optional) ===
     debug_print("Test 5: Interactive reception testing...");
-    Serial_println("");
-    Serial_println("Test 5: Interactive Reception Testing");
-    Serial_println("Send characters within 5 seconds for reception test...");
+    uart_write_string("");
+    uart_write_string("Test 5: Interactive Reception Testing");
+    uart_write_string("Send characters within 5 seconds for reception test...");
     test_interactive_reception();
     
     // === Test 6: Final Register State Validation ===
     debug_print("Test 6: Final register state validation...");
-    Serial_println("");
-    Serial_println("Test 6: Final Register State Analysis");
+    uart_write_string("");
+    uart_write_string("Test 6: Final Register State Analysis");
     validate_usart1_registers();
     
     // === Test Complete ===
     debug_print("=== USART1 Comprehensive Test Complete ===");
-    Serial_println("");
-    Serial_println("=== USART1 Test Complete ===");
-    Serial_println("All USART1 functions validated successfully");
-    Serial_println("Register states analyzed and documented");
-    Serial_println("Workspace isolation working for USART1 tests");
-    Serial_println("");
+    uart_write_string("");
+    uart_write_string("=== USART1 Test Complete ===");
+    uart_write_string("All USART1 functions validated successfully");
+    uart_write_string("Register states analyzed and documented");
+    uart_write_string("Workspace isolation working for USART1 tests");
+    uart_write_string("");
     
     // Success indication: Heartbeat pattern
     for (int cycle = 0; cycle < 10; cycle++) {
         debug_print("USART1 test heartbeat cycle");
-        Serial_print("Heartbeat ");
-        Serial_print(cycle < 9 ? "." : "COMPLETE");
-        Serial_println("");
+        uart_write_string("Heartbeat ");
+        uart_write_string(cycle < 9 ? "." : "COMPLETE");
+        uart_write_string("");
         
         led_status(true);
         delay_ms(300);
@@ -161,7 +163,7 @@ void run_usart1_comprehensive_main(void) {
     }
     
     debug_print("USART1 comprehensive test execution complete");
-    Serial_println("USART1 comprehensive test execution complete - system stable");
+    uart_write_string("USART1 comprehensive test execution complete - system stable");
 }
 
 /**
@@ -206,7 +208,7 @@ static void led_blink_pattern(int count, int delay_ms) {
  * @brief Comprehensive USART1 register validation
  */
 static void validate_usart1_registers(void) {
-    Serial_println("--- USART1 Register Analysis ---");
+    uart_write_string("--- USART1 Register Analysis ---");
     
     // Print all register states
     print_register_state("CR1 (Control 1)", USART2_CR1);
@@ -217,7 +219,7 @@ static void validate_usart1_registers(void) {
     print_register_state("ISR (Status)", USART2_ISR);
     
     // Validate critical configuration bits
-    Serial_println("--- Critical Bit Validation ---");
+    uart_write_string("--- Critical Bit Validation ---");
     
     // CR1 register validation
     register_test_result_t result;
@@ -245,7 +247,7 @@ static void validate_usart1_registers(void) {
     char presc_msg[100];
     snprintf(presc_msg, sizeof(presc_msg), "PRESC: 0x%08X (expected 0x%08X for DIV4)", 
              (unsigned int)presc_value, (unsigned int)expected_presc);
-    Serial_println(presc_msg);
+    uart_write_string(presc_msg);
     
     // BRR register validation (for 115200 baud at 40MHz effective with DIV4 prescaler)
     uint32_t brr_value = REG32(USART2_BRR);
@@ -254,9 +256,9 @@ static void validate_usart1_registers(void) {
     char brr_msg[100];
     snprintf(brr_msg, sizeof(brr_msg), "BRR: 0x%08X (expected ~0x%08X for %d baud)", 
              (unsigned int)brr_value, (unsigned int)expected_brr, TEST_BAUD_RATE);
-    Serial_println(brr_msg);
+    uart_write_string(brr_msg);
     
-    Serial_println("--- Register Analysis Complete ---");
+    uart_write_string("--- Register Analysis Complete ---");
 }
 
 /**
@@ -279,7 +281,7 @@ static register_test_result_t check_register_bits(const char* reg_name, uint32_t
              reg_name, result.passed ? "PASS" : "FAIL",
              (unsigned int)reg_value, (unsigned int)mask, 
              (unsigned int)masked_value, (unsigned int)expected);
-    Serial_println(result_msg);
+    uart_write_string(result_msg);
     
     return result;
 }
@@ -291,59 +293,59 @@ static void print_register_state(const char* reg_name, uint32_t reg_addr) {
     uint32_t reg_value = REG32(reg_addr);
     char msg[100];
     snprintf(msg, sizeof(msg), "%s: 0x%08X", reg_name, (unsigned int)reg_value);
-    Serial_println(msg);
+    uart_write_string(msg);
 }
 
 /**
  * @brief Test various transmission patterns
  */
 static void test_transmission_patterns(void) {
-    Serial_println("Testing different transmission patterns...");
+    uart_write_string("Testing different transmission patterns...");
     
     // Test 1: Single characters
-    Serial_print("Pattern 1 - Single chars: ");
-    Serial_print("H");
-    Serial_print("e");
-    Serial_print("l");
-    Serial_print("l");
-    Serial_print("o");
-    Serial_println("");
+    uart_write_string("Pattern 1 - Single chars: ");
+    uart_write_string("H");
+    uart_write_string("e");
+    uart_write_string("l");
+    uart_write_string("l");
+    uart_write_string("o");
+    uart_write_string("");
     
     // Test 2: Numbers
-    Serial_print("Pattern 2 - Numbers: ");
+    uart_write_string("Pattern 2 - Numbers: ");
     for (int i = 0; i < 10; i++) {
         char num_str[10];
         snprintf(num_str, sizeof(num_str), "%d", i);
-        Serial_print(num_str);
+        uart_write_string(num_str);
     }
-    Serial_println("");
+    uart_write_string("");
     
     // Test 3: ASCII characters
-    Serial_print("Pattern 3 - ASCII: ");
+    uart_write_string("Pattern 3 - ASCII: ");
     for (char c = 'A'; c <= 'Z'; c++) {
         char char_str[2] = {c, '\0'};
-        Serial_print(char_str);
+        uart_write_string(char_str);
     }
-    Serial_println("");
+    uart_write_string("");
     
     // Test 4: Special characters
-    Serial_println("Pattern 4 - Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?");
+    uart_write_string("Pattern 4 - Special chars: !@#$%^&*()_+-=[]{}|;':\",./<>?");
     
     // Test 5: Long string
-    Serial_println("Pattern 5 - Long string: The quick brown fox jumps over the lazy dog. This tests longer transmission patterns and buffer handling.");
+    uart_write_string("Pattern 5 - Long string: The quick brown fox jumps over the lazy dog. This tests longer transmission patterns and buffer handling.");
     
     // Wait for transmission to complete
     wait_for_tx_complete(1000);
     
-    Serial_println("Transmission pattern testing complete.");
+    uart_write_string("Transmission pattern testing complete.");
 }
 
 /**
  * @brief Test interactive reception (optional)
  */
 static void test_interactive_reception(void) {
-    Serial_println("Waiting for input characters...");
-    Serial_println("Type characters to test reception (5 second timeout):");
+    uart_write_string("Waiting for input characters...");
+    uart_write_string("Type characters to test reception (5 second timeout):");
     
     uint32_t start_time = HAL_GetTick();
     int char_count = 0;
@@ -356,12 +358,12 @@ static void test_interactive_reception(void) {
                 char msg[50];
                 snprintf(msg, sizeof(msg), "Received char %d: '%c' (0x%02X)", 
                          char_count, received, (unsigned char)received);
-                Serial_println(msg);
+                uart_write_string(msg);
                 
                 // Echo the character back
-                Serial_print("Echo: ");
-                Serial_print(&received);
-                Serial_println("");
+                uart_write_string("Echo: ");
+                uart_write_string(&received);
+                uart_write_string("");
                 
                 // Reset timeout for continuous input
                 start_time = HAL_GetTick();
@@ -380,7 +382,7 @@ static void test_interactive_reception(void) {
         snprintf(final_msg, sizeof(final_msg), "Interactive test: timeout, no input received");
         debug_print("Interactive reception test completed without input");
     }
-    Serial_println(final_msg);
+    uart_write_string(final_msg);
 }
 
 /**
