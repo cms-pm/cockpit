@@ -1,0 +1,29 @@
+{
+  "name": "bootloader_protocol",
+  "version": "4.5.2",
+  "description": "ComponentVM Bootloader Binary Protocol Implementation",
+  "keywords": "bootloader, protocol, protobuf, embedded",
+  "license": "MIT", 
+  "frameworks": "stm32cube",
+  "platforms": "ststm32",
+  "dependencies": [
+    {
+      "name": "nanopb/Nanopb",
+      "version": "^0.4.8"
+    }
+  ],
+  "build": {
+    "includeDir": "include",
+    "srcDir": "src",
+    "flags": [
+      "-std=c11"
+    ]
+  },
+  "export": {
+    "include": [
+      "include/*",
+      "src/*",
+      "proto/*"
+    ]
+  }
+}

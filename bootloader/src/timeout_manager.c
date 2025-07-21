@@ -1,11 +1,12 @@
 #include "timeout_manager.h"
+#include "host_interface/host_interface.h"
 #include <string.h>
 
 timeout_manager_t g_timeout_manager = {0};
-static uint32_t g_system_tick_safe = 0;
 
 uint32_t get_system_tick_safe(void) {
-    return ++g_system_tick_safe;
+    // Use Host Interface timing for overflow-safe tick management
+    return get_tick_ms();
 }
 
 static uint32_t calculate_elapsed_safe(uint32_t start_tick, uint32_t current_tick) {

@@ -391,6 +391,62 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # Flash Programming Protocol Test (Phase 4.5.2C validation)
+  flash_programming_protocol:
+    source: test_flash_programming_protocol.c
+    dependencies: []
+    description: "Phase 4.5.2C complete bootloader protocol validation - handshake through flash programming"
+    timeout: 45s
+    expected_patterns:
+      - "=== Flash Programming Protocol Test Suite ==="
+      - "✓ Handshake Protocol: PASS"
+      - "✓ Flash Program Prepare: PASS"
+      - "✓ Data Packet Processing: PASS" 
+      - "✓ Flash Program Verify: PASS"
+      - "✓ Complete Protocol Sequence: PASS"
+      - "=== Test Results: 5/5 passed ==="
+      - "FLASH PROGRAMMING PROTOCOL: ALL TESTS PASSED"
+    hardware_requirements:
+      - basic_mcu
+      - flash_memory
+    category: protocol_integration
+    priority: high
+    stability: phase_4_5_2c
+    notes: "Complete bootloader protocol: handshake, prepare, data transfer, verification with ≤1024 byte transfers"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 60s
+      
+      semihosting_checks:
+        - contains: "=== Flash Programming Protocol Test Suite ==="
+        - contains: "Testing handshake protocol..."
+        - contains: "PASS: Handshake protocol"
+        - contains: "Testing flash program prepare phase..."
+        - contains: "PASS: Flash program prepare phase"
+        - contains: "Testing data packet processing..."
+        - contains: "PASS: Data packet processing"
+        - contains: "Testing flash program verify phase..."
+        - contains: "PASS: Flash program verify phase"
+        - contains: "Testing complete protocol sequence..."
+        - contains: "PASS: Complete protocol sequence"
+        - contains: "=== Test Results: 5/5 passed ==="
+        - contains: "FLASH PROGRAMMING PROTOCOL: ALL TESTS PASSED"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 45s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
   # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
   vm_arithmetic_comprehensive:
     source: test_vm_arithmetic_comprehensive.c
