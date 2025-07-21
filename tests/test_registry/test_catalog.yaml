@@ -335,6 +335,62 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # Binary Framing Integration Test (Phase 4.5.2B validation)
+  binary_framing:
+    source: test_binary_framing.c
+    dependencies: []
+    description: "Phase 4.5.2B binary framing validation - CRC16, parsing, encoding, flash staging"
+    timeout: 30s
+    expected_patterns:
+      - "=== Binary Framing Integration Test Suite ==="
+      - "✓ CRC16-CCITT Implementation: PASS"
+      - "✓ Frame Encoding: PASS"
+      - "✓ Frame Parsing: PASS" 
+      - "✓ Flash Staging with 64-bit Alignment: PASS"
+      - "✓ Error Injection: PASS"
+      - "=== Test Results: 5/5 passed ==="
+      - "BINARY FRAMING INTEGRATION: ALL TESTS PASSED"
+    hardware_requirements:
+      - basic_mcu
+      - flash_memory
+    category: protocol_integration
+    priority: high
+    stability: phase_4_5_2b
+    notes: "Tests CRC16-CCITT, frame encoding/parsing, 64-bit flash alignment, error detection"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "=== Binary Framing Integration Test Suite ==="
+        - contains: "Testing CRC16-CCITT implementation..."
+        - contains: "PASS: CRC16-CCITT implementation"
+        - contains: "Testing frame encoding..."
+        - contains: "PASS: Frame encoding"
+        - contains: "Testing frame parsing..."
+        - contains: "PASS: Frame parsing"
+        - contains: "Testing flash staging with 64-bit alignment..."
+        - contains: "PASS: Flash staging with 64-bit alignment"
+        - contains: "Testing error injection - corrupted frame..."
+        - contains: "PASS: Error injection"
+        - contains: "=== Test Results: 5/5 passed ==="
+        - contains: "BINARY FRAMING INTEGRATION: ALL TESTS PASSED"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 35s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
   # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
   vm_arithmetic_comprehensive:
     source: test_vm_arithmetic_comprehensive.c
