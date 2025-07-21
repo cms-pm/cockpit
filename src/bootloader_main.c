@@ -247,25 +247,90 @@ static bool bootloader_receive_frame(uint8_t* buffer, uint16_t* received_length)
         return false;
     }
     
-    // Simple UART polling implementation
-    // Note: This is a basic implementation for Oracle testing
-    // In production, would use DMA or interrupt-driven reception
+    // UART polling implementation using ComponentVM host interface
+    if (!uart_data_available()) {
+        return false; // No data available
+    }
     
-    uint8_t byte;
-    bool byte_available = false;
+    uint8_t byte = uart_read_char();
     
-    // Simulate UART byte reception (Oracle will need to actually send bytes)
-    // In real implementation, this would check UART data register
-    // For now, we'll implement a simple polling mechanism
+    // Start frame timer on first byte
+    if (rx_state == 0) {
+        frame_start_time = current_time;
+    }
     
-    // This is where the real UART hardware interface would go
-    // For Oracle testing, we need to implement actual UART reception
+    switch (rx_state) {
+        case 0: // Wait for start marker
+            if (byte == FRAME_START_MARKER) {
+                rx_state = 1;
+                bytes_received = 0;
+                buffer[0] = byte;
+                bootloader_debug_print("Frame start detected");
+            }
+            break;
+            
+        case 1: // Get length (2 bytes, big-endian)
+            buffer[1 + bytes_received] = byte;
+            bytes_received++;
+            if (bytes_received == 2) {
+                payload_length = (buffer[1] << 8) | buffer[2];
+                if (payload_length > MAX_FRAME_PAYLOAD_SIZE) {
+                    // Invalid length - reset
+                    rx_state = 0;
+                    bootloader_debug_printf("Invalid frame length", payload_length);
+                } else {
+                    rx_state = 2;
+                    bytes_received = 0;
+                    bootloader_debug_printf("Frame payload length", payload_length);
+                }
+            }
+            break;
+            
+        case 2: // Get payload
+            buffer[3 + bytes_received] = byte;
+            bytes_received++;
+            if (bytes_received == payload_length) {
+                rx_state = 3;
+                bytes_received = 0;
+                bootloader_debug_print("Payload received");
+            }
+            break;
+            
+        case 3: // Get CRC (2 bytes, big-endian)
+            buffer[3 + payload_length + bytes_received] = byte;
+            bytes_received++;
+            if (bytes_received == 2) {
+                expected_crc = (buffer[3 + payload_length] << 8) | buffer[3 + payload_length + 1];
+                rx_state = 4;
+                bootloader_debug_printf("CRC received", expected_crc);
+            }
+            break;
+            
+        case 4: // Get end marker
+            if (byte == FRAME_END_MARKER) {
+                buffer[3 + payload_length + 2] = byte;
+                
+                // Calculate CRC over length + payload
+                uint16_t calculated_crc = calculate_crc16(&buffer[1], 2 + payload_length);
+                
+                if (calculated_crc == expected_crc) {
+                    *received_length = 3 + payload_length + 3; // Total frame length
+                    rx_state = 0; // Reset for next frame
+                    bootloader_debug_print("✓ Valid frame received");
+                    return true; // Valid frame received
+                } else {
+                    bootloader_debug_printf("CRC mismatch: expected", expected_crc);
+                    bootloader_debug_printf("CRC mismatch: calculated", calculated_crc);
+                    rx_state = 0; // Reset
+                }
+            } else {
+                bootloader_debug_printf("Invalid end marker", (uint32_t)byte);
+                rx_state = 0; // Reset
+            }
+            break;
+    }
     
-    // Placeholder: return false until we have real UART implementation
-    // The Oracle tool will connect via /dev/ttyUSB1 which maps to USART1
-    // We need the actual STM32 HAL UART reception code here
-    
-    return false; // Frame not received - needs real UART implementation
+    return false; // Frame not complete yet
 }
 
 static void bootloader_handle_frame(uint8_t* frame_data, uint16_t frame_length)
@@ -454,10 +519,16 @@ static bool bootloader_send_frame(const uint8_t* payload, uint16_t payload_lengt
     frame[frame_pos++] = crc & 0xFF;        // CRC low byte
     frame[frame_pos++] = FRAME_END_MARKER;
     
-    // Send frame over UART
+    // Send frame over UART - actual binary transmission
     for (uint16_t i = 0; i < frame_pos; i++) {
-        // In real implementation, would send individual bytes via UART
-        // For now, simulate by sending to debug output
+        // Send individual bytes via UART using ComponentVM host interface
+        char single_byte[2] = {frame[i], '\0'};
+        uart_write_string(single_byte);
+    }
+    
+    // Optional debug output showing frame in hex
+    bootloader_debug_print("Frame sent (hex):");
+    for (uint16_t i = 0; i < frame_pos; i++) {
         char hex_byte[4];
         uint8_t byte = frame[i];
         hex_byte[0] = (byte >> 4) > 9 ? 'A' + (byte >> 4) - 10 : '0' + (byte >> 4);
