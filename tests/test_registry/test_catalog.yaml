@@ -224,6 +224,65 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # Bootloader blocking foundation tests (Phase 4.5.1 validation)
+  bootloader_blocking_foundation:
+    source: test_bootloader_blocking_foundation.c
+    dependencies: []
+    description: "Blocking-first bootloader foundation validation - transport, state machine, timeout, resources"
+    timeout: 30s
+    expected_patterns:
+      - "=== Bootloader Blocking Foundation Test Suite ==="
+      - "✓ Blocking UART Init: PASS"
+      - "✓ Timeout Overflow Protection: PASS"
+      - "✓ State Machine Deterministic: PASS"
+      - "✓ Resource Management: PASS"
+      - "✓ Error Handling Recovery: PASS"
+      - "✓ Bootloader Integration: PASS"
+      - "=== Test Results: 6/6 passed ==="
+      - "BOOTLOADER BLOCKING FOUNDATION: ALL TESTS PASSED"
+    hardware_requirements:
+      - usart1_pa9_pa10
+      - led_pc6
+    category: bootloader_foundation
+    priority: high
+    stability: phase_4_5_1
+    notes: "Blocking-first bootloader foundation: transport, state machine, timeout management, resource cleanup"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "=== Bootloader Blocking Foundation Test Suite ==="
+        - contains: "Testing blocking UART initialization..."
+        - contains: "PASS: Blocking UART initialization"
+        - contains: "Testing timeout overflow protection..."
+        - contains: "PASS: Timeout overflow protection"
+        - contains: "Testing deterministic state machine..."
+        - contains: "PASS: State machine deterministic transitions"
+        - contains: "Testing resource management..."
+        - contains: "PASS: Resource management"
+        - contains: "Testing error handling and recovery..."
+        - contains: "PASS: Error handling and recovery"
+        - contains: "Testing bootloader integration..."
+        - contains: "PASS: Bootloader integration"
+        - contains: "=== Test Results: 6/6 passed ==="
+        - contains: "BOOTLOADER BLOCKING FOUNDATION: ALL TESTS PASSED"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 35s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_both_passes: true
+
   # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
   vm_arithmetic_comprehensive:
     source: test_vm_arithmetic_comprehensive.c
@@ -500,6 +559,12 @@ test_suites:
     timeout: 60s
     
   bootloader_foundation:
+    description: "Bootloader Phase 4.5.1 blocking foundation tests"
+    tests:
+      - bootloader_blocking_foundation
+    timeout: 60s
+    
+  bootloader_phase_4_5_2a:
     description: "Bootloader Phase 4.5.2A foundation tests"
     tests:
       - bootloader_foundation

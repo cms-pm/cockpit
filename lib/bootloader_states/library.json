@@ -1,0 +1,22 @@
+{
+  "name": "bootloader_states",
+  "version": "4.5.1",
+  "description": "Bootloader State Definitions - Single Source of Truth",
+  "keywords": "bootloader, states, embedded",
+  "license": "MIT",
+  "frameworks": "stm32cube",
+  "platforms": "ststm32",
+  "build": {
+    "includeDir": "include",
+    "srcDir": "src",
+    "flags": [
+      "-std=c11"
+    ]
+  },
+  "export": {
+    "include": [
+      "include/*",
+      "src/*"
+    ]
+  }
+}
