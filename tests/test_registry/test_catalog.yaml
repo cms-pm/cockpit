@@ -283,6 +283,58 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
+  # Protobuf Integration Test (Phase 4.5.2A validation)
+  protobuf_integration:
+    source: test_protobuf_integration.c
+    dependencies: []
+    description: "Phase 4.5.2A protobuf integration validation - nanopb encode/decode testing"
+    timeout: 20s
+    expected_patterns:
+      - "=== Protobuf Integration Test Suite ==="
+      - "✓ Protobuf Structure Compilation: PASS"
+      - "✓ Protobuf Encoding: PASS"
+      - "✓ Protobuf Decoding: PASS" 
+      - "✓ Protobuf Memory Constraints: PASS"
+      - "=== Test Results: 4/4 passed ==="
+      - "PROTOBUF INTEGRATION: ALL TESTS PASSED"
+    hardware_requirements:
+      - basic_mcu
+    category: protocol_integration
+    priority: high
+    stability: phase_4_5_2a
+    notes: "Tests protobuf compilation, encoding/decoding, memory constraints with nanopb"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 30s
+      
+      semihosting_checks:
+        - contains: "=== Protobuf Integration Test Suite ==="
+        - contains: "Testing protobuf structure compilation..."
+        - contains: "PASS: Protobuf structure compilation"
+        - contains: "Testing protobuf encoding..."
+        - contains: "PASS: Protobuf encoding"
+        - contains: "Testing protobuf decoding..."
+        - contains: "PASS: Protobuf decoding"
+        - contains: "Testing protobuf memory constraints..."
+        - contains: "PASS: Protobuf memory constraints"
+        - contains: "=== Test Results: 4/4 passed ==="
+        - contains: "PROTOBUF INTEGRATION: ALL TESTS PASSED"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 25s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
   # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
   vm_arithmetic_comprehensive:
     source: test_vm_arithmetic_comprehensive.c

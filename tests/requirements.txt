@@ -24,3 +24,8 @@ rich>=13.0.0
 
 # Hardware validation and debugging
 pyocd>=0.37.0
+
+# Bootloader Protocol Oracle Tool
+crc>=4.0.0          # CRC16-CCITT implementation
+protobuf>=4.0.0     # Protocol buffer message serialization
+pyserial>=3.5       # UART communication
