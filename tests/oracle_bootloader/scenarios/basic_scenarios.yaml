@@ -1,0 +1,198 @@
+# Oracle Bootloader Testing Scenarios
+# Defines single scenarios and compound scenario sequences
+
+scenarios:
+  # Single scenarios
+  normal:
+    type: "single"
+    description: "Normal bootloader protocol execution - baseline validation"
+    error_type: "none"
+    protocol_flow:
+      - handshake
+      - prepare  
+      - data_transfer
+      - verify
+    test_payload_size: 256
+    expected_result: "success"
+    validation_level: "complete_protocol"
+    potentially_destructive: false
+    
+  timeout_session:
+    type: "single"
+    description: "Test session timeout recovery (30-second bootloader window)"
+    error_type: "timeout"
+    injection_point: "after_handshake"
+    timeout_seconds: 35.0  # Beyond bootloader's 30-second session timeout
+    potentially_destructive: false
+    validation_level: "recovery_protocol"
+    
+  timeout_handshake:
+    type: "single"
+    description: "Test handshake timeout (2-second initial window)"
+    error_type: "timeout"
+    injection_point: "before_handshake"
+    timeout_seconds: 3.0   # Beyond bootloader's 2-second handshake timeout
+    potentially_destructive: false
+    validation_level: "recovery_handshake"
+    
+  crc_frame_corruption:
+    type: "single"
+    description: "Test frame CRC16 corruption and recovery"
+    error_type: "crc_corruption"
+    target: "frame_crc"
+    corruption_pattern: "single_bit_flip"
+    potentially_destructive: false
+    validation_level: "recovery_handshake"
+    
+  partial_frame_timeout:
+    type: "single"
+    description: "Test incomplete frame timeout and recovery"
+    error_type: "timeout"
+    injection_point: "partial_frame"
+    timeout_seconds: 2.0   # Frame parser timeout
+    potentially_destructive: false
+    validation_level: "recovery_handshake"
+    
+  normal_large_payload:
+    type: "single"
+    description: "Normal protocol execution with large payload (1024 bytes)"
+    error_type: "none"
+    protocol_flow:
+      - handshake
+      - prepare  
+      - data_transfer
+      - verify
+    test_payload_size: 1024
+    expected_result: "success"
+    validation_level: "complete_protocol"
+    potentially_destructive: false
+
+sequences:
+  # Compound scenario chains
+  timeout_recovery_chain:
+    type: "sequence"
+    description: "Test session timeout + recovery + normal operation"
+    potentially_destructive: false
+    sequence:
+      - scenario: normal
+        description: "Establish baseline"
+      - scenario: timeout_session  
+        description: "Inject session timeout"
+      - scenario: normal
+        description: "Validate recovery"
+        
+  handshake_timeout_recovery_chain:
+    type: "sequence"
+    description: "Test handshake timeout + recovery + normal operation"
+    potentially_destructive: false
+    sequence:
+      - scenario: normal
+        description: "Establish baseline"
+      - scenario: timeout_handshake
+        description: "Inject handshake timeout"
+      - scenario: normal
+        description: "Validate recovery"
+        
+  crc_recovery_chain:
+    type: "sequence" 
+    description: "Test CRC corruption + recovery + normal operation"
+    potentially_destructive: false
+    sequence:
+      - scenario: normal
+        description: "Establish baseline"
+      - scenario: crc_frame_corruption
+        description: "Inject CRC corruption"
+      - scenario: normal
+        description: "Validate recovery"
+        
+  comprehensive_error_chain:
+    type: "sequence"
+    description: "Test multiple error types with recovery validation"
+    potentially_destructive: false
+    sequence:
+      - scenario: normal
+        description: "Initial baseline"
+      - scenario: timeout_handshake
+        description: "Handshake timeout test"
+      - scenario: normal
+        description: "Recovery validation 1"
+      - scenario: crc_frame_corruption
+        description: "CRC corruption test"
+      - scenario: normal
+        description: "Recovery validation 2"
+      - scenario: partial_frame_timeout
+        description: "Frame timeout test"
+      - scenario: normal
+        description: "Recovery validation 3"
+      - scenario: timeout_session
+        description: "Session timeout test"
+      - scenario: normal
+        description: "Final recovery validation"
+
+  comprehensive_stress_test:
+    type: "sequence"
+    description: "Comprehensive golden triangle stress testing sequence"
+    potentially_destructive: false
+    sequence:
+      - scenario: normal
+        description: "Establish baseline with standard payload (256 bytes)"
+      - scenario: normal_large_payload
+        description: "Test with large data (1024 bytes)"
+      - scenario: timeout_handshake
+        description: "Test handshake timeout recovery"
+      - scenario: normal
+        description: "Verify handshake recovery"
+      - scenario: timeout_session
+        description: "Test session timeout recovery"
+      - scenario: normal
+        description: "Verify session recovery"
+      - scenario: crc_frame_corruption
+        description: "Test CRC corruption recovery"
+      - scenario: normal
+        description: "Final recovery validation"
+
+# Test data configurations        
+test_data:
+  small_payload:
+    size: 100
+    pattern: "incremental"  # 0, 1, 2, ..., 99
+    description: "Small payload to test 64-bit alignment padding"
+    
+  standard_payload:
+    size: 256
+    pattern: "incremental"  # 0, 1, 2, ..., 255
+    description: "Standard test payload"
+    
+  large_payload:
+    size: 1000
+    pattern: "random_seed_42"
+    description: "Large payload approaching 1KB limit"
+
+# Validation levels
+validation_levels:
+  basic:
+    description: "Test connectivity only"
+    checks:
+      - serial_connection
+      
+  recovery_handshake:
+    description: "Test recovery with handshake"
+    checks:
+      - serial_connection
+      - handshake_success
+      
+  recovery_protocol:
+    description: "Test recovery with mini protocol sequence"
+    checks:
+      - serial_connection
+      - handshake_success
+      - prepare_success
+      
+  complete_protocol:
+    description: "Full protocol validation"
+    checks:
+      - serial_connection
+      - handshake_success
+      - prepare_success
+      - data_transfer_success
+      - verify_success

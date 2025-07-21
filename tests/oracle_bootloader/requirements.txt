@@ -1,0 +1,4 @@
+# Oracle Bootloader Testing Requirements
+pyocd>=0.34.0
+pyserial>=3.5
+PyYAML>=6.0

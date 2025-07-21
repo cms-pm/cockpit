@@ -447,6 +447,159 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # Flash Programming Protocol with Oracle Testing (Phase 4.5.2D validation)
+  flash_programming_protocol_oracle:
+    source: test_flash_programming_protocol_oracle.c
+    dependencies: []
+    description: "Phase 4.5.2C standard protocol test with Oracle reliability testing integration"
+    timeout: 60s
+    expected_patterns:
+      - "=== Flash Programming Protocol Test with Oracle Integration ==="
+      - "Step 1: Handshake"
+      - "Handshake PASSED"
+      - "Step 2: Prepare" 
+      - "Prepare PASSED"
+      - "Step 3: Data Transfer"
+      - "Data Transfer PASSED"
+      - "Step 4: Verify"
+      - "Verify PASSED"
+      - "=== STANDARD PROTOCOL TEST: PASSED ==="
+      - "Oracle reliability tests will run automatically via workspace integration"
+    hardware_requirements:
+      - basic_mcu
+      - flash_memory
+      - usart1_pa9_pa10
+    category: protocol_integration
+    priority: high
+    stability: phase_4_5_2d
+    notes: "Standard protocol validation + Oracle error injection and recovery testing"
+    oracle_scenarios:
+      - normal
+      - timeout_session
+      - crc_frame_corruption
+    oracle_sequences:
+      - timeout_recovery_chain
+      - crc_recovery_chain
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 75s
+      
+      semihosting_checks:
+        - contains: "=== Flash Programming Protocol Test with Oracle Integration ==="
+        - contains: "Step 1: Handshake"
+        - contains: "Handshake PASSED"
+        - contains: "Step 2: Prepare"
+        - contains: "Prepare PASSED" 
+        - contains: "Step 3: Data Transfer"
+        - contains: "Data Transfer PASSED"
+        - contains: "Step 4: Verify"
+        - contains: "Verify PASSED"
+        - contains: "=== STANDARD PROTOCOL TEST: PASSED ==="
+        - contains: "Oracle reliability tests will run automatically via workspace integration"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 50s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: false
+        include_both_passes: true
+
+  # Bootloader Golden Triangle Integration Test (Phase 4.5.2E validation)
+  bootloader_golden_triangle:
+    source: test_bootloader_golden_triangle.c
+    dependencies: []
+    description: "Phase 4.5.2E complete golden triangle validation - embedded protocol + Oracle testing + integration"
+    timeout: 120s
+    expected_patterns:
+      - "=== ComponentVM Bootloader Golden Triangle Integration Test ==="
+      - "Golden Triangle Components:"
+      - "1. Embedded Protocol: Hardware bootloader with complete protocol stack"
+      - "2. Oracle Testing: Error injection, scenario composition, recovery validation"
+      - "3. Integration: Real hardware + real protocol + real error conditions"
+      - "=== EMBEDDED PROTOCOL VALIDATION ==="
+      - "Bootloader initialization: PASS"
+      - "Protocol readiness: PASS"
+      - "Standard protocol sequence: PASS"
+      - "Error recovery capability: PASS"
+      - "Hardware resource management: PASS"
+      - "=== EMBEDDED PROTOCOL VALIDATION: COMPLETE ==="
+      - "Golden Triangle Integration: READY FOR ORACLE TESTING"
+      - "=== BOOTLOADER PROTOCOL LISTENING MODE ==="
+      - "Bootloader entering 30-second listening window for Oracle testing..."
+    hardware_requirements:
+      - basic_mcu
+      - flash_memory
+      - usart1_pa9_pa10
+      - led_pc6
+    category: golden_triangle_integration
+    priority: critical
+    stability: phase_4_5_2e
+    notes: "Complete end-to-end bootloader ecosystem validation with comprehensive Oracle integration"
+    oracle_scenarios:
+      - normal
+      - timeout_session
+      - timeout_handshake
+      - crc_frame_corruption
+    oracle_sequences:
+      - timeout_recovery_chain
+      - crc_recovery_chain
+      - comprehensive_stress_test
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 150s
+      
+      semihosting_checks:
+        - contains: "=== ComponentVM Bootloader Golden Triangle Integration Test ==="
+        - contains: "Golden Triangle Components:"
+        - contains: "1. Embedded Protocol: Hardware bootloader with complete protocol stack"
+        - contains: "2. Oracle Testing: Error injection, scenario composition, recovery validation"
+        - contains: "3. Integration: Real hardware + real protocol + real error conditions"
+        - contains: "=== EMBEDDED PROTOCOL VALIDATION ==="
+        - contains: "Step 1: Bootloader Initialization"
+        - contains: "Bootloader initialization: PASS"
+        - contains: "Step 2: Protocol Readiness Validation" 
+        - contains: "Protocol readiness: PASS"
+        - contains: "Step 3: Standard Protocol Sequence"
+        - contains: "Standard protocol sequence: PASS"
+        - contains: "Step 4: Error Recovery Capability"
+        - contains: "Error recovery capability: PASS"
+        - contains: "Step 5: Hardware Resource Management"
+        - contains: "Hardware resource management: PASS"
+        - contains: "=== EMBEDDED PROTOCOL VALIDATION: COMPLETE ==="
+        - contains: "=== ORACLE INTEGRATION TRIGGER ==="
+        - contains: "Embedded protocol validation successful"
+        - contains: "Hardware bootloader ready for Oracle testing"
+        - contains: "UART interface: USART1 PA9/PA10 at 115200 baud"
+        - contains: "Protocol: Binary framing with protobuf messages"
+        - contains: "Target: Flash page 63 (0x0801F800)"
+        - contains: "Oracle scenarios will run automatically via workspace integration:"
+        - contains: "Golden Triangle Integration: READY FOR ORACLE TESTING"
+        - contains: "=== BOOTLOADER PROTOCOL LISTENING MODE ==="
+        - contains: "Bootloader entering 30-second listening window for Oracle testing..."
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 90s
+      
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x40
+        include_peripheral_summary: true
+        include_both_passes: true
+
   # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
   vm_arithmetic_comprehensive:
     source: test_vm_arithmetic_comprehensive.c
@@ -733,6 +886,23 @@ test_suites:
     tests:
       - bootloader_foundation
     timeout: 30s
+  
+  bootloader_phase_4_5_2_complete:
+    description: "Complete bootloader Phase 4.5.2 validation suite"
+    tests:
+      - bootloader_blocking_foundation
+      - protobuf_integration
+      - binary_framing
+      - flash_programming_protocol
+      - flash_programming_protocol_oracle
+      - bootloader_golden_triangle
+    timeout: 600s
+  
+  golden_triangle_integration:
+    description: "Golden triangle integration tests"
+    tests:
+      - bootloader_golden_triangle
+    timeout: 180s
     
   vm_comprehensive:
     description: "ComponentVM comprehensive operations validation suite"

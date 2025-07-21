@@ -100,11 +100,17 @@ class TestExecutor:
                 print("4. Executing test with basic monitoring...")
                 basic_result = self._execute_basic(test_name)
                 
-                # Step 5: Run validation if available and configured
+                # Step 5: Run Oracle testing if configured
+                test_metadata = self.workspace_builder.load_test_metadata(test_name)
+                if not debug_mode and ('oracle_scenarios' in test_metadata or 'oracle_sequences' in test_metadata):
+                    print("5. Running Oracle bootloader testing...")
+                    oracle_result = self._execute_oracle_testing(test_name, test_metadata)
+                    basic_result = self._merge_oracle_results(basic_result, oracle_result)
+                
+                # Step 6: Run validation if available and configured
                 if not debug_mode and self.validation_engine is not None:
-                    test_metadata = self.workspace_builder.load_test_metadata(test_name)
                     if 'validation' in test_metadata:
-                        print("5. Running automated validation...")
+                        print("6. Running automated validation...")
                         validation_result = self.validation_engine.validate_test(test_name, test_metadata['validation'])
                         return self._merge_results(basic_result, validation_result)
                 
@@ -406,6 +412,84 @@ class TestExecutor:
                 merged_result['message'] += ' + validation error'
             else:  # SKIP
                 merged_result['message'] += ' + validation skipped'
+        
+        return merged_result
+
+    def _execute_oracle_testing(self, test_name, test_metadata):
+        """
+        Execute Oracle bootloader testing integration
+        
+        Args:
+            test_name: Name of test being executed
+            test_metadata: Test metadata containing Oracle configuration
+            
+        Returns:
+            dict: Oracle testing results
+        """
+        try:
+            # Import Oracle integration plugin
+            oracle_plugin_path = Path(__file__).parent.parent / "oracle_bootloader" / "test_integration" / "workspace_plugin.py"
+            sys.path.insert(0, str(oracle_plugin_path.parent))
+            from workspace_plugin import integrate_oracle_with_workspace_test
+            
+            print("   Oracle bootloader testing integration enabled")
+            print(f"   Scenarios: {test_metadata.get('oracle_scenarios', [])}")
+            print(f"   Sequences: {test_metadata.get('oracle_sequences', [])}")
+            
+            # Use /dev/ttyUSB1 for Oracle communication (FTDI UART to USART1)
+            device_path = "/dev/ttyUSB1"
+            
+            # Run Oracle integration
+            oracle_success = integrate_oracle_with_workspace_test(test_metadata, device_path)
+            
+            return {
+                'oracle_success': oracle_success,
+                'oracle_scenarios': test_metadata.get('oracle_scenarios', []),
+                'oracle_sequences': test_metadata.get('oracle_sequences', []),
+                'device_path': device_path
+            }
+            
+        except ImportError as e:
+            print(f"   Warning: Oracle integration not available: {e}")
+            return {
+                'oracle_success': False,
+                'oracle_error': f"Import failed: {e}"
+            }
+        except Exception as e:
+            print(f"   Error: Oracle testing failed: {e}")
+            return {
+                'oracle_success': False,
+                'oracle_error': str(e)
+            }
+    
+    def _merge_oracle_results(self, basic_result, oracle_result):
+        """
+        Merge basic test result with Oracle testing result
+        
+        Args:
+            basic_result: Result from basic test execution
+            oracle_result: Result from Oracle testing
+            
+        Returns:
+            Merged result dictionary
+        """
+        merged_result = basic_result.copy()
+        merged_result['oracle'] = oracle_result
+        
+        oracle_success = oracle_result.get('oracle_success', False)
+        
+        if oracle_success:
+            merged_result['message'] += ' + Oracle testing passed'
+            print("   ✓ Oracle testing completed successfully")
+        else:
+            merged_result['message'] += ' + Oracle testing failed'
+            oracle_error = oracle_result.get('oracle_error', 'Unknown error')
+            print(f"   ✗ Oracle testing failed: {oracle_error}")
+            
+            # Oracle failure affects overall test result for golden triangle tests
+            if 'golden_triangle' in merged_result.get('test_name', ''):
+                merged_result['result'] = 'FAIL'
+                merged_result['message'] = 'Golden Triangle validation failed: Oracle testing failed'
         
         return merged_result
 
