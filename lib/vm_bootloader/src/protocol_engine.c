@@ -1,8 +1,12 @@
 /*
- * CockpitVM Bootloader - Protocol Engine Integration
+ * CockpitVM Bootloader - Complete Protocol Engine Integration
  * 
- * Integrates bootloader protocol engine with unified bootloader context.
- * Provides Oracle-compatible protocol processing for bootloader main loop.
+ * Full Oracle-compatible protocol processing with:
+ * - Complete nanopb protobuf message handling
+ * - Binary framing with CRC16-CCITT validation
+ * - Complete state machine transitions
+ * - Flash programming with atomic operations
+ * - Error recovery and timeout management
  */
 
 #include "bootloader_protocol.h"
@@ -11,17 +15,30 @@
 #include "host_interface/host_interface.h"
 
 #include <string.h>
+#include <stdio.h>
+#include <pb.h>
+#include <pb_decode.h>
+#include <pb_encode.h>
 
-// Global protocol context for bootloader integration
+// Global protocol context and frame parser
 static protocol_context_t g_protocol_context;
+static frame_parser_t g_frame_parser;
 static bool g_protocol_initialized = false;
+
+// Message buffers for protobuf encoding/decoding
+static uint8_t g_request_buffer[BOOTLOADER_MAX_FRAME_SIZE];
+static uint8_t g_response_buffer[BOOTLOADER_MAX_FRAME_SIZE];
+static BootloaderRequest g_current_request;
+static BootloaderResponse g_current_response;
 
 // Forward declarations
 static void vm_bootloader_protocol_init_internal(void);
-static bool vm_bootloader_protocol_process_available_data(vm_bootloader_context_internal_t* ctx);
+static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_internal_t* ctx);
+static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootloader_context_internal_t* ctx, const bootloader_frame_t* frame);
+static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response);
 static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_internal_t* ctx);
 
-// === PROTOCOL ENGINE INTEGRATION API ===
+// === PROTOCOL ENGINE API ===
 
 void vm_bootloader_protocol_engine_init(void)
 {
@@ -45,20 +62,31 @@ bool vm_bootloader_protocol_process_frame(vm_bootloader_context_internal_t* ctx)
         return false;
     }
     
-    return vm_bootloader_protocol_process_available_data(ctx);
+    return vm_bootloader_protocol_process_uart_data(ctx);
 }
 
 void vm_bootloader_protocol_update_activity(void)
 {
     if (g_protocol_initialized) {
-        protocol_update_activity(&g_protocol_context);
+        g_protocol_context.last_activity_time = get_tick_ms();
     }
 }
 
 void vm_bootloader_protocol_reset_session(void)
 {
     if (g_protocol_initialized) {
-        protocol_reset_session(&g_protocol_context);
+        // Reset protocol state to IDLE
+        g_protocol_context.state = PROTOCOL_STATE_IDLE;
+        g_protocol_context.sequence_counter = 0;
+        g_protocol_context.data_received = false;
+        g_protocol_context.expected_data_length = 0;
+        g_protocol_context.actual_data_length = 0;
+        
+        // Reset frame parser
+        frame_parser_reset(&g_frame_parser);
+        
+        // Update activity timestamp
+        g_protocol_context.last_activity_time = get_tick_ms();
     }
 }
 
@@ -68,7 +96,17 @@ bool vm_bootloader_protocol_is_session_timeout(void)
         return false;
     }
     
-    return protocol_is_session_timeout(&g_protocol_context);
+    uint32_t current_time = get_tick_ms();
+    uint32_t elapsed;
+    
+    // Overflow-safe timeout calculation
+    if (current_time >= g_protocol_context.last_activity_time) {
+        elapsed = current_time - g_protocol_context.last_activity_time;
+    } else {
+        elapsed = (UINT32_MAX - g_protocol_context.last_activity_time) + current_time + 1;
+    }
+    
+    return elapsed >= g_protocol_context.session_timeout_ms;
 }
 
 vm_bootloader_state_t vm_bootloader_protocol_get_state(void)
@@ -96,18 +134,19 @@ vm_bootloader_state_t vm_bootloader_protocol_get_state(void)
     }
 }
 
-// === INTERNAL PROTOCOL INTEGRATION ===
+// === INTERNAL PROTOCOL IMPLEMENTATION ===
 
 static void vm_bootloader_protocol_init_internal(void)
 {
-    // Initialize protocol context directly (simplified implementation)
+    // Initialize protocol context
     memset(&g_protocol_context, 0, sizeof(protocol_context_t));
     
-    // Set up Oracle-compatible timeout (30 seconds)
-    g_protocol_context.session_timeout_ms = 30000;
-    g_protocol_context.last_activity_time = get_tick_ms();
+    // Initialize flash context using bootloader_protocol functions
+    flash_context_init(&g_protocol_context.flash_ctx);
     
-    // Initialize protocol state
+    // Set up Oracle-compatible configuration
+    g_protocol_context.session_timeout_ms = 30000;  // 30 second timeout
+    g_protocol_context.last_activity_time = get_tick_ms();
     g_protocol_context.state = PROTOCOL_STATE_IDLE;
     g_protocol_context.sequence_counter = 0;
     
@@ -115,54 +154,103 @@ static void vm_bootloader_protocol_init_internal(void)
     g_protocol_context.data_received = false;
     g_protocol_context.expected_data_length = 0;
     g_protocol_context.actual_data_length = 0;
+    
+    // Initialize frame parser
+    frame_parser_init(&g_frame_parser);
 }
 
-static bool vm_bootloader_protocol_process_available_data(vm_bootloader_context_internal_t* ctx)
+static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_internal_t* ctx)
 {
     bool frame_processed = false;
     
-    // Process all available UART data
+    // Process all available UART data through frame parser
     while (uart_data_available()) {
-        char byte = uart_read_char();
-        (void)byte; // Suppress unused variable warning
+        uint8_t byte = (uint8_t)uart_read_char();
         
-        // For now, simple data consumption to indicate activity
-        // In a full implementation, this would use frame parser
-        frame_processed = true;
+        // Feed byte to frame parser
+        bootloader_protocol_result_t parse_result = frame_parser_process_byte(&g_frame_parser, byte);
         
-        // Update activity timestamp
-        vm_bootloader_protocol_update_activity();
-        
-        // Update session state based on activity
-        vm_bootloader_protocol_update_session_state(ctx);
-        
-        // Simple state progression for Oracle handshake
-        if (g_protocol_context.state == PROTOCOL_STATE_IDLE) {
-            // Receiving first byte transitions to handshake
-            g_protocol_context.state = PROTOCOL_STATE_HANDSHAKE_COMPLETE;
-            ctx->current_state = VM_BOOTLOADER_STATE_HANDSHAKE;
-        }
-        
-        // Simulate protocol progression for Oracle testing
-        // This is a simplified implementation - full protocol would parse frames
-        static int bytes_received = 0;
-        bytes_received++;
-        
-        if (bytes_received > 10 && g_protocol_context.state == PROTOCOL_STATE_HANDSHAKE_COMPLETE) {
-            // Simulate successful handshake -> ready for data
-            g_protocol_context.state = PROTOCOL_STATE_READY_FOR_DATA;
-            ctx->current_state = VM_BOOTLOADER_STATE_READY;
-        }
-        
-        if (bytes_received > 50) {
-            // Simulate successful protocol completion
-            g_protocol_context.state = PROTOCOL_STATE_PROGRAMMING_COMPLETE;
-            ctx->current_state = VM_BOOTLOADER_STATE_COMPLETE;
-            return true; // Session complete
+        if (parse_result == BOOTLOADER_PROTOCOL_SUCCESS) {
+            // Update activity on successful byte processing
+            vm_bootloader_protocol_update_activity();
+            
+            // Check if frame is complete
+            if (frame_parser_is_complete(&g_frame_parser)) {
+                // Process complete frame
+                bootloader_protocol_result_t handle_result = 
+                    vm_bootloader_protocol_handle_frame(ctx, &g_frame_parser.frame);
+                
+                if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
+                    frame_processed = true;
+                }
+                
+                // Reset parser for next frame
+                frame_parser_reset(&g_frame_parser);
+                
+                // Update session state
+                vm_bootloader_protocol_update_session_state(ctx);
+            }
+        } else if (parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
+            // Frame parsing error - reset and continue
+            frame_parser_reset(&g_frame_parser);
         }
     }
     
     return frame_processed;
+}
+
+static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootloader_context_internal_t* ctx, const bootloader_frame_t* frame)
+{
+    (void)ctx; // Context not needed for frame handling
+    
+    // Decode protobuf request from frame payload
+    pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
+    
+    if (!pb_decode(&input_stream, BootloaderRequest_fields, &g_current_request)) {
+        // Protobuf decode failed
+        g_protocol_context.state = PROTOCOL_STATE_ERROR;
+        return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_DECODE;
+    }
+    
+    // Handle the request using protocol handler
+    bootloader_protocol_result_t handle_result = protocol_handle_request(&g_current_request, &g_current_response);
+    
+    if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
+        // Send response back to Oracle
+        return vm_bootloader_protocol_send_response(&g_current_response);
+    }
+    
+    return handle_result;
+}
+
+static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response)
+{
+    // Encode protobuf response
+    pb_ostream_t output_stream = pb_ostream_from_buffer(g_response_buffer, sizeof(g_response_buffer));
+    
+    if (!pb_encode(&output_stream, BootloaderResponse_fields, response)) {
+        return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
+    }
+    
+    // Frame the response
+    size_t frame_length = 0;
+    bootloader_protocol_result_t frame_result = frame_encode(
+        g_response_buffer, 
+        output_stream.bytes_written,
+        g_request_buffer,  // Reuse request buffer for framed response
+        &frame_length
+    );
+    
+    if (frame_result != BOOTLOADER_PROTOCOL_SUCCESS) {
+        return frame_result;
+    }
+    
+    // Send framed response via UART
+    for (size_t i = 0; i < frame_length; i++) {
+        uart_write_char((char)g_request_buffer[i]);
+    }
+    
+    return BOOTLOADER_PROTOCOL_SUCCESS;
 }
 
 static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_internal_t* ctx)
@@ -179,7 +267,6 @@ static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_in
 
 // === COMPATIBILITY FUNCTIONS FOR OLD BOOTLOADER FRAMEWORK ===
 
-// These functions provide compatibility with the old bootloader_framework API
 void protocol_init(void)
 {
     vm_bootloader_protocol_engine_init();
@@ -192,26 +279,25 @@ protocol_context_t* protocol_get_context(void)
 
 void protocol_update_activity(protocol_context_t* ctx)
 {
-    (void)ctx; // Unused - we use global context
+    (void)ctx; // Use global context
     vm_bootloader_protocol_update_activity();
 }
 
 bootloader_protocol_result_t protocol_reset_session(protocol_context_t* ctx)
 {
-    (void)ctx; // Unused - we use global context
+    (void)ctx; // Use global context
     vm_bootloader_protocol_reset_session();
     return BOOTLOADER_PROTOCOL_SUCCESS;
 }
 
-// Additional missing compatibility functions
 void protocol_context_init(protocol_context_t* ctx)
 {
-    (void)ctx; // Use global context instead
+    (void)ctx; // Use global context
     vm_bootloader_protocol_init_internal();
 }
 
 bool protocol_is_session_timeout(const protocol_context_t* ctx)
 {
-    (void)ctx; // Use global context instead
+    (void)ctx; // Use global context
     return vm_bootloader_protocol_is_session_timeout();
 }
