@@ -26,6 +26,11 @@ class OracleWorkspacePlugin:
             oracle_cli_path = current_dir / "oracle_cli.py"
         
         self.oracle_cli_path = str(oracle_cli_path)
+        
+        # Path to Oracle virtual environment Python
+        oracle_dir = Path(__file__).parent.parent
+        self.oracle_python = str(oracle_dir / "oracle_venv" / "bin" / "python")
+        
         self.results = []
     
     def run_oracle_scenarios(self, test_config: Dict[str, Any], device_path: str) -> bool:
@@ -104,9 +109,9 @@ class OracleWorkspacePlugin:
         import time
         time.sleep(2.0)
         
-        # STEP 3: Run Oracle CLI command
+        # STEP 3: Run Oracle CLI command using Oracle's virtual environment
         cmd = [
-            'python3', self.oracle_cli_path,
+            self.oracle_python, self.oracle_cli_path,
             f'--{test_type}', test_name,
             '--device', device_path,
             '--json-output', f'oracle_{test_name}_results.json',

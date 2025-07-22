@@ -550,8 +550,8 @@ tests:
       required: true
       authority:
         overall: authoritative
-        semihosting: skip  # Skip semihosting validation - focus on memory validation
-        memory: required   # Memory validation after Oracle execution
+        semihosting: optional  # Semihosting validation optional - focus on memory validation
+        memory: required       # Memory validation after Oracle execution
         timeout_strategy: fail_graceful
       timeout: 90s
       
