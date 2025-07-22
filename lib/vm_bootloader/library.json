@@ -13,7 +13,8 @@
     "homepage": "https://github.com/cms-pm/cockpit",
     "dependencies": {
         "vm_cockpit": "*",
-        "bootloader_states": "*"
+        "bootloader_states": "*",
+        "nanopb/Nanopb": "^0.4.8"
     },
     "frameworks": "*",
     "platforms": "*",

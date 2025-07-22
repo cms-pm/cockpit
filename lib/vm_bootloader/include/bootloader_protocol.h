@@ -12,17 +12,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// Generated nanopb headers - TODO: Add proper nanopb integration in full implementation
-// #include "../src/utilities/bootloader.pb.h"
-
-// Temporary protobuf message types for compilation
-typedef struct {
-    uint32_t dummy;
-} BootloaderRequest;
-
-typedef struct {
-    uint32_t dummy;  
-} BootloaderResponse;
+// Generated nanopb headers - FULL POWER ACTIVATED!
+#include "../src/utilities/bootloader.pb.h"
 
 #ifdef __cplusplus
 extern "C" {

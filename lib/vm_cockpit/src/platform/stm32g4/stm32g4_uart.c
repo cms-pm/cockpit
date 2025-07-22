@@ -78,7 +78,7 @@ bool stm32g4_uart_data_available(void) {
 }
 
 HAL_StatusTypeDef stm32g4_uart_receive(uint8_t* data) {
-    return HAL_UART_Receive(&huart1, data, 1, 100); // 100ms timeout
+    return HAL_UART_Receive(&huart1, data, 1, 0); // 0ms timeout
 }
 
 #endif // PLATFORM_STM32G4

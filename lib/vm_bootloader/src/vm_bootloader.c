@@ -112,10 +112,13 @@ vm_bootloader_run_result_t vm_bootloader_run_cycle(vm_bootloader_context_t* ctx)
     // Update execution cycle counter
     internal_ctx->execution_cycles++;
     
-    // Check session timeout
+    // Check session timeout - but continue listening for Oracle
     if (vm_bootloader_is_session_timeout(ctx)) {
+        // Reset session but keep listening for Oracle
         vm_bootloader_handle_timeout(internal_ctx);
-        return VM_BOOTLOADER_RUN_TIMEOUT;
+        internal_ctx->session_active = true;  // Restart session
+        internal_ctx->session_start_ms = get_tick_ms();
+        // Don't return timeout - keep listening for Oracle
     }
     
     // Update activity timestamp
