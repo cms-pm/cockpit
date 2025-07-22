@@ -159,6 +159,10 @@ int run_bootloader_oracle_basic_main(void)
              oracle_stats.successful_operations, oracle_stats.total_errors);
     uart_write_string(stat_buffer);
     
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Cycles: %lu\r\n", 
+             oracle_stats.execution_cycles);
+    uart_write_string(stat_buffer);
+
     // Framework cleanup - preserve state for memory validation
     test_print("");
     test_print("=== FRAMEWORK CLEANUP ===");
