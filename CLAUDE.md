@@ -1,4 +1,4 @@
-# ComponentVM Phase 4 Context
+# CockpitVM Development Context
 
 ## Development Methodology
 
@@ -22,8 +22,8 @@
 
 ## Current Technical State (Fresh Architecture Complete)
 
-### **VM Cockpit Fresh Architecture Status**
-- ✅ **7-Layer Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware
+### **CockpitVM Fresh Architecture Status**
+- ✅ **6-Layer Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware
 - ✅ **Clean Layer Separation**: Strict boundaries with single responsibilities, embedded native API design
 - ✅ **STM32 HAL First**: Platform layer as 90% adapter to proven STM32 HAL
 - ✅ **Component Modules**: execution_engine/, memory_manager/, io_controller/, host_interface/, platform/ structure
@@ -43,7 +43,7 @@ Framework: PlatformIO + STM32 HAL (Arduino compatibility removed)
 ### **Memory Layout (STM32G431CB)**
 ```yaml
 Flash (128KB):
-  Bootloader: 16KB    (0x08000000-0x08004000) - ComponentVM bootloader
+  Bootloader: 16KB    (0x08000000-0x08004000) - CockpitVM bootloader
   Hypervisor: 48KB    (0x08004000-0x08010000) - VM runtime + host interface  
   Bytecode Bank A: 32KB (0x08010000-0x08018000) - Active bytecode
   Bytecode Bank B: 32KB (0x08018000-0x08020000) - Receive/backup bytecode
@@ -93,33 +93,18 @@ Phase 4.5.4 - Fresh Architecture Restructuring: ✅ COMPLETED
 ```
 
 ### **Current Phase 4.5.2 - Bootloader System**
-**Status**: Ready to implement - design complete, architecture validated
-**Duration**: 5-6 hours total across 3 chunks
-**Goal**: Production-ready bootloader for bytecode updates with dual-bank strategy
+**Status**: ✅ COMPLETED - CockpitVM Bootloader Framework implemented
+**Achievement**: Production-ready bootloader with Oracle testing integration
 
-```yaml
-Phase 4.5.2A - UART Transport Foundation + Critical Reliability (3-4h): READY
-  - Transport interface abstraction (UART first, USB CDC drop-in)
-  - Hierarchical error states with diagnostic context
-  - Overflow-safe timeout management (HAL_GetTick wraparound protection)
-  - Resource cleanup framework (prevent memory leaks, hardware lockups)
-  - Enhanced state machine with reliability improvements
-  - Protocol foundation (handshake, basic commands)
-
-Phase 4.5.2B - Protocol Implementation + Near-Term Reliability (2-3h): PENDING
-  - Command parser with error recovery
-  - Transfer context and chunked transfer management
-  - Interrupt-safe state management
-  - Progressive error recovery strategies
-  - Progress tracking and retry mechanisms
-
-Phase 4.5.2C - Flash Operations + Production Validation (1-2h): PENDING
-  - Dual-bank management with atomic switching
-  - Flash programming (erase, program, verify)
-  - Multi-stage verification (chunk CRC16, complete CRC32, metadata)
-  - Host upload tool development
-  - End-to-end production validation
-```
+**Completed Implementation:**
+- ✅ CockpitVM Bootloader Framework (/lib/bootloader_framework/)
+- ✅ Complete lifecycle management (init/run/cleanup/emergency)
+- ✅ Resource manager with automatic cleanup and leak prevention
+- ✅ Production bootloader (src/bootloader_main.c) with Oracle integration
+- ✅ Binary framing + protobuf + CRC16-CCITT protocol
+- ✅ Hardware validation on STM32G431CB with UART PA9/PA10
+- ✅ Emergency shutdown with hardware safe state
+- ✅ Workspace template system with configurable semihosting
 
 ### **Workspace-Isolated Testing Integration**
 ```bash
@@ -204,7 +189,7 @@ python scripts/switch_target.py qemu      # vm_cockpit_qemu
 ## Context References
 
 ### **Fresh Architecture Documentation**
-- **[VM Cockpit Fresh Architecture](docs/architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md)**: Complete 7-layer architecture specification
+- **[CockpitVM Fresh Architecture](docs/architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md)**: Complete 7-layer architecture specification
 - **[Platform Test Interface Architecture](docs/testing/PLATFORM_TEST_INTERFACE_ARCHITECTURE.md)**: Cross-platform testing design
 - **[Phase 4.5.2 Bootloader Design](docs/hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)**: Complete bootloader technical design
 - **[Platform Test Interface Validation Results](docs/hardware/phase-4/PLATFORM_TEST_INTERFACE_VALIDATION_RESULTS.md)**: Hardware validation results
@@ -275,41 +260,23 @@ Platform Test Interface Implementation (4 Chunks): ✅
 - **Layer Boundary Compliance**: 7-layer architecture strictly enforced
 - **Production Ready**: Clean compilation, behavioral equivalence, hardware validation
 
-**Status**: Fresh Architecture implementation complete. Ready for Phase 4.5.2 Bootloader System implementation.
+**Status**: CockpitVM production-ready with bootloader framework complete.
 
 ---
 
-## Next Implementation Priority
+## Current Priority: Oracle Bootloader Testing
 
-### **Phase 4.5.2A: Bootloader Foundation (Ready to Implement)**
-**Duration**: 3-4 hours
-**Status**: All prerequisites complete, design validated, hardware ready
-
-**Implementation Todos**:
-1. **Transport Interface Abstraction**: Clean UART/USB CDC transport layer
-2. **UART Implementation**: Concrete UART transport using validated USART1 PA9/PA10
-3. **Critical Reliability Features**:
-   - Hierarchical error states with diagnostic context
-   - Overflow-safe timeout management (HAL_GetTick wraparound protection)
-   - Resource cleanup framework (prevent hardware lockups)
-4. **Enhanced State Machine**: Mealy-Moore hybrid with comprehensive error handling
-5. **Protocol Foundation**: Handshake and basic commands with error recovery
-6. **Workspace Testing**: Bootloader validation using workspace-isolated test system
-
-**Key Success Criteria**:
-- Clean compilation and hardware validation
-- State machine operates reliably with error recovery
-- Transport abstraction enables future USB CDC drop-in
-- Production reliability features prevent common embedded failure modes
+### **Oracle Integration Testing**
+**Goal**: Validate CockpitVM Bootloader Framework with comprehensive Oracle test scenarios
+**Focus**: End-to-end protocol validation, error injection testing, hardware integration
+**Status**: Production bootloader ready for Oracle testing integration
 
 ## Development Environment
 - **PlatformIO**: ~/.platformio/penv/bin/pio
 - **Target Switching**: scripts/switch_target.py qemu|hardware
 - **Testing**: cd tests/ && ./tools/run_test <test_name>
-- **Development Methodology**: /docs/development/methodology/* (KISS, Pool Questions, TDD)
+- **Development Methodology**: KISS, Pool Questions, TDD patterns
 
 ## Commit Guidelines
-- Branch per feature/chunk: `git checkout -b feature-description`
-- Clean commit history with meaningful messages
-- Commit after chunk validation and testing complete
-- Author: cms-pm (no Claude/Anthropic references)
+- Branch per feature: `git checkout -b feature-description`
+- Meaningful commit messages, author: cms-pm only

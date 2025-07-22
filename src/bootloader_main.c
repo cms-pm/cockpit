@@ -1,8 +1,8 @@
 /**
- * ComponentVM Production Bootloader - Framework Edition
+ * CockpitVM Production Bootloader - Framework Edition
  * Phase 4.5.2F: Complete Framework Integration
  * 
- * This is the production bootloader implementation using the ComponentVM 
+ * This is the production bootloader implementation using the CockpitVM 
  * Bootloader Framework. It replaces 640+ lines of hand-rolled protocol 
  * implementation with clean, maintainable framework configuration.
  * 
@@ -27,12 +27,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-// ComponentVM Bootloader Framework - Complete System
+// CockpitVM Bootloader Framework - Complete System
 #include "bootloader_context.h"
 #include "resource_manager.h"
 #include "bootloader_emergency.h"
 
-// ComponentVM Host Interface for hardware abstraction
+// CockpitVM Host Interface for hardware abstraction
 #include "host_interface/host_interface.h"
 
 #ifdef PLATFORM_STM32G4
@@ -179,7 +179,7 @@ static void production_display_boot_banner(void)
 {
     uart_write_string("\r\n");
     uart_write_string("================================================================\r\n");
-    uart_write_string("      ComponentVM Production Bootloader - Framework Edition\r\n");
+    uart_write_string("      CockpitVM Production Bootloader - Framework Edition\r\n");
     uart_write_string("================================================================\r\n");
     uart_write_string("Version: 4.5.2F-Production\r\n");
     uart_write_string("Hardware: STM32G431CB WeAct Studio CoreBoard\r\n");

@@ -4,7 +4,7 @@
 
 > **Currently under heavy development - things will break - not for production use**
 
-Embedded hypervisor project featuring ComponentVM - enabling C bytecode execution on ARM Cortex-M4 microcontrollers with fresh embedded native architecture and cross-platform testing.
+Embedded hypervisor project featuring CockpitVM - enabling C bytecode execution on ARM Cortex-M4 microcontrollers with fresh embedded native architecture and cross-platform testing.
 
 ## 📋 Documentation
 
@@ -26,7 +26,7 @@ Embedded hypervisor project featuring ComponentVM - enabling C bytecode executio
 - **STM32G431CB Implementation**: Clean layer boundaries, reliable hardware operation
 - **Embedded Native API**: Professional gpio_pin_write, uart_begin interface (Arduino compatibility removed)
 
-### **ComponentVM Core Features (Research Implementation)**
+### **CockpitVM Core Features (Research Implementation)**
 - **32-bit VM Architecture**: ARM Cortex-M4 implementation with explicit PC management
 - **Host Interface API**: gpio_pin_write, uart_begin, delay_ms - embedded native naming
 - **C Compiler**: ANTLR4-based compiler with functions, control flow, expressions
@@ -99,12 +99,12 @@ cd tests/
 ./tools/run_test vm_arithmetic_comprehensive # VM operations validation
 ```
 
-### **ComponentVM Example (Basic Hardware Execution)**
+### **CockpitVM Example (Basic Hardware Execution)**
 ```c
 // This C code compiles to bytecode and executes on STM32G431CB
 void setup() {
     pinMode(13, OUTPUT);
-    printf("ComponentVM on Hardware!\n");
+    printf("CockpitVM on Hardware!\n");
 }
 
 void loop() {
@@ -123,23 +123,23 @@ void loop() {
 
 ### **Fresh Architecture (6-Layer)**
 ```
-Layer 7: Guest Application (Bytecode Programs)
+Layer 6: Guest Application (Bytecode Programs)
          ↓
-Layer 6: VM Hypervisor (ComponentVM Core)
+Layer 5: VM Hypervisor (CockpitVM Core)
          ↓  
-Layer 5: Host Interface (gpio_pin_write, uart_begin)
+Layer 4: Host Interface (gpio_pin_write, uart_begin)
          ↓
-Layer 4: Platform Layer (STM32G4 adapter)
+Layer 3: Platform Layer (STM32G4 adapter)
          ↓
-Layer 3: STM32 HAL (Vendor library)
+Layer 2: STM32 HAL (Vendor library)
          ↓
-Layer 2: Hardware (STM32G431CB)
+Layer 1: Hardware (STM32G431CB)
 ```
 
 ### **Memory Layout (Research Implementation)**
 ```
 Flash (128KB):
-  Bootloader: 16KB     (ComponentVM bootloader)
+  Bootloader: 16KB     (CockpitVM bootloader)
   Hypervisor: 48KB     (VM runtime + host interface)
   Bytecode Bank A: 32KB (Active bytecode)
   Bytecode Bank B: 32KB (Receive/backup bytecode)
@@ -164,7 +164,7 @@ typedef struct {
 
 ## 🏆 **Development Milestone**
 
-ComponentVM fresh architecture complete with research-grade 6-layer design. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth. Ready for bootloader implementation.
+CockpitVM fresh architecture complete with production-ready 6-layer design. CockpitVM Bootloader Framework implemented with Oracle testing integration. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth.
 
 ---
 

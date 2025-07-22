@@ -1,5 +1,5 @@
 /*
- * ComponentVM Bootloader Framework - Context Management
+ * CockpitVM Bootloader Framework - Context Management
  * 
  * Provides high-level bootloader lifecycle management that integrates
  * the protocol library with complete system management including resource
