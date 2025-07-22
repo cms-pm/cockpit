@@ -83,6 +83,23 @@ tests:
     semihosting: false  # Disable semihosting for this test
     notes: "Test output via UART (PA2/PA3) - monitor with serial terminal at 115200 baud"
     
+  uart_interrupt_echo:
+    source: test_uart_interrupt_echo.c
+    dependencies: []  # Self-contained test for interrupt validation
+    description: "UART interrupt-driven echo test - validates circular buffer and UART RX interrupt"
+    timeout: 60s
+    expected_patterns:
+      - "UART Interrupt Echo Test"
+      - "Interrupt-driven UART RX with circular buffer"
+      - "Echo active - start typing"
+    hardware_requirements:
+      - usart1_pa9_pa10
+      - led_pc6
+    category: communication
+    stability: development
+    semihosting: false  # No semihosting - UART I/O only
+    notes: "Tests interrupt-driven UART RX. Connect to USART1 PA9/PA10 at 115200 baud and type characters to see echo"
+    
   usart1_comprehensive:
     source: test_usart1_comprehensive.c
     dependencies: []  # Self-contained test with semihosting
