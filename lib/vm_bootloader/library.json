@@ -1,0 +1,30 @@
+{
+    "name": "vm_bootloader",
+    "version": "4.5.2",
+    "description": "CockpitVM Unified Bootloader - Context management, protocol engine, and state machine",
+    "keywords": ["bootloader", "embedded", "stm32", "cockpit", "vm", "protocol", "flash"],
+    "authors": [
+        {
+            "name": "CockpitVM Development Team",
+            "maintainer": true
+        }
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/cms-pm/cockpit",
+    "dependencies": {
+        "vm_cockpit": "*",
+        "bootloader_states": "*"
+    },
+    "frameworks": "*",
+    "platforms": "*",
+    "build": {
+        "includeDir": "include",
+        "srcDir": "src",
+        "flags": [
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror"
+        ]
+    }
+}
