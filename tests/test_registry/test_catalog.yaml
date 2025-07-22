@@ -512,6 +512,92 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # CockpitVM Bootloader Oracle Basic Test (Focused Protocol Cycle Testing)
+  bootloader_oracle_basic:
+    source: test_bootloader_oracle_basic.c
+    dependencies: []
+    description: "Basic Oracle protocol cycle test - single handshake → prepare → transfer → verify cycle"
+    timeout: 60s
+    semihosting: false  # Disable semihosting for UART communication with Oracle
+    expected_patterns:
+      - "=== CockpitVM Bootloader Oracle Basic Test ==="
+      - "Basic Oracle Protocol Cycle Testing"
+      - "Test Objective:"
+      - "Validate single complete Oracle protocol cycle via workspace integration"
+      - "✓ CockpitVM Bootloader Framework initialized"
+      - "✓ Oracle basic test configuration applied"
+      - "=== ORACLE INTEGRATION READY ==="
+      - "CockpitVM Bootloader Framework ready for Oracle testing"
+      - "=== ENTERING ORACLE INTEGRATION MODE ==="
+      - "CockpitVM Bootloader entering Oracle wait mode..."
+      - "=== FRAMEWORK CLEANUP ==="
+      - "✓ Framework cleanup complete"
+      - "✓ Hardware state preserved for memory validation"
+      - "=== COCKPITVM BOOTLOADER ORACLE BASIC TEST: COMPLETE ==="
+    hardware_requirements:
+      - basic_mcu
+      - flash_memory
+      - usart1_pa9_pa10
+      - led_pc6
+    category: oracle_basic
+    priority: high
+    stability: production_ready
+    notes: "Focused Oracle basic test using existing workspace Oracle integration for single protocol cycle"
+    oracle_scenarios:
+      - normal  # Single normal protocol cycle via existing Oracle integration
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: skip  # Skip semihosting validation - focus on memory validation
+        memory: required   # Memory validation after Oracle execution
+        timeout_strategy: fail_graceful
+      timeout: 90s
+      
+      semihosting_checks:
+        - contains: "=== CockpitVM Bootloader Oracle Basic Test ==="
+        - contains: "Basic Oracle Protocol Cycle Testing"
+        - contains: "✓ CockpitVM Bootloader Framework initialized"
+        - contains: "✓ Oracle basic test configuration applied"
+        - contains: "=== ORACLE INTEGRATION READY ==="
+        - contains: "=== ENTERING ORACLE INTEGRATION MODE ==="
+        - contains: "CockpitVM Bootloader entering Oracle wait mode..."
+        - contains: "=== FRAMEWORK CLEANUP ==="
+        - contains: "✓ Framework cleanup complete"
+        - contains: "✓ Hardware state preserved for memory validation"
+        - contains: "=== COCKPITVM BOOTLOADER ORACLE BASIC TEST: COMPLETE ==="
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 45s
+      
+      # Memory validation focuses on post-Oracle hardware state
+      memory_checks:
+        bootloader_framework_cleanup:
+          address: 0x20000000        # RAM start - check for clean framework state
+          mask: 0xFFFFFFFF
+          description: "CockpitVM Bootloader Framework clean shutdown"
+        usart1_post_oracle_state:
+          address: 0x40013800        # USART1 base
+          offset: 0x00               # CR1 register
+          mask: 0x01                 # UE bit
+          expected: 0x01             # USART enabled after Oracle communication
+          description: "USART1 enabled after Oracle communication"
+        flash_target_post_oracle:
+          address: 0x0801F800        # Flash page 63 - Oracle target
+          mask: 0xFFFFFFFF
+          description: "Flash page 63 state after Oracle programming"
+        framework_statistics_accessible:
+          address: 0x20000100        # Framework context area
+          description: "Framework statistics accessible via memory"
+      
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x40
+        include_peripheral_summary: true
+        include_both_passes: true
+
+
   # Bootloader Golden Triangle Integration Test (Phase 4.5.2E validation)
   bootloader_golden_triangle:
     source: test_bootloader_golden_triangle.c
@@ -899,6 +985,18 @@ test_suites:
       - bootloader_golden_triangle
     timeout: 600s
   
+  oracle_basic:
+    description: "Basic CockpitVM Bootloader Oracle protocol cycle testing"
+    tests:
+      - bootloader_oracle_basic
+    timeout: 90s
+    
+  oracle_validation:
+    description: "CockpitVM Bootloader Oracle validation testing"
+    tests:
+      - bootloader_oracle_basic
+    timeout: 120s
+    
   golden_triangle_integration:
     description: "Golden triangle integration tests"
     tests:
