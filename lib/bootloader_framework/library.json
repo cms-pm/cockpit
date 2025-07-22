@@ -1,0 +1,26 @@
+{
+    "name": "bootloader_framework",
+    "version": "4.5.2",
+    "description": "Complete bootloader framework with lifecycle, resource, and error management",
+    "keywords": ["bootloader", "embedded", "stm32", "lifecycle", "resource-management"],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/cms-pm/componentvm-cockpit"
+    },
+    "authors": [
+        {
+            "name": "cms-pm",
+            "maintainer": true
+        }
+    ],
+    "license": "MIT",
+    "frameworks": ["stm32cube"],
+    "platforms": ["ststm32"],
+    "dependencies": {
+        "bootloader_protocol": "*",
+        "bootloader_states": "*"
+    },
+    "build": {
+        "includeDir": "include"
+    }
+}
