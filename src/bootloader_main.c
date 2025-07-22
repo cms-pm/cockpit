@@ -1,12 +1,23 @@
 /**
- * ComponentVM Bootloader Implementation
- * Phase 4.5.2 Complete Protocol Implementation
+ * ComponentVM Production Bootloader - Framework Edition
+ * Phase 4.5.2F: Complete Framework Integration
  * 
- * This is the actual bootloader that runs on hardware to communicate with
- * the Oracle testing tool. It implements the complete binary protocol with
- * protobuf-like messages for flash programming operations.
+ * This is the production bootloader implementation using the ComponentVM 
+ * Bootloader Framework. It replaces 640+ lines of hand-rolled protocol 
+ * implementation with clean, maintainable framework configuration.
  * 
- * Usage: Replace main.c with this file to build bootloader firmware
+ * Features:
+ * - Complete lifecycle management via bootloader framework
+ * - Automatic resource cleanup and leak prevention
+ * - Emergency shutdown with hardware safe state
+ * - Oracle testing integration ready
+ * - Production reliability patterns
+ * 
+ * Usage: 
+ * 1. Connect STM32G431CB WeAct Studio CoreBoard
+ * 2. Flash this bootloader firmware
+ * 3. Connect Oracle testing tool via UART (PA9/PA10 at 115200)
+ * 4. Oracle executes comprehensive protocol testing scenarios
  */
 
 #ifdef HARDWARE_PLATFORM
@@ -16,625 +27,379 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-// ComponentVM Host Interface
+// ComponentVM Bootloader Framework - Complete System
+#include "bootloader_context.h"
+#include "resource_manager.h"
+#include "bootloader_emergency.h"
+
+// ComponentVM Host Interface for hardware abstraction
 #include "host_interface/host_interface.h"
 
 #ifdef PLATFORM_STM32G4
 #include "stm32g4xx_hal.h"
 #endif
 
-// Bootloader protocol constants
-#define FRAME_START_MARKER 0x7E
-#define FRAME_END_MARKER 0x7F
-#define MAX_FRAME_PAYLOAD_SIZE 1024
-#define FRAME_HEADER_SIZE 6  // START + LENGTH(2) + PAYLOAD + CRC(2) + END
+// Production bootloader configuration
+#define PRODUCTION_SESSION_TIMEOUT_MS    60000   // 60 seconds for human testing
+#define PRODUCTION_FRAME_TIMEOUT_MS      1000    // 1 second for human interaction
+#define PRODUCTION_LED_PIN               13      // PC6 status LED
+#define PRODUCTION_UART_BAUD            115200   // Standard baud rate
 
-// Flash programming constants  
-#define BOOTLOADER_TEST_PAGE_ADDR 0x0801F800  // Page 63
-#define BOOTLOADER_FLASH_PAGE_SIZE 2048
-#define FLASH_ALIGNMENT 8  // 64-bit alignment requirement
-
-// Protocol timeouts
-#define BOOTLOADER_SESSION_TIMEOUT_MS 30000  // 30 seconds
-#define BOOTLOADER_HANDSHAKE_TIMEOUT_MS 2000 // 2 seconds
-#define BOOTLOADER_FRAME_TIMEOUT_MS 500      // 500ms per frame
-
-// LED pin definition
-#ifdef PLATFORM_STM32G4
-#define LED_PIN 13  // PC6
-#endif
-
-// Bootloader state machine
-typedef enum {
-    BOOTLOADER_STATE_IDLE = 0,
-    BOOTLOADER_STATE_LISTENING = 1,
-    BOOTLOADER_STATE_HANDSHAKE = 2,
-    BOOTLOADER_STATE_READY = 3,
-    BOOTLOADER_STATE_RECEIVING_DATA = 4,
-    BOOTLOADER_STATE_PROGRAMMING = 5,
-    BOOTLOADER_STATE_VERIFYING = 6,
-    BOOTLOADER_STATE_ERROR = 7
-} bootloader_state_t;
-
-typedef enum {
-    BOOTLOADER_SUCCESS = 0,
-    BOOTLOADER_ERROR_TIMEOUT = 1,
-    BOOTLOADER_ERROR_COMMUNICATION = 2,
-    BOOTLOADER_ERROR_FLASH_OPERATION = 3,
-    BOOTLOADER_ERROR_DATA_CORRUPTION = 4,
-    BOOTLOADER_ERROR_INVALID_REQUEST = 5
-} bootloader_error_t;
-
-// Global state
-static bootloader_state_t g_bootloader_state = BOOTLOADER_STATE_IDLE;
-static uint32_t g_session_start_time = 0;
-static uint32_t g_last_activity_time = 0;
-static uint8_t g_frame_buffer[MAX_FRAME_PAYLOAD_SIZE + FRAME_HEADER_SIZE];
-static uint8_t g_flash_staging_buffer[FLASH_ALIGNMENT];
-static uint32_t g_flash_write_address = BOOTLOADER_TEST_PAGE_ADDR;
-static uint32_t g_staging_offset = 0;
-static uint32_t g_total_bytes_received = 0;
+// Production bootloader context - single global instance
+static bootloader_context_t g_production_bootloader;
 
 // Function prototypes
-static void bootloader_init(void);
-static void bootloader_main_loop(void);
-static bool bootloader_check_timeout(void);
-static void bootloader_handle_frame(uint8_t* frame_data, uint16_t frame_length);
-static bool bootloader_receive_frame(uint8_t* buffer, uint16_t* received_length);
-static bool bootloader_send_frame(const uint8_t* payload, uint16_t payload_length);
-static uint16_t calculate_crc16(const uint8_t* data, uint16_t length);
-static void bootloader_handle_handshake(const uint8_t* payload, uint16_t length);
-static void bootloader_handle_prepare_flash(const uint8_t* payload, uint16_t length);
-static void bootloader_handle_data_packet(const uint8_t* payload, uint16_t length);
-static void bootloader_handle_verify_request(const uint8_t* payload, uint16_t length);
-static bootloader_error_t bootloader_program_flash_chunk(void);
-static void bootloader_send_error_response(bootloader_error_t error_code);
-static void bootloader_reset_session(void);
-static void bootloader_debug_print(const char* message);
-static void bootloader_debug_printf(const char* format, uint32_t value);
+static void production_bootloader_startup_sequence(void);
+static void production_bootloader_shutdown_sequence(bootloader_run_result_t result);
+static void production_display_boot_banner(void);
+static void production_display_oracle_instructions(void);
+static void production_handle_results(bootloader_run_result_t result);
+static void production_emergency_handler(void);
 
+/**
+ * Main entry point for production bootloader
+ * 
+ * This demonstrates the power of the framework approach:
+ * - No manual state machine management
+ * - No hand-rolled protocol parsing  
+ * - No manual resource tracking
+ * - No custom timeout handling
+ * - No manual error recovery
+ * 
+ * The framework handles all the complexity!
+ */
 int main(void)
 {
-    // Platform initialization
-    host_interface_init();
+    // === PRODUCTION BOOTLOADER STARTUP ===
+    production_bootloader_startup_sequence();
     
-    // Configure LED pin
-    gpio_pin_config(LED_PIN, GPIO_OUTPUT);
+    // Display boot banner for human operators
+    production_display_boot_banner();
     
-    // Initialize UART at 115200 baud
-    uart_begin(115200);
+    // Configure bootloader for production/Oracle testing
+    bootloader_config_t production_config;
+    production_config.session_timeout_ms = PRODUCTION_SESSION_TIMEOUT_MS;
+    production_config.frame_timeout_ms = PRODUCTION_FRAME_TIMEOUT_MS;
+    production_config.initial_mode = BOOTLOADER_MODE_DEBUG;  // Verbose output for humans
+    production_config.enable_debug_output = true;           // Human-readable diagnostics
+    production_config.enable_resource_tracking = true;      // Production reliability
+    production_config.enable_emergency_recovery = true;     // Safety mechanisms
+    production_config.custom_version_info = "4.5.2F-Production";
     
-    // Boot indication - LED on briefly
-    gpio_pin_write(LED_PIN, true);
-    delay_ms(200);
-    gpio_pin_write(LED_PIN, false);
+    // Initialize bootloader framework
+    uart_write_string("Initializing ComponentVM Bootloader Framework...\r\n");
+    bootloader_init_result_t init_result = bootloader_init(&g_production_bootloader, &production_config);
     
-    // Send startup message
-    uart_write_string("\r\n=== ComponentVM Bootloader Protocol Implementation ===\r\n");
-    uart_write_string("Phase 4.5.2 Complete Binary Protocol\r\n");
-    uart_write_string("Target: STM32G431CB WeAct Studio CoreBoard\r\n");
-    uart_write_string("Interface: USART1 PA9/PA10 at 115200 baud\r\n");
-    uart_write_string("Protocol: Binary framing + CRC16-CCITT\r\n");
-    uart_write_string("Flash Target: Page 63 (0x0801F800-0x0801FFFF)\r\n");
-    uart_write_string("\r\n");
-    
-    // Initialize bootloader
-    bootloader_init();
-    
-    uart_write_string("Bootloader initialization complete\r\n");
-    uart_write_string("Entering 30-second listening window for Oracle testing...\r\n");
-    uart_write_string("Oracle can now connect and execute test scenarios\r\n");
-    uart_write_string("\r\n");
-    
-    // Enter main bootloader loop
-    bootloader_main_loop();
-    
-    uart_write_string("Bootloader session complete\r\n");
-    
-    // Success indication - LED blink pattern
-    for (int i = 0; i < 3; i++) {
-        gpio_pin_write(LED_PIN, true);
-        delay_ms(200);
-        gpio_pin_write(LED_PIN, false);
-        delay_ms(200);
+    if (init_result != BOOTLOADER_INIT_SUCCESS) {
+        // Framework initialization failed - handle gracefully
+        uart_write_string("BOOTLOADER FRAMEWORK INITIALIZATION FAILED!\r\n");
+        
+        char error_msg[64];
+        snprintf(error_msg, sizeof(error_msg), "Error Code: %d\r\n", init_result);
+        uart_write_string(error_msg);
+        
+        // Emergency LED pattern - rapid red blinks
+        for (int i = 0; i < 10; i++) {
+            gpio_pin_write(PRODUCTION_LED_PIN, true);
+            delay_ms(100);
+            gpio_pin_write(PRODUCTION_LED_PIN, false);
+            delay_ms(100);
+        }
+        
+        production_emergency_handler();
+        return -1;
     }
+    
+    uart_write_string("✓ Bootloader framework initialized successfully\r\n");
+    
+    // Display Oracle testing instructions
+    production_display_oracle_instructions();
+    
+    // === ENTER PRODUCTION BOOTLOADER MAIN LOOP ===
+    uart_write_string("Entering production bootloader main loop...\r\n");
+    uart_write_string("Ready for Oracle testing or manual protocol testing\r\n");
+    uart_write_string("\r\n");
+    
+    // Status LED - slow heartbeat to show we're alive and ready
+    gpio_pin_write(PRODUCTION_LED_PIN, true);
+    delay_ms(500);
+    gpio_pin_write(PRODUCTION_LED_PIN, false);
+    delay_ms(500);
+    gpio_pin_write(PRODUCTION_LED_PIN, true);
+    delay_ms(500);
+    gpio_pin_write(PRODUCTION_LED_PIN, false);
+    
+    // THE MAGIC: One function call handles everything!
+    // - Protocol state machine
+    // - Frame parsing and validation  
+    // - Flash programming operations
+    // - Error recovery and timeouts
+    // - Resource cleanup
+    // - Emergency shutdown
+    bootloader_run_result_t run_result = bootloader_main_loop(&g_production_bootloader);
+    
+    // === PRODUCTION BOOTLOADER SHUTDOWN ===
+    production_handle_results(run_result);
+    production_bootloader_shutdown_sequence(run_result);
     
     return 0;
 }
 
-static void bootloader_init(void)
+/**
+ * Production bootloader startup sequence
+ * Handles all the hardware initialization and safety checks
+ */
+static void production_bootloader_startup_sequence(void)
 {
-    // Set initial state
-    g_bootloader_state = BOOTLOADER_STATE_LISTENING;
-    g_session_start_time = get_tick_ms();
-    g_last_activity_time = g_session_start_time;
+    // Platform initialization - proven reliable patterns
+    host_interface_init();
     
-    // Initialize flash programming state
-    g_flash_write_address = BOOTLOADER_TEST_PAGE_ADDR;
-    g_staging_offset = 0;
-    g_total_bytes_received = 0;
-    memset(g_flash_staging_buffer, 0xFF, sizeof(g_flash_staging_buffer));
+    // Configure status LED for human feedback
+    gpio_pin_config(PRODUCTION_LED_PIN, GPIO_OUTPUT);
     
-    bootloader_debug_print("✓ UART1 initialized (115200 baud, PA9/PA10)");
-    bootloader_debug_print("✓ Flash programming subsystem ready");  
-    bootloader_debug_print("✓ CRC16-CCITT calculation ready");
-    bootloader_debug_print("✓ Session timeout: 30 seconds");
-    bootloader_debug_print("✓ Frame timeout: 500ms");
+    // Boot indication - quick triple blink
+    for (int i = 0; i < 3; i++) {
+        gpio_pin_write(PRODUCTION_LED_PIN, true);
+        delay_ms(150);
+        gpio_pin_write(PRODUCTION_LED_PIN, false);
+        delay_ms(150);
+    }
+    
+    // Initialize UART for human interaction
+    uart_begin(PRODUCTION_UART_BAUD);
+    
+    // Give UART time to stabilize
+    delay_ms(100);
 }
 
-static void bootloader_main_loop(void)
+/**
+ * Display production boot banner for human operators
+ */
+static void production_display_boot_banner(void)
 {
-    uint8_t frame_buffer[MAX_FRAME_PAYLOAD_SIZE + FRAME_HEADER_SIZE];
-    uint16_t frame_length;
-    uint32_t last_heartbeat = get_tick_ms();
-    
-    while (g_bootloader_state != BOOTLOADER_STATE_IDLE) {
-        
-        // Check for session timeout
-        if (bootloader_check_timeout()) {
-            bootloader_debug_print("Session timeout - returning to idle");
-            bootloader_reset_session();
-            break;
-        }
-        
-        // Heartbeat every 5 seconds to show we're alive
-        uint32_t current_time = get_tick_ms();
-        if (current_time - last_heartbeat > 5000) {
-            if (g_bootloader_state == BOOTLOADER_STATE_LISTENING) {
-                bootloader_debug_print("Bootloader listening... (waiting for Oracle connection)");
-            }
-            last_heartbeat = current_time;
-            
-            // LED heartbeat
-            gpio_pin_write(LED_PIN, true);
-            delay_ms(50);
-            gpio_pin_write(LED_PIN, false);
-        }
-        
-        // Try to receive a frame
-        if (bootloader_receive_frame(frame_buffer, &frame_length)) {
-            // Update activity time
-            g_last_activity_time = get_tick_ms();
-            
-            // LED activity indication
-            gpio_pin_write(LED_PIN, true);
-            
-            // Process the received frame
-            bootloader_handle_frame(frame_buffer, frame_length);
-            
-            gpio_pin_write(LED_PIN, false);
-        }
-        
-        // Small delay to prevent busy waiting
-        delay_ms(10);
-    }
-}
-
-static bool bootloader_check_timeout(void)
-{
-    uint32_t current_time = get_tick_ms();
-    uint32_t session_elapsed = current_time - g_session_start_time;
-    uint32_t activity_elapsed = current_time - g_last_activity_time;
-    
-    // Session timeout (30 seconds total)
-    if (session_elapsed > BOOTLOADER_SESSION_TIMEOUT_MS) {
-        return true;
-    }
-    
-    // Frame timeout (500ms since last activity) - only in active states
-    if (g_bootloader_state != BOOTLOADER_STATE_LISTENING && 
-        activity_elapsed > BOOTLOADER_FRAME_TIMEOUT_MS) {
-        bootloader_debug_printf("Frame timeout in state", (uint32_t)g_bootloader_state);
-        return true;
-    }
-    
-    return false;
-}
-
-static bool bootloader_receive_frame(uint8_t* buffer, uint16_t* received_length)
-{
-    static uint8_t rx_state = 0; // 0=wait_start, 1=get_length, 2=get_payload, 3=get_crc, 4=get_end
-    static uint16_t payload_length = 0;
-    static uint16_t bytes_received = 0;
-    static uint16_t expected_crc = 0;
-    static uint32_t frame_start_time = 0;
-    
-    // Check for frame timeout
-    uint32_t current_time = get_tick_ms();
-    if (rx_state != 0 && (current_time - frame_start_time) > BOOTLOADER_FRAME_TIMEOUT_MS) {
-        bootloader_debug_print("Frame receive timeout - resetting parser");
-        rx_state = 0;
-        return false;
-    }
-    
-    // UART polling implementation using ComponentVM host interface
-    if (!uart_data_available()) {
-        return false; // No data available
-    }
-    
-    uint8_t byte = uart_read_char();
-    
-    // Start frame timer on first byte
-    if (rx_state == 0) {
-        frame_start_time = current_time;
-    }
-    
-    switch (rx_state) {
-        case 0: // Wait for start marker
-            if (byte == FRAME_START_MARKER) {
-                rx_state = 1;
-                bytes_received = 0;
-                buffer[0] = byte;
-                bootloader_debug_print("Frame start detected");
-            }
-            break;
-            
-        case 1: // Get length (2 bytes, big-endian)
-            buffer[1 + bytes_received] = byte;
-            bytes_received++;
-            if (bytes_received == 2) {
-                payload_length = (buffer[1] << 8) | buffer[2];
-                if (payload_length > MAX_FRAME_PAYLOAD_SIZE) {
-                    // Invalid length - reset
-                    rx_state = 0;
-                    bootloader_debug_printf("Invalid frame length", payload_length);
-                } else {
-                    rx_state = 2;
-                    bytes_received = 0;
-                    bootloader_debug_printf("Frame payload length", payload_length);
-                }
-            }
-            break;
-            
-        case 2: // Get payload
-            buffer[3 + bytes_received] = byte;
-            bytes_received++;
-            if (bytes_received == payload_length) {
-                rx_state = 3;
-                bytes_received = 0;
-                bootloader_debug_print("Payload received");
-            }
-            break;
-            
-        case 3: // Get CRC (2 bytes, big-endian)
-            buffer[3 + payload_length + bytes_received] = byte;
-            bytes_received++;
-            if (bytes_received == 2) {
-                expected_crc = (buffer[3 + payload_length] << 8) | buffer[3 + payload_length + 1];
-                rx_state = 4;
-                bootloader_debug_printf("CRC received", expected_crc);
-            }
-            break;
-            
-        case 4: // Get end marker
-            if (byte == FRAME_END_MARKER) {
-                buffer[3 + payload_length + 2] = byte;
-                
-                // Calculate CRC over length + payload
-                uint16_t calculated_crc = calculate_crc16(&buffer[1], 2 + payload_length);
-                
-                if (calculated_crc == expected_crc) {
-                    *received_length = 3 + payload_length + 3; // Total frame length
-                    rx_state = 0; // Reset for next frame
-                    bootloader_debug_print("✓ Valid frame received");
-                    return true; // Valid frame received
-                } else {
-                    bootloader_debug_printf("CRC mismatch: expected", expected_crc);
-                    bootloader_debug_printf("CRC mismatch: calculated", calculated_crc);
-                    rx_state = 0; // Reset
-                }
-            } else {
-                bootloader_debug_printf("Invalid end marker", (uint32_t)byte);
-                rx_state = 0; // Reset
-            }
-            break;
-    }
-    
-    return false; // Frame not complete yet
-}
-
-static void bootloader_handle_frame(uint8_t* frame_data, uint16_t frame_length)
-{
-    // Extract payload from frame
-    uint16_t payload_length = (frame_data[1] << 8) | frame_data[2];
-    uint8_t* payload = &frame_data[3];
-    
-    bootloader_debug_printf("Received frame: payload bytes", payload_length);
-    
-    // Simple protocol parsing (simplified for demonstration)
-    if (payload_length > 0) {
-        uint8_t message_type = payload[0];
-        
-        switch (message_type) {
-            case 0x01: // Handshake request
-                bootloader_debug_print("Processing handshake request");
-                bootloader_handle_handshake(payload + 1, payload_length - 1);
-                break;
-                
-            case 0x02: // Flash prepare request
-                bootloader_debug_print("Processing flash prepare request");
-                bootloader_handle_prepare_flash(payload + 1, payload_length - 1);
-                break;
-                
-            case 0x03: // Data packet
-                bootloader_debug_printf("Processing data packet, bytes", payload_length - 1);
-                bootloader_handle_data_packet(payload + 1, payload_length - 1);
-                break;
-                
-            case 0x04: // Verify request
-                bootloader_debug_print("Processing verify request");
-                bootloader_handle_verify_request(payload + 1, payload_length - 1);
-                break;
-                
-            default:
-                bootloader_debug_printf("Unknown message type", (uint32_t)message_type);
-                bootloader_send_error_response(BOOTLOADER_ERROR_INVALID_REQUEST);
-                break;
-        }
-    }
-}
-
-static void bootloader_handle_handshake(const uint8_t* payload, uint16_t length)
-{
-    // Simple handshake response
-    uint8_t response[] = {
-        0x81, // Handshake response type
-        0x04, 0x05, 0x02, // Version 4.5.2
-        'O', 'K'  // Status
-    };
-    
-    if (bootloader_send_frame(response, sizeof(response))) {
-        g_bootloader_state = BOOTLOADER_STATE_READY;
-        bootloader_debug_print("✓ Handshake successful - ready for commands");
-    } else {
-        bootloader_debug_print("✗ Handshake response failed");
-        g_bootloader_state = BOOTLOADER_STATE_ERROR;
-    }
-}
-
-static void bootloader_handle_prepare_flash(const uint8_t* payload, uint16_t length)
-{
-    // Reset flash programming state
-    g_flash_write_address = BOOTLOADER_TEST_PAGE_ADDR;
-    g_staging_offset = 0;
-    g_total_bytes_received = 0;
-    memset(g_flash_staging_buffer, 0xFF, sizeof(g_flash_staging_buffer));
-    
-    // In real implementation, would erase flash page here
-    bootloader_debug_print("✓ Flash page erased and ready for programming");
-    
-    uint8_t response[] = {
-        0x82, // Prepare response type
-        'O', 'K'  // Status
-    };
-    
-    if (bootloader_send_frame(response, sizeof(response))) {
-        g_bootloader_state = BOOTLOADER_STATE_RECEIVING_DATA;
-        bootloader_debug_print("✓ Flash prepare successful - ready for data");
-    } else {
-        bootloader_debug_print("✗ Prepare response failed");
-        g_bootloader_state = BOOTLOADER_STATE_ERROR;
-    }
-}
-
-static void bootloader_handle_data_packet(const uint8_t* payload, uint16_t length)
-{
-    // Process data with 64-bit alignment staging
-    for (uint16_t i = 0; i < length; i++) {
-        g_flash_staging_buffer[g_staging_offset] = payload[i];
-        g_staging_offset++;
-        g_total_bytes_received++;
-        
-        // When staging buffer is full, program it to flash
-        if (g_staging_offset == FLASH_ALIGNMENT) {
-            bootloader_error_t result = bootloader_program_flash_chunk();
-            if (result != BOOTLOADER_SUCCESS) {
-                bootloader_debug_printf("✗ Flash programming failed", (uint32_t)result);
-                bootloader_send_error_response(result);
-                return;
-            }
-            
-            g_flash_write_address += FLASH_ALIGNMENT;
-            g_staging_offset = 0;
-            memset(g_flash_staging_buffer, 0xFF, sizeof(g_flash_staging_buffer));
-        }
-    }
-    
-    uint8_t response[] = {
-        0x83, // Data response type
-        'O', 'K'  // Status
-    };
-    
-    if (bootloader_send_frame(response, sizeof(response))) {
-        bootloader_debug_printf("✓ Data packet processed, total bytes", g_total_bytes_received);
-    } else {
-        bootloader_debug_print("✗ Data response failed");
-        g_bootloader_state = BOOTLOADER_STATE_ERROR;
-    }
-}
-
-static void bootloader_handle_verify_request(const uint8_t* payload, uint16_t length)
-{
-    // Program any remaining data in staging buffer
-    if (g_staging_offset > 0) {
-        bootloader_error_t result = bootloader_program_flash_chunk();
-        if (result != BOOTLOADER_SUCCESS) {
-            bootloader_debug_printf("✗ Final flash programming failed", (uint32_t)result);
-            bootloader_send_error_response(result);
-            return;
-        }
-    }
-    
-    // In real implementation, would verify flash contents here
-    bootloader_debug_printf("✓ Flash programming complete, bytes written", g_total_bytes_received);
-    
-    uint8_t response[] = {
-        0x84, // Verify response type
-        'O', 'K',  // Status
-        (g_total_bytes_received >> 8) & 0xFF, // Total bytes written (high)
-        g_total_bytes_received & 0xFF         // Total bytes written (low)
-    };
-    
-    if (bootloader_send_frame(response, sizeof(response))) {
-        g_bootloader_state = BOOTLOADER_STATE_READY; // Ready for next operation
-        bootloader_debug_print("✓ Verify successful - operation complete");
-    } else {
-        bootloader_debug_print("✗ Verify response failed");
-        g_bootloader_state = BOOTLOADER_STATE_ERROR;
-    }
-}
-
-static bootloader_error_t bootloader_program_flash_chunk(void)
-{
-    // In real implementation, this would program 8 bytes to flash at g_flash_write_address
-    // For simulation, we just validate the operation
-    
-    if (g_flash_write_address + FLASH_ALIGNMENT > BOOTLOADER_TEST_PAGE_ADDR + BOOTLOADER_FLASH_PAGE_SIZE) {
-        return BOOTLOADER_ERROR_FLASH_OPERATION; // Would exceed page boundary
-    }
-    
-    // Simulate flash programming delay
-    delay_ms(1);
-    
-    return BOOTLOADER_SUCCESS;
-}
-
-static bool bootloader_send_frame(const uint8_t* payload, uint16_t payload_length)
-{
-    uint8_t frame[MAX_FRAME_PAYLOAD_SIZE + FRAME_HEADER_SIZE];
-    uint16_t frame_pos = 0;
-    
-    // Build frame
-    frame[frame_pos++] = FRAME_START_MARKER;
-    frame[frame_pos++] = (payload_length >> 8) & 0xFF; // Length high byte
-    frame[frame_pos++] = payload_length & 0xFF;        // Length low byte
-    
-    // Copy payload
-    memcpy(&frame[frame_pos], payload, payload_length);
-    frame_pos += payload_length;
-    
-    // Calculate CRC over length + payload
-    uint16_t crc = calculate_crc16(&frame[1], 2 + payload_length);
-    frame[frame_pos++] = (crc >> 8) & 0xFF; // CRC high byte
-    frame[frame_pos++] = crc & 0xFF;        // CRC low byte
-    frame[frame_pos++] = FRAME_END_MARKER;
-    
-    // Send frame over UART - actual binary transmission
-    for (uint16_t i = 0; i < frame_pos; i++) {
-        // Send individual bytes via UART using ComponentVM host interface
-        char single_byte[2] = {frame[i], '\0'};
-        uart_write_string(single_byte);
-    }
-    
-    // Optional debug output showing frame in hex
-    bootloader_debug_print("Frame sent (hex):");
-    for (uint16_t i = 0; i < frame_pos; i++) {
-        char hex_byte[4];
-        uint8_t byte = frame[i];
-        hex_byte[0] = (byte >> 4) > 9 ? 'A' + (byte >> 4) - 10 : '0' + (byte >> 4);
-        hex_byte[1] = (byte & 0xF) > 9 ? 'A' + (byte & 0xF) - 10 : '0' + (byte & 0xF);
-        hex_byte[2] = ' ';
-        hex_byte[3] = '\0';
-        uart_write_string(hex_byte);
-    }
     uart_write_string("\r\n");
-    
-    return true;
-}
-
-static uint16_t calculate_crc16(const uint8_t* data, uint16_t length)
-{
-    // CRC16-CCITT implementation (polynomial 0x1021)
-    uint16_t crc = 0x0000;
-    
-    for (uint16_t i = 0; i < length; i++) {
-        crc ^= ((uint16_t)data[i] << 8);
-        for (uint8_t j = 0; j < 8; j++) {
-            if (crc & 0x8000) {
-                crc = (crc << 1) ^ 0x1021;
-            } else {
-                crc = crc << 1;
-            }
-        }
-    }
-    
-    return crc;
-}
-
-static void bootloader_send_error_response(bootloader_error_t error_code)
-{
-    uint8_t response[] = {
-        0xFF, // Error response type
-        (uint8_t)error_code
-    };
-    
-    bootloader_send_frame(response, sizeof(response));
-    g_bootloader_state = BOOTLOADER_STATE_ERROR;
-}
-
-static void bootloader_reset_session(void)
-{
-    g_bootloader_state = BOOTLOADER_STATE_IDLE;
-    g_staging_offset = 0;
-    g_total_bytes_received = 0;
-    g_flash_write_address = BOOTLOADER_TEST_PAGE_ADDR;
-}
-
-static void bootloader_debug_print(const char* message)
-{
-    uart_write_string(message);
+    uart_write_string("================================================================\r\n");
+    uart_write_string("      ComponentVM Production Bootloader - Framework Edition\r\n");
+    uart_write_string("================================================================\r\n");
+    uart_write_string("Version: 4.5.2F-Production\r\n");
+    uart_write_string("Hardware: STM32G431CB WeAct Studio CoreBoard\r\n");
+    uart_write_string("Interface: USART1 PA9/PA10 at 115200 baud\r\n");
+    uart_write_string("Protocol: Binary framing + protobuf + CRC16-CCITT\r\n");
+    uart_write_string("Flash Target: Page 63 (0x0801F800-0x0801FFFF) - 2KB\r\n");
+    uart_write_string("Session Timeout: 60 seconds (human-friendly)\r\n");
+    uart_write_string("Framework: Complete lifecycle + resource + emergency management\r\n");
+    uart_write_string("================================================================\r\n");
     uart_write_string("\r\n");
 }
 
-static void bootloader_debug_printf(const char* format, uint32_t value)
+/**
+ * Display Oracle testing instructions for human operators
+ */
+static void production_display_oracle_instructions(void)
 {
-    uart_write_string(format);
-    uart_write_string(": ");
-    
-    // Simple integer to string conversion
-    char buffer[10];
-    int i = 0;
-    if (value == 0) {
-        buffer[i++] = '0';
-    } else {
-        while (value > 0) {
-            buffer[i++] = '0' + (value % 10);
-            value /= 10;
-        }
-    }
-    buffer[i] = '\0';
-    
-    // Reverse the string
-    for (int j = 0; j < i/2; j++) {
-        char c = buffer[j];
-        buffer[j] = buffer[i-1-j];
-        buffer[i-1-j] = c;
-    }
-    
-    uart_write_string(buffer);
+    uart_write_string("=== ORACLE TESTING INSTRUCTIONS ===\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("This bootloader is ready for Oracle testing tool integration.\r\n");
+    uart_write_string("The Oracle will execute comprehensive test scenarios including:\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("• Protocol Compliance Testing:\r\n");
+    uart_write_string("  - Handshake validation with version negotiation\r\n");
+    uart_write_string("  - Flash prepare and erase operations\r\n");
+    uart_write_string("  - Data transfer with various payload sizes\r\n");
+    uart_write_string("  - CRC validation and error detection\r\n");
+    uart_write_string("  - Flash verification and readback\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("• Error Injection Testing:\r\n");
+    uart_write_string("  - Timeout scenarios (session, handshake, frame)\r\n");
+    uart_write_string("  - CRC corruption with recovery validation\r\n");
+    uart_write_string("  - Invalid protocol sequences\r\n");
+    uart_write_string("  - Resource exhaustion scenarios\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("• Recovery Testing:\r\n");
+    uart_write_string("  - Emergency shutdown scenarios\r\n");
+    uart_write_string("  - Resource cleanup validation\r\n");
+    uart_write_string("  - Session recovery after errors\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("To start Oracle testing:\r\n");
+    uart_write_string("1. Connect Oracle tool to this UART interface\r\n");
+    uart_write_string("2. Run: python oracle_cli.py --port /dev/ttyUSB0 --scenarios all\r\n");
+    uart_write_string("3. Oracle will automatically execute comprehensive test suite\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("Manual Testing:\r\n");
+    uart_write_string("Send binary protocol frames directly to test individual operations\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("========================================\r\n");
     uart_write_string("\r\n");
 }
 
-// Error handler
-void Error_Handler(void) {
-    __disable_irq();
-    while(1) {
-        // Flash LED rapidly to indicate error
-        gpio_pin_write(LED_PIN, true);
-        delay_ms(100);
-        gpio_pin_write(LED_PIN, false);
-        delay_ms(100);
+/**
+ * Handle bootloader run results with human-readable feedback
+ */
+static void production_handle_results(bootloader_run_result_t result)
+{
+    uart_write_string("\r\n");
+    uart_write_string("=== BOOTLOADER SESSION RESULTS ===\r\n");
+    
+    // Get final statistics from framework
+    bootloader_statistics_t stats;
+    bootloader_get_statistics(&g_production_bootloader, &stats);
+    
+    // Display results based on outcome
+    switch (result) {
+        case BOOTLOADER_RUN_COMPLETE:
+            uart_write_string("Result: SESSION COMPLETED SUCCESSFULLY ✓\r\n");
+            uart_write_string("All protocol operations completed without errors\r\n");
+            
+            // Success LED pattern - slow green blinks
+            for (int i = 0; i < 5; i++) {
+                gpio_pin_write(PRODUCTION_LED_PIN, true);
+                delay_ms(300);
+                gpio_pin_write(PRODUCTION_LED_PIN, false);
+                delay_ms(300);
+            }
+            break;
+            
+        case BOOTLOADER_RUN_TIMEOUT:
+            uart_write_string("Result: SESSION TIMEOUT\r\n");
+            uart_write_string("No communication received within timeout period\r\n");
+            uart_write_string("This is normal for standalone testing without Oracle\r\n");
+            break;
+            
+        case BOOTLOADER_RUN_ERROR_RECOVERABLE:
+            uart_write_string("Result: RECOVERABLE ERRORS OCCURRED ⚠\r\n");
+            uart_write_string("Some errors occurred but session continued\r\n");
+            break;
+            
+        case BOOTLOADER_RUN_ERROR_CRITICAL:
+            uart_write_string("Result: CRITICAL ERROR OCCURRED ✗\r\n");
+            uart_write_string("Session terminated due to unrecoverable error\r\n");
+            
+            // Error LED pattern - fast red blinks
+            for (int i = 0; i < 8; i++) {
+                gpio_pin_write(PRODUCTION_LED_PIN, true);
+                delay_ms(150);
+                gpio_pin_write(PRODUCTION_LED_PIN, false);
+                delay_ms(150);
+            }
+            break;
+            
+        case BOOTLOADER_RUN_EMERGENCY_SHUTDOWN:
+            uart_write_string("Result: EMERGENCY SHUTDOWN EXECUTED 🚨\r\n");
+            uart_write_string("Critical system failure - emergency procedures activated\r\n");
+            production_emergency_handler();
+            break;
+            
+        default:
+            uart_write_string("Result: UNKNOWN OUTCOME\r\n");
+            char result_code[32];
+            snprintf(result_code, sizeof(result_code), "Result Code: %d\r\n", result);
+            uart_write_string(result_code);
+            break;
+    }
+    
+    // Display session statistics
+    uart_write_string("\r\n");
+    uart_write_string("Session Statistics:\r\n");
+    
+    char stat_buffer[64];
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Uptime: %lu ms\r\n", stats.uptime_ms);
+    uart_write_string(stat_buffer);
+    
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Execution Cycles: %lu\r\n", stats.execution_cycles);
+    uart_write_string(stat_buffer);
+    
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Frames Received: %lu\r\n", stats.frames_received);
+    uart_write_string(stat_buffer);
+    
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Frames Sent: %lu\r\n", stats.frames_sent);
+    uart_write_string(stat_buffer);
+    
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Total Errors: %lu\r\n", stats.total_errors);
+    uart_write_string(stat_buffer);
+    
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Successful Operations: %lu\r\n", stats.successful_operations);
+    uart_write_string(stat_buffer);
+    
+    const char* mode_name;
+    switch (stats.current_mode) {
+        case BOOTLOADER_MODE_NORMAL: mode_name = "Normal"; break;
+        case BOOTLOADER_MODE_DEBUG: mode_name = "Debug"; break;
+        case BOOTLOADER_MODE_EMERGENCY: mode_name = "Emergency"; break;
+        case BOOTLOADER_MODE_LISTEN_ONLY: mode_name = "Listen Only"; break;
+        default: mode_name = "Unknown"; break;
+    }
+    snprintf(stat_buffer, sizeof(stat_buffer), "• Final Mode: %s\r\n", mode_name);
+    uart_write_string(stat_buffer);
+    
+    uart_write_string("===================================\r\n");
+}
+
+/**
+ * Production bootloader shutdown sequence
+ */
+static void production_bootloader_shutdown_sequence(bootloader_run_result_t result)
+{
+    uart_write_string("\r\n");
+    uart_write_string("Executing bootloader framework cleanup...\r\n");
+    
+    // Framework handles all cleanup automatically!
+    bootloader_cleanup(&g_production_bootloader);
+    
+    uart_write_string("✓ Framework cleanup complete\r\n");
+    uart_write_string("✓ All resources released\r\n");
+    uart_write_string("✓ Hardware in safe state\r\n");
+    uart_write_string("\r\n");
+    uart_write_string("ComponentVM Production Bootloader session ended.\r\n");
+    uart_write_string("System ready for reset or power cycle.\r\n");
+    
+    // Final status indication
+    if (result == BOOTLOADER_RUN_COMPLETE) {
+        // Success - LED stays on
+        gpio_pin_write(PRODUCTION_LED_PIN, true);
+    } else {
+        // Error or timeout - LED stays off
+        gpio_pin_write(PRODUCTION_LED_PIN, false);
     }
 }
 
-// SysTick interrupt handler
+/**
+ * Emergency handler for critical system failures
+ */
+static void production_emergency_handler(void)
+{
+    uart_write_string("\r\n");
+    uart_write_string("🚨 EMERGENCY SYSTEM HANDLER ACTIVATED 🚨\r\n");
+    uart_write_string("Critical bootloader failure detected\r\n");
+    uart_write_string("Executing emergency shutdown procedures...\r\n");
+    
+    // Framework emergency shutdown handles everything
+    bootloader_emergency_shutdown(&g_production_bootloader);
+    
+    uart_write_string("Emergency shutdown complete\r\n");
+    uart_write_string("System is now in safe state\r\n");
+    uart_write_string("Manual reset required\r\n");
+    
+    // Emergency LED pattern - continuous rapid blink
+    while (true) {
+        gpio_pin_write(PRODUCTION_LED_PIN, true);
+        delay_ms(200);
+        gpio_pin_write(PRODUCTION_LED_PIN, false);
+        delay_ms(200);
+    }
+}
+
+// Standard STM32 interrupt handlers
 void SysTick_Handler(void) {
     HAL_IncTick();
 }
 
+void Error_Handler(void) {
+    production_emergency_handler();
+}
+
 #ifdef USE_FULL_ASSERT
 void assert_failed(uint8_t *file, uint32_t line) {
-    Error_Handler();
+    production_emergency_handler();
 }
 #endif
 
