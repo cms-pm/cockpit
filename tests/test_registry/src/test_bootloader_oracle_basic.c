@@ -20,10 +20,8 @@
 // CockpitVM Host Interface (available in workspace)
 #include "host_interface/host_interface.h"
 
-// CockpitVM Bootloader Framework - Complete lifecycle management
-#include "bootloader_context.h"
-#include "resource_manager.h"
-#include "bootloader_emergency.h"
+// CockpitVM Unified Bootloader - Complete lifecycle management
+#include "vm_bootloader.h"
 
 // Test function for non-semihosting output
 void test_print(const char* message)
@@ -46,17 +44,17 @@ int run_bootloader_oracle_basic_main(void)
     test_print("Protocol: handshake → prepare → transfer → verify");
     test_print("");
     
-    // Initialize CockpitVM Bootloader Framework for Oracle testing
-    test_print("Initializing CockpitVM Bootloader Framework...");
+    // Initialize CockpitVM Unified Bootloader for Oracle testing
+    test_print("Initializing CockpitVM Unified Bootloader...");
     
     // Configure for Oracle basic testing - optimized for single protocol cycle
-    bootloader_context_t oracle_basic_ctx;
-    bootloader_config_t oracle_basic_config;
+    vm_bootloader_context_t oracle_basic_ctx;
+    vm_bootloader_config_t oracle_basic_config;
     
     // Oracle basic test configuration
     oracle_basic_config.session_timeout_ms = 30000;  // 30 seconds for single cycle
     oracle_basic_config.frame_timeout_ms = 2000;     // 2 seconds per frame
-    oracle_basic_config.initial_mode = BOOTLOADER_MODE_DEBUG;
+    oracle_basic_config.initial_mode = VM_BOOTLOADER_MODE_DEBUG;
     oracle_basic_config.enable_debug_output = true;
     oracle_basic_config.enable_resource_tracking = true;
     oracle_basic_config.enable_emergency_recovery = true;
@@ -66,21 +64,21 @@ int run_bootloader_oracle_basic_main(void)
     uart_begin(115200);
     test_print("✓ UART initialized (USART1 PA9/PA10 at 115200 baud)");
     
-    // Initialize bootloader framework
-    bootloader_init_result_t init_result = bootloader_init(&oracle_basic_ctx, &oracle_basic_config);
-    if (init_result == BOOTLOADER_INIT_SUCCESS) {
-        test_print("✓ CockpitVM Bootloader Framework initialized");
+    // Initialize unified bootloader
+    vm_bootloader_init_result_t init_result = vm_bootloader_init(&oracle_basic_ctx, &oracle_basic_config);
+    if (init_result == VM_BOOTLOADER_INIT_SUCCESS) {
+        test_print("✓ CockpitVM Unified Bootloader initialized");
         test_print("✓ Oracle basic test configuration applied");
         test_print("✓ Resource manager ready");
         test_print("✓ Emergency recovery armed");
     } else {
-        test_print("✗ CockpitVM Bootloader Framework initialization failed");
+        test_print("✗ CockpitVM Unified Bootloader initialization failed");
         return -1;
     }
     
     test_print("");
     test_print("=== ORACLE INTEGRATION READY ===");
-    test_print("CockpitVM Bootloader Framework ready for Oracle testing");
+    test_print("CockpitVM Unified Bootloader ready for Oracle testing");
     test_print("Workspace Oracle integration will execute:");
     test_print("• Single 'normal' scenario via existing Oracle plugin");
     test_print("• Complete protocol cycle: handshake → prepare → transfer → verify");
@@ -88,47 +86,47 @@ int run_bootloader_oracle_basic_main(void)
     test_print("• Flash target: Page 63 (0x0801F800-0x0801FFFF)");
     test_print("");
     
-    // Enter Oracle integration mode - framework handles everything
+    // Enter Oracle integration mode - unified bootloader handles everything
     test_print("=== ENTERING ORACLE INTEGRATION MODE ===");
-    test_print("CockpitVM Bootloader entering Oracle wait mode...");
+    test_print("CockpitVM Unified Bootloader entering Oracle wait mode...");
     test_print("Oracle workspace plugin will connect and execute basic protocol cycle");
     test_print("");
     
-    // Oracle integration main loop - let framework handle Oracle communication
-    uart_write_string("CockpitVM Bootloader Framework ready for Oracle integration\r\n");
+    // Oracle integration main loop - let unified bootloader handle Oracle communication
+    uart_write_string("CockpitVM Unified Bootloader ready for Oracle integration\r\n");
     uart_write_string("Protocol: Binary framing + protobuf + CRC16-CCITT\r\n");
     uart_write_string("Target: Flash page 63 (0x0801F800-0x0801FFFF)\r\n");
     uart_write_string("Session timeout: 30 seconds\r\n");
     uart_write_string("Waiting for Oracle connection...\r\n");
     uart_write_string("\r\n");
     
-    // THE MAGIC: Framework handles complete Oracle protocol cycle
-    bootloader_run_result_t oracle_result = bootloader_main_loop(&oracle_basic_ctx);
+    // THE MAGIC: Unified bootloader handles complete Oracle protocol cycle
+    vm_bootloader_run_result_t oracle_result = vm_bootloader_main_loop(&oracle_basic_ctx);
     
     // Report Oracle basic test results
     uart_write_string("\r\n");
     uart_write_string("=== ORACLE BASIC TEST RESULTS ===\r\n");
     
     switch (oracle_result) {
-        case BOOTLOADER_RUN_COMPLETE:
+        case VM_BOOTLOADER_RUN_COMPLETE:
             uart_write_string("Oracle Basic Result: PROTOCOL CYCLE COMPLETED SUCCESSFULLY ✓\r\n");
             test_print("✓ Oracle normal scenario executed successfully");
             test_print("✓ Complete protocol cycle validated");
             break;
-        case BOOTLOADER_RUN_TIMEOUT:
+        case VM_BOOTLOADER_RUN_TIMEOUT:
             uart_write_string("Oracle Basic Result: SESSION TIMEOUT\r\n");
             test_print("Session timeout - Oracle may not have connected");
             test_print("This is normal for testing without Oracle tool");
             break;
-        case BOOTLOADER_RUN_ERROR_RECOVERABLE:
+        case VM_BOOTLOADER_RUN_ERROR_RECOVERABLE:
             uart_write_string("Oracle Basic Result: RECOVERABLE ERRORS ⚠\r\n");
             test_print("Oracle basic test encountered recoverable errors");
             break;
-        case BOOTLOADER_RUN_ERROR_CRITICAL:
+        case VM_BOOTLOADER_RUN_ERROR_CRITICAL:
             uart_write_string("Oracle Basic Result: CRITICAL ERROR ✗\r\n");
             test_print("Oracle basic test encountered critical error");
             break;
-        case BOOTLOADER_RUN_EMERGENCY_SHUTDOWN:
+        case VM_BOOTLOADER_RUN_EMERGENCY_SHUTDOWN:
             uart_write_string("Oracle Basic Result: EMERGENCY SHUTDOWN 🚨\r\n");
             test_print("Oracle basic test triggered emergency shutdown");
             break;
@@ -139,8 +137,8 @@ int run_bootloader_oracle_basic_main(void)
     }
     
     // Get Oracle basic test statistics
-    bootloader_statistics_t oracle_stats;
-    bootloader_get_statistics(&oracle_basic_ctx, &oracle_stats);
+    vm_bootloader_statistics_t oracle_stats;
+    vm_bootloader_get_statistics(&oracle_basic_ctx, &oracle_stats);
     
     uart_write_string("\r\n");
     uart_write_string("Oracle Basic Test Statistics:\r\n");
@@ -163,12 +161,12 @@ int run_bootloader_oracle_basic_main(void)
              oracle_stats.execution_cycles);
     uart_write_string(stat_buffer);
 
-    // Framework cleanup - preserve state for memory validation
+    // Unified bootloader cleanup - preserve state for memory validation
     test_print("");
-    test_print("=== FRAMEWORK CLEANUP ===");
-    test_print("Cleaning up CockpitVM Bootloader Framework...");
-    bootloader_cleanup(&oracle_basic_ctx);
-    test_print("✓ Framework cleanup complete");
+    test_print("=== UNIFIED BOOTLOADER CLEANUP ===");
+    test_print("Cleaning up CockpitVM Unified Bootloader...");
+    vm_bootloader_cleanup(&oracle_basic_ctx);
+    test_print("✓ Unified bootloader cleanup complete");
     test_print("✓ Hardware state preserved for memory validation");
     
     uart_write_string("=== ORACLE BASIC TEST COMPLETE ===\r\n");

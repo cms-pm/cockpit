@@ -100,8 +100,8 @@ vm_bootloader_state_t vm_bootloader_protocol_get_state(void)
 
 static void vm_bootloader_protocol_init_internal(void)
 {
-    // Initialize protocol context using bootloader_protocol functions
-    protocol_context_init(&g_protocol_context);
+    // Initialize protocol context directly (simplified implementation)
+    memset(&g_protocol_context, 0, sizeof(protocol_context_t));
     
     // Set up Oracle-compatible timeout (30 seconds)
     g_protocol_context.session_timeout_ms = 30000;
@@ -124,6 +124,7 @@ static bool vm_bootloader_protocol_process_available_data(vm_bootloader_context_
     // Process all available UART data
     while (uart_data_available()) {
         char byte = uart_read_char();
+        (void)byte; // Suppress unused variable warning
         
         // For now, simple data consumption to indicate activity
         // In a full implementation, this would use frame parser
@@ -200,4 +201,17 @@ bootloader_protocol_result_t protocol_reset_session(protocol_context_t* ctx)
     (void)ctx; // Unused - we use global context
     vm_bootloader_protocol_reset_session();
     return BOOTLOADER_PROTOCOL_SUCCESS;
+}
+
+// Additional missing compatibility functions
+void protocol_context_init(protocol_context_t* ctx)
+{
+    (void)ctx; // Use global context instead
+    vm_bootloader_protocol_init_internal();
+}
+
+bool protocol_is_session_timeout(const protocol_context_t* ctx)
+{
+    (void)ctx; // Use global context instead
+    return vm_bootloader_protocol_is_session_timeout();
 }
