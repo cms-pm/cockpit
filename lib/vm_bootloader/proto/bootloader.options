@@ -1,0 +1,17 @@
+# Nanopb options for bootloader protocol
+# Optimize for embedded systems with limited resources
+
+# Set maximum string lengths
+*.capabilities max_size:64
+*.bootloader_version max_size:16
+*.supported_capabilities max_size:128
+*.diagnostic_message max_size:128
+*.message max_size:64
+
+# Set maximum data packet size (1KB for flash programming)
+DataPacket.data max_size:1024
+FlashProgramResponse.verification_hash max_size:32
+
+# Use fixed-size arrays for simplicity (not callbacks)
+# DataPacket.data type:FT_CALLBACK
+# FlashProgramResponse.verification_hash type:FT_CALLBACK

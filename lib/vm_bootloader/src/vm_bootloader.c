@@ -8,11 +8,20 @@
 
 #include "vm_bootloader.h"
 #include "context_internal.h"
+#include "bootloader_protocol.h"
 
 // CockpitVM host interface for hardware abstraction
 #include "host_interface/host_interface.h"
 // Bootloader states integration
 #include "bootloader_states.h"
+
+// Protocol engine integration
+extern void vm_bootloader_protocol_engine_init(void);
+extern protocol_context_t* vm_bootloader_protocol_get_context(void);
+extern bool vm_bootloader_protocol_process_frame(vm_bootloader_context_internal_t* ctx);
+extern void vm_bootloader_protocol_update_activity(void);
+extern void vm_bootloader_protocol_reset_session(void);
+extern vm_bootloader_state_t vm_bootloader_protocol_get_state(void);
 
 #include <string.h>
 #include <stdio.h>
@@ -112,19 +121,20 @@ vm_bootloader_run_result_t vm_bootloader_run_cycle(vm_bootloader_context_t* ctx)
     // Update activity timestamp
     internal_ctx->last_activity_ms = get_tick_ms();
     
-    // Process incoming frames (will be enhanced in Chunk 2 with protocol engine)
+    // Process incoming frames using protocol engine
     bool frame_processed = vm_bootloader_process_frame(internal_ctx);
     if (frame_processed) {
         internal_ctx->total_frames_received++;
         vm_bootloader_update_statistics(internal_ctx);
     }
     
-    // TODO: Protocol engine integration in Chunk 2
-    // For now, basic frame processing to maintain session activity
+    // Update protocol engine activity
+    if (internal_ctx->protocol_ctx) {
+        vm_bootloader_protocol_update_activity();
+    }
     
-    // Check if session is complete (placeholder - will be enhanced in Chunk 2)
+    // Check if session is complete using protocol state
     if (internal_ctx->session_active) {
-        // Basic completion logic - will be replaced with proper protocol state checking
         if (internal_ctx->current_state == VM_BOOTLOADER_STATE_COMPLETE) {
             internal_ctx->session_active = false;
             internal_ctx->successful_operations++;
@@ -278,7 +288,11 @@ void vm_bootloader_cleanup(vm_bootloader_context_t* ctx)
     }
     
     // TODO: Resource manager cleanup in Chunk 3
-    // TODO: Protocol engine cleanup in Chunk 2
+    
+    // Protocol engine cleanup
+    if (internal_ctx->protocol_ctx) {
+        vm_bootloader_protocol_reset_session();
+    }
     
     // Mark as not initialized
     internal_ctx->initialized = false;
@@ -517,9 +531,12 @@ static vm_bootloader_init_result_t vm_bootloader_init_subsystems(vm_bootloader_c
     // Configure status LED
     gpio_pin_config(13, GPIO_OUTPUT);  // PC6 = pin 13
     
-    // TODO: Initialize protocol engine in Chunk 2
-    // For now, set protocol context to NULL
-    ctx->protocol_ctx = NULL;
+    // Initialize protocol engine
+    vm_bootloader_protocol_engine_init();
+    ctx->protocol_ctx = (vm_bootloader_protocol_context_t*)vm_bootloader_protocol_get_context();
+    if (!ctx->protocol_ctx) {
+        return VM_BOOTLOADER_INIT_ERROR_PROTOCOL_FAILED;
+    }
     
     // TODO: Initialize resource manager in Chunk 3
     // For now, set resource managers to NULL
@@ -543,14 +560,8 @@ static void vm_bootloader_update_statistics(vm_bootloader_context_internal_t* ct
 
 static bool vm_bootloader_process_frame(vm_bootloader_context_internal_t* ctx)
 {
-    // Basic frame processing - will be enhanced in Chunk 2 with protocol engine
-    
-    // Check if UART data is available
-    // TODO: Implement uart_data_available() in Chunk 2
-    // For now, return false to maintain current behavior
-    return false;
-    
-    // This will be replaced in Chunk 2 with proper protocol engine integration
+    // Use integrated protocol engine for frame processing
+    return vm_bootloader_protocol_process_frame(ctx);
 }
 
 static void vm_bootloader_handle_timeout(vm_bootloader_context_internal_t* ctx)

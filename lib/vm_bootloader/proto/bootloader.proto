@@ -1,0 +1,119 @@
+/*
+ * ComponentVM Bootloader Protocol Buffer Definitions
+ * 
+ * Version-ready structure with reserved fields for future protocol evolution.
+ * Used by both embedded nanopb and Python host implementations.
+ */
+
+syntax = "proto3";
+
+// Main request message from host to bootloader
+message BootloaderRequest {
+  // Field 1 reserved for future protocol versioning
+  reserved 1;
+  
+  uint32 sequence_id = 2;
+  oneof request {
+    HandshakeRequest handshake = 3;
+    DataPacket data = 4;
+    FlashProgramRequest flash_program = 5;
+    ErrorRecoveryRequest recovery = 6;
+  }
+}
+
+// Main response message from bootloader to host
+message BootloaderResponse {
+  // Field 1 reserved for future protocol versioning  
+  reserved 1;
+  
+  uint32 sequence_id = 2;
+  ResultCode result = 3;
+  oneof response {
+    HandshakeResponse handshake = 4;
+    Acknowledgment ack = 5;
+    FlashProgramResponse flash_result = 6;
+    ErrorReport error = 7;
+  }
+}
+
+// Protocol handshake initiation
+message HandshakeRequest {
+  string capabilities = 1;     // "flash_program,verify,error_recovery"
+  uint32 max_packet_size = 2;  // Maximum data packet size
+}
+
+// Bootloader capabilities response
+message HandshakeResponse {
+  string bootloader_version = 1;  // "4.5.2"
+  string supported_capabilities = 2;
+  uint32 flash_page_size = 3;     // 2048 bytes for STM32G431CB
+  uint32 target_flash_address = 4; // 0x0801F800
+}
+
+// Data packet for flash programming
+message DataPacket {
+  uint32 offset = 1;          // Offset within flash page
+  bytes data = 2;             // Raw data to program
+  uint32 data_crc32 = 3;      // CRC32 of data field for integrity
+}
+
+// Flash programming operation request
+message FlashProgramRequest {
+  uint32 total_data_length = 1;  // Total bytes to program
+  bool verify_after_program = 2; // Request readback verification
+}
+
+// Flash programming operation result
+message FlashProgramResponse {
+  uint32 bytes_programmed = 1;   // Actual bytes written (with 64-bit padding)
+  uint32 actual_data_length = 2; // Original data length (without padding)
+  bytes verification_hash = 3;   // SHA-256 of programmed data
+}
+
+// Error recovery request from host
+message ErrorRecoveryRequest {
+  RecoveryAction action = 1;
+}
+
+// Error report from bootloader
+message ErrorReport {
+  ErrorCode error_code = 1;
+  string diagnostic_message = 2;
+  uint32 failed_sequence_id = 3;
+}
+
+// Generic acknowledgment message
+message Acknowledgment {
+  bool success = 1;
+  string message = 2;
+}
+
+// Protocol operation result codes
+enum ResultCode {
+  SUCCESS = 0;
+  ERROR_COMMUNICATION = 1;
+  ERROR_FLASH_OPERATION = 2;
+  ERROR_DATA_CORRUPTION = 3;
+  ERROR_RESOURCE_EXHAUSTION = 4;
+  ERROR_INVALID_REQUEST = 5;
+}
+
+// Detailed error codes for diagnostics
+enum ErrorCode {
+  COMM_TIMEOUT = 0;
+  COMM_FRAMING_ERROR = 1;
+  COMM_CRC_MISMATCH = 2;
+  FLASH_ERASE_FAILED = 3;
+  FLASH_WRITE_FAILED = 4;
+  FLASH_VERIFY_FAILED = 5;
+  DATA_CRC_MISMATCH = 6;
+  INVALID_SEQUENCE = 7;
+  RESOURCE_EXHAUSTION = 8;
+}
+
+// Recovery action types
+enum RecoveryAction {
+  RETRY_LAST_OPERATION = 0;
+  ABORT_AND_RESET = 1;
+  CLEAR_ERROR_STATE = 2;
+}
