@@ -163,6 +163,12 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
 {
     bool frame_processed = false;
     
+    // DEBUG: Heartbeat to confirm bootloader is running
+    static uint32_t heartbeat_counter = 0;
+    if (++heartbeat_counter % 10000 == 0) {
+        uart_write_char('*'); // Heartbeat every 10k cycles
+    }
+    
     // Process all available UART data through frame parser
     while (uart_data_available()) {
         uint8_t byte = (uint8_t)uart_read_char();
@@ -176,12 +182,18 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
             
             // Check if frame is complete
             if (frame_parser_is_complete(&g_frame_parser)) {
+                // DEBUG: Frame complete marker
+                uart_write_char('G'); // Got complete frame
+                
                 // Process complete frame
                 bootloader_protocol_result_t handle_result = 
                     vm_bootloader_protocol_handle_frame(ctx, &g_frame_parser.frame);
                 
                 if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
                     frame_processed = true;
+                    uart_write_char('H'); // Handle success
+                } else {
+                    uart_write_char('I'); // Handle failed
                 }
                 
                 // Reset parser for next frame
@@ -192,6 +204,7 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
             }
         } else if (parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
             // Frame parsing error - reset and continue
+            uart_write_char('J'); // Parse error
             frame_parser_reset(&g_frame_parser);
         }
     }
@@ -201,7 +214,14 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
 
 static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootloader_context_internal_t* ctx, const bootloader_frame_t* frame)
 {
-    (void)ctx; // Context not needed for frame handling
+    // Context IS needed for proper protocol state management
+    if (!ctx) {
+        return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
+    }
+    
+    // Clear message structures for clean initialization
+    memset(&g_current_request, 0, sizeof(g_current_request));
+    memset(&g_current_response, 0, sizeof(g_current_response));
     
     // Decode protobuf request from frame payload
     pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
@@ -225,15 +245,31 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
 
 static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response)
 {
+    // Clear buffers for clean encoding
+    memset(g_response_buffer, 0, sizeof(g_response_buffer));
+    memset(g_request_buffer, 0, sizeof(g_request_buffer));
+    
+    // DEBUG: Send diagnostic markers about response construction
+    uart_write_char('A'); // Response function called marker
+    
     // Encode protobuf response
     pb_ostream_t output_stream = pb_ostream_from_buffer(g_response_buffer, sizeof(g_response_buffer));
     
     if (!pb_encode(&output_stream, BootloaderResponse_fields, response)) {
+        uart_write_char('B'); // Protobuf encode failed
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
     }
     
-    // Frame the response
-    size_t frame_length = 0;
+    // DEBUG: Send protobuf encode success and size
+    uart_write_char('C'); // Protobuf encode success
+    if (output_stream.bytes_written > 0) {
+        uart_write_char('D'); // Non-zero bytes written
+    } else {
+        uart_write_char('Z'); // Zero bytes written!
+    }
+    
+    // Frame the response - CRITICAL BUG FIX: Initialize frame_length to buffer size
+    size_t frame_length = BOOTLOADER_MAX_FRAME_SIZE;  // Set to actual buffer size!
     bootloader_protocol_result_t frame_result = frame_encode(
         g_response_buffer, 
         output_stream.bytes_written,
@@ -242,8 +278,12 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     );
     
     if (frame_result != BOOTLOADER_PROTOCOL_SUCCESS) {
+        uart_write_char('E'); // Frame encode failed
         return frame_result;
     }
+    
+    // DEBUG: Frame encode success
+    uart_write_char('F'); // Frame encode success
     
     // Send framed response via UART
     for (size_t i = 0; i < frame_length; i++) {
