@@ -518,6 +518,7 @@ tests:
     dependencies: []
     description: "Phase 4.5.2E complete golden triangle validation - embedded protocol + Oracle testing + integration"
     timeout: 120s
+    semihosting: false  # Disable semihosting for UART communication with Oracle
     expected_patterns:
       - "=== ComponentVM Bootloader Golden Triangle Integration Test ==="
       - "Golden Triangle Components:"
@@ -557,8 +558,8 @@ tests:
       required: true
       authority:
         overall: authoritative
-        semihosting: required
-        memory: optional
+        semihosting: skip  # Skip semihosting validation - UART test without semihosting
+        memory: required   # Memory validation becomes primary validation method
         timeout_strategy: fail_graceful
       timeout: 150s
       

@@ -58,8 +58,8 @@ class WorkspaceBuilder:
         workspace_path.mkdir(parents=True, exist_ok=True)
         print(f"   Created workspace directory: {workspace_path}")
         
-        # Copy base PlatformIO configuration
-        self._copy_base_project(workspace_path)
+        # Generate PlatformIO configuration from template
+        self._generate_platformio_config(test_name, test_metadata, workspace_path)
         
         # Create source directory and copy test files
         src_dir = workspace_path / "src"
@@ -100,15 +100,21 @@ class WorkspaceBuilder:
         return self._load_test_metadata(test_name)
         
     def _copy_base_project(self, workspace_path):
-        """Copy base PlatformIO configuration to workspace"""
+        """Generate PlatformIO configuration from template"""
+        # Legacy fallback: check for old platformio.ini
         base_platformio = self.base_project_dir / "platformio.ini"
-        workspace_platformio = workspace_path / "platformio.ini"
+        template_platformio = self.base_project_dir / "platformio_template.ini"
         
-        if not base_platformio.exists():
-            raise FileNotFoundError(f"Base platformio.ini not found: {base_platformio}")
-            
-        shutil.copy2(base_platformio, workspace_platformio)
-        print(f"   Copied base PlatformIO config")
+        if template_platformio.exists():
+            print(f"   Using template-based PlatformIO configuration")
+            # Template system not implemented in this method - will be called separately
+        elif base_platformio.exists():
+            # Legacy fallback
+            workspace_platformio = workspace_path / "platformio.ini"
+            shutil.copy2(base_platformio, workspace_platformio)
+            print(f"   Copied legacy base PlatformIO config")
+        else:
+            raise FileNotFoundError(f"Neither template nor base platformio.ini found")
         
     def _copy_test_source(self, test_name, test_metadata, src_dir):
         """Copy test source file to workspace"""
@@ -276,6 +282,122 @@ class WorkspaceBuilder:
             if workspace.is_dir() and workspace.name != '.gitignore':
                 shutil.rmtree(workspace)
                 print(f"Cleaned up workspace: {workspace}")
+
+    def _generate_platformio_config(self, test_name, test_metadata, workspace_path):
+        """Generate platformio.ini from template with test-specific configuration"""
+        
+        # Build configuration context
+        config_context = self._build_configuration_context(test_metadata)
+        
+        # Load template
+        template_path = self.base_project_dir / "platformio_template.ini"
+        if not template_path.exists():
+            # Fallback to legacy copy method
+            self._copy_base_project(workspace_path)
+            return
+            
+        with open(template_path, 'r') as f:
+            template_content = f.read()
+        
+        # Apply template substitutions
+        for placeholder, value in config_context.items():
+            template_content = template_content.replace(f"{{{{{placeholder}}}}}", value)
+        
+        # Write generated platformio.ini
+        platformio_path = workspace_path / "platformio.ini"
+        with open(platformio_path, 'w') as f:
+            f.write(template_content)
+        
+        print(f"   Generated platformio.ini with configuration: {list(config_context.keys())}")
+
+    def _build_configuration_context(self, test_metadata):
+        """Build template substitution context from test metadata"""
+        context = {
+            'BUILD_FLAGS': '',
+            'DEBUG_COMMANDS': '',
+            'LIB_DEPS': ''
+        }
+        
+        # Configure semihosting
+        self._configure_semihosting(context, test_metadata)
+        
+        # Configure custom build flags
+        self._configure_custom_build_flags(context, test_metadata)
+        
+        # Configure optimization (future extensibility)
+        self._configure_optimization(context, test_metadata)
+        
+        # Configure memory model (future extensibility)
+        self._configure_memory_model(context, test_metadata)
+        
+        # Configure test framework (future extensibility) 
+        self._configure_test_framework(context, test_metadata)
+        
+        return context
+
+    def _configure_semihosting(self, context, test_metadata):
+        """Configure semihosting-related build settings"""
+        semihosting_enabled = test_metadata.get('semihosting', True)
+        
+        if not semihosting_enabled:
+            # Add disable flag to build flags
+            context['BUILD_FLAGS'] += '\t-DDISABLE_SEMIHOSTING\n'
+            print(f"   Semihosting disabled for this test")
+        else:
+            # Add debug commands for semihosting
+            context['DEBUG_COMMANDS'] = '''debug_init_cmds = 
+\tmonitor arm semihosting enable
+\tmonitor reset halt'''
+            print(f"   Semihosting enabled for this test")
+
+    def _configure_custom_build_flags(self, context, test_metadata):
+        """Add custom build flags from test metadata"""
+        custom_flags = test_metadata.get('build_flags', [])
+        
+        for flag in custom_flags:
+            context['BUILD_FLAGS'] += f'\t{flag}\n'
+            
+        if custom_flags:
+            print(f"   Added {len(custom_flags)} custom build flags")
+
+    def _configure_optimization(self, context, test_metadata):
+        """Configure optimization level (future extensibility)"""
+        optimization = test_metadata.get('optimization', None)
+        
+        if optimization == 'size':
+            context['BUILD_FLAGS'] += '\t-Os\n'
+            print(f"   Optimization: size (-Os)")
+        elif optimization == 'speed':
+            context['BUILD_FLAGS'] += '\t-O2\n'
+            print(f"   Optimization: speed (-O2)")
+        elif optimization == 'debug':
+            context['BUILD_FLAGS'] += '\t-Og\n'
+            print(f"   Optimization: debug (-Og)")
+        # Default -O0 already in template
+
+    def _configure_memory_model(self, context, test_metadata):
+        """Configure memory model settings (future extensibility)"""
+        memory_model = test_metadata.get('memory_model', None)
+        
+        if memory_model == 'minimal':
+            context['BUILD_FLAGS'] += '\t-DCOMPONENTVM_MINIMAL_MEMORY\n'
+            print(f"   Memory model: minimal")
+        elif memory_model == 'extended':
+            context['BUILD_FLAGS'] += '\t-DCOMPONENTVM_EXTENDED_MEMORY\n'
+            print(f"   Memory model: extended")
+
+    def _configure_test_framework(self, context, test_metadata):
+        """Configure test framework settings (future extensibility)"""
+        test_framework = test_metadata.get('test_framework', None)
+        
+        if test_framework == 'unity':
+            context['LIB_DEPS'] += '\n\tunity'
+            context['BUILD_FLAGS'] += '\t-DUSE_UNITY_FRAMEWORK\n'
+            print(f"   Test framework: Unity")
+        elif test_framework == 'catch2':
+            context['LIB_DEPS'] += '\n\tcatch2'
+            context['BUILD_FLAGS'] += '\t-DUSE_CATCH2_FRAMEWORK\n'
+            print(f"   Test framework: Catch2")
 
 
 if __name__ == "__main__":
