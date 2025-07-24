@@ -8,6 +8,8 @@
 #include "bootloader_protocol.h"
 #include "pb_encode.h"
 #include "pb_decode.h"
+#include "utilities/bootloader.pb.h"
+#include "host_interface/host_interface.h"
 #include <string.h>
 
 // External functions
@@ -72,26 +74,34 @@ bootloader_protocol_result_t protocol_handle_request(const BootloaderRequest* re
     // Dispatch based on request type
     bootloader_protocol_result_t result = BOOTLOADER_PROTOCOL_SUCCESS;
     
+    // DEBUG: Show dispatch entry and which_request value
+    uart_write_char('Q'); // reQuest dispatch marker
+    uart_write_char('0' + (char)request->which_request); // Show which field
+    
     switch (request->which_request) {
         case BootloaderRequest_handshake_tag:
+            uart_write_char('H'); // Handshake case
             response->which_response = BootloaderResponse_handshake_tag;
             result = handle_handshake_request(&request->request.handshake, 
                                             &response->response.handshake);
             break;
             
         case BootloaderRequest_data_tag:
+            uart_write_char('T'); // daTa case
             response->which_response = BootloaderResponse_ack_tag;
             result = handle_data_packet(&request->request.data, 
                                       &response->response.ack);
             break;
             
         case BootloaderRequest_flash_program_tag:
+            uart_write_char('F'); // Flash case
             // Response type set by handler based on operation type
             result = handle_flash_program_request(&request->request.flash_program, 
                                                 response);
             break;
             
         default:
+            uart_write_char('U'); // Unknown/invalid case
             response->result = ResultCode_ERROR_INVALID_REQUEST;
             return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }

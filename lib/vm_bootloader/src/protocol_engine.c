@@ -19,6 +19,7 @@
 #include <pb.h>
 #include <pb_decode.h>
 #include <pb_encode.h>
+#include "utilities/bootloader.pb.h"
 
 // Global protocol context and frame parser
 static protocol_context_t g_protocol_context;
@@ -257,11 +258,36 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
     // Decode protobuf request from frame payload
     pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
     
+    // DEBUG: Add comprehensive protobuf decode diagnostics
+    uart_write_char('P'); // Protobuf decode attempt
+    
+    // Debug: show payload length and first few bytes
+    char len_debug = '0' + (frame->payload_length % 10);
+    uart_write_char(len_debug);
+    
+    // Show first 3 bytes of payload for pattern recognition
+    if (frame->payload_length >= 3) {
+        char byte1 = (frame->payload[0] < 32) ? '.' : frame->payload[0];
+        char byte2 = (frame->payload[1] < 32) ? '.' : frame->payload[1]; 
+        char byte3 = (frame->payload[2] < 32) ? '.' : frame->payload[2];
+        uart_write_char(byte1);
+        uart_write_char(byte2);
+        uart_write_char(byte3);
+    }
+    
     if (!pb_decode(&input_stream, BootloaderRequest_fields, &g_current_request)) {
-        // Protobuf decode failed
+        // Protobuf decode failed - enhanced diagnostics
+        uart_write_char('D'); // Decode failed marker
         g_protocol_context.state = PROTOCOL_STATE_ERROR;
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_DECODE;
     }
+    
+    // DEBUG: Decode success markers
+    uart_write_char('R'); // pRotobuf decode success
+    
+    // Show which union field is set (critical for debugging)
+    uart_write_char('W'); // Which field marker
+    uart_write_char('0' + (char)g_current_request.which_request);
     
     // Handle the request using protocol handler
     bootloader_protocol_result_t handle_result = protocol_handle_request(&g_current_request, &g_current_response);
