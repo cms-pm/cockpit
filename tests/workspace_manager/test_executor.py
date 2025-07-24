@@ -487,8 +487,8 @@ class TestExecutor:
             print(f"   Scenarios: {test_metadata.get('oracle_scenarios', [])}")
             print(f"   Sequences: {test_metadata.get('oracle_sequences', [])}")
             
-            # Use /dev/ttyUSB2 for Oracle communication (FTDI UART to USART1)
-            device_path = "/dev/ttyUSB2"
+            # Use /dev/ttyUSB1 for Oracle communication (FTDI UART to USART1)
+            device_path = "/dev/ttyUSB1"
             
             # Run Oracle integration
             oracle_success = integrate_oracle_with_workspace_test(test_metadata, device_path)

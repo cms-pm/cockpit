@@ -222,7 +222,12 @@ class ProtocolClient:
         """
         # Build proper protobuf handshake request
         import sys
-        sys.path.append('../workspace_test_oracle/protocol')
+        import os
+        
+        # Get absolute path to avoid navigation errors in different execution contexts
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        protocol_path = os.path.join(current_dir, '../../workspace_test_oracle/protocol')
+        sys.path.append(os.path.abspath(protocol_path))
         import bootloader_pb2
         
         # Create handshake request
