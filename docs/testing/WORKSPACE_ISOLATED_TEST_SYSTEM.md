@@ -29,12 +29,20 @@ The ComponentVM Workspace-Isolated Test System provides automated validation of 
 - **Result**: Reliable test execution + full debugging capabilities + CI/CD ready
 - **Validation**: PC6 LED test successfully runs with perfect isolation
 
-### **Phase 3: Enhanced Validation Architecture (CURRENT - ENHANCED)**
+### **Phase 3: Enhanced Validation Architecture (ENHANCED)**
 - **Addition**: pyOCD-based automated validation layer
 - **Philosophy**: Preserve OpenOCD for upload/debug, add pyOCD for structured validation
 - **Enhancement**: YAML-driven test specifications with graduated complexity
 - **Result**: Comprehensive hardware validation from simple GPIO to complex DMA chains
 - **Cross-Platform**: Foundation for Cortex-M and ESP32 validation
+
+### **Phase 4: Oracle Bootloader Integration (CURRENT - IN PROGRESS)**
+- **Addition**: Python-based Bootloader Oracle Test program for protocol validation
+- **Achievement**: Frame parsing and UART communication working (SGACDF response indicates protocol processing stage)
+- **Architecture**: Integrated with workspace-isolated test system via `bootloader_oracle_basic` test
+- **Protocol**: Protobuf-based communication with CockpitVM Bootloader Framework
+- **Status**: Oracle communication chain established, protocol processing refinement in progress
+- **Current Debug State**: Git commit hash [a991c86] - "Add comprehensive bootloader diagnostics and fix context usage"
 
 ---
 
@@ -199,6 +207,70 @@ pio run --environment weact_g431cb_hardware --target upload
 # Workspace can be preserved for debugging or cleaned up
 # No impact on other tests regardless
 ```
+
+---
+
+## **Oracle Bootloader Test System (Phase 4)**
+
+### **Current Implementation Status**
+The Oracle Bootloader Test system represents the latest evolution of the workspace-isolated architecture, specifically designed for validating the CockpitVM Bootloader Framework's protobuf-based communication protocol.
+
+### **System Architecture**
+```yaml
+Oracle Test Components:
+  - oracle_bootloader/: Oracle test framework with Python virtual environment
+  - tests/oracle_bootloader/oracle_venv/: Isolated Python environment with protobuf support
+  - tests/oracle_bootloader/lib/protocol_client.py: Main communication client
+  - tests/oracle_bootloader/lib/scenario_runner.py: Test scenario orchestration
+  - Integration: workspace_manager/test_executor.py handles Oracle lifecycle
+```
+
+### **Oracle Test Execution Flow**
+```bash
+# 1. Workspace Creation (Standard Process)
+./tools/run_test bootloader_oracle_basic
+
+# 2. Oracle Integration Trigger
+# test_executor.py detects Oracle configuration in bootloader_oracle_basic.yaml
+# Initiates Oracle process with hardware coordination
+
+# 3. Protocol Communication
+# Oracle sends protobuf BootloaderRequest via UART (/dev/ttyUSB2)
+# Bootloader responds with protocol status (currently: SGACDF)
+
+# 4. Hardware State Validation  
+# pyOCD validates post-communication hardware state
+# Memory checks confirm bootloader framework operation
+```
+
+### **Current Debug State & Reproduction**
+**Git Reference**: Commit [a991c86] - "Add comprehensive bootloader diagnostics and fix context usage"
+
+**Oracle Communication Status**:
+- ✅ Frame parsing working (S = START received)
+- ✅ Complete frame reception (G = Got complete frame) 
+- ❌ Protocol processing errors (ACDF = Various processing failures)
+
+**To Reproduce Current State**:
+```bash
+# 1. Ensure Oracle environment setup
+cd tests/oracle_bootloader && source oracle_venv/bin/activate
+pip install protobuf  # Required for protobuf message generation
+
+# 2. Run bootloader Oracle test
+cd tests && ./tools/run_test bootloader_oracle_basic
+
+# 3. Expected Output: SGACDF response from bootloader
+# S = START byte received
+# G = Got complete frame  
+# A/C/D/F = Protocol processing errors (under investigation)
+```
+
+**Oracle Dependencies**:
+- Python protobuf library in oracle_venv
+- Generated bootloader_pb2.py from protobuf definitions
+- UART connection at /dev/ttyUSB2 (115200 baud)
+- STM32G431CB target with CockpitVM Bootloader Framework
 
 ---
 
