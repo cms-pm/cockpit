@@ -142,6 +142,7 @@ class ProtocolClient:
         try:
             bytes_written = self.serial_conn.write(frame)
             self.serial_conn.flush()
+            logger.debug(f"Sent frame, first char: {hex(frame[0])}")
             logger.debug(f"Sent frame: {len(frame)} bytes, wrote {bytes_written}")
             return bytes_written == len(frame)
             
@@ -162,9 +163,10 @@ class ProtocolClient:
         
         try:
             # Read START marker
-            start_byte = self.serial_conn.read(1)
+            start_byte = self.serial_conn.read(8)
             if not start_byte or start_byte[0] != BOOTLOADER_FRAME_START:
                 logger.warning(f"Invalid start marker: {start_byte}")
+                
                 return None
             
             # Read LENGTH (2 bytes, big-endian)
@@ -218,9 +220,23 @@ class ProtocolClient:
         Returns:
             ProtocolResult with handshake outcome
         """
-        # Build handshake request (simplified protobuf-like structure)
-        # This is a placeholder - would need actual protobuf encoding
-        handshake_payload = b"HANDSHAKE_REQUEST_V4.5.2C"
+        # Build proper protobuf handshake request
+        import sys
+        sys.path.append('../workspace_test_oracle/protocol')
+        import bootloader_pb2
+        
+        # Create handshake request
+        handshake_req = bootloader_pb2.HandshakeRequest()
+        handshake_req.capabilities = "flash_program,verify,error_recovery"
+        handshake_req.max_packet_size = 256
+        
+        # Create bootloader request wrapper
+        bootloader_req = bootloader_pb2.BootloaderRequest()
+        bootloader_req.sequence_id = 1
+        bootloader_req.handshake.CopyFrom(handshake_req)
+        
+        # Serialize to protobuf bytes
+        handshake_payload = bootloader_req.SerializeToString()
         
         try:
             # Build and send frame

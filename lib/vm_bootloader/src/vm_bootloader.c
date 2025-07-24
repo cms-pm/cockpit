@@ -49,6 +49,12 @@ vm_bootloader_init_result_t vm_bootloader_init(vm_bootloader_context_t* ctx, con
     // Cast to internal context structure
     vm_bootloader_context_internal_t* internal_ctx = (vm_bootloader_context_internal_t*)ctx;
     
+    // UART output test - compare string vs character
+    uart_write_string("BOOTLOADER_INIT_TEST\r\n");
+    uart_write_char('B'); // Bootloader init marker
+    uart_write_char('I'); // Init marker
+    uart_write_string("CHAR_TEST_COMPLETE\r\n");
+    
     // Initialize context to safe defaults
     memset(internal_ctx, 0, sizeof(vm_bootloader_context_internal_t));
     vm_bootloader_context_init_defaults(internal_ctx);

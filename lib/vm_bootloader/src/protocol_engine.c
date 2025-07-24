@@ -162,19 +162,17 @@ static void vm_bootloader_protocol_init_internal(void)
 static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_internal_t* ctx)
 {
     bool frame_processed = false;
-    
-    // DEBUG: Heartbeat to confirm bootloader is running
-    static uint32_t heartbeat_counter = 0;
-    if (++heartbeat_counter % 10000 == 0) {
-        uart_write_char('*'); // Heartbeat every 10k cycles
-    }
-    
+    bootloader_protocol_result_t parse_result = BOOTLOADER_PROTOCOL_SUCCESS;
+
     // Process all available UART data through frame parser
     while (uart_data_available()) {
         uint8_t byte = (uint8_t)uart_read_char();
         
+        // Debug: Show byte being processed
+        if (byte == 0x7E) uart_write_char('S'); // START byte
+        
         // Feed byte to frame parser
-        bootloader_protocol_result_t parse_result = frame_parser_process_byte(&g_frame_parser, byte);
+        parse_result = frame_parser_process_byte(&g_frame_parser, byte);
         
         if (parse_result == BOOTLOADER_PROTOCOL_SUCCESS) {
             // Update activity on successful byte processing
@@ -201,13 +199,46 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
                 
                 // Update session state
                 vm_bootloader_protocol_update_session_state(ctx);
+                
+                // Break out after processing complete frame
+                break;
             }
-        } else if (parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
-            // Frame parsing error - reset and continue
-            uart_write_char('J'); // Parse error
-            frame_parser_reset(&g_frame_parser);
+            // Continue processing more bytes - don't treat success as error
+        } else {
+            // Frame parsing error occurred - break out and handle
+            break;
         }
     }
+    
+    // Handle any parsing errors that occurred
+    if (!frame_processed && parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
+        // Frame parsing error - reset and continue
+        uart_write_char('J'); // Parse error
+        
+        // Debug specific error type
+        switch (parse_result) {
+            case BOOTLOADER_PROTOCOL_ERROR_TIMEOUT:
+                uart_write_char('T');
+                break;
+            case BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE:
+                uart_write_char('L');
+                break;
+            case BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH:
+                uart_write_char('C');
+                break;
+            case BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID:
+                uart_write_char('F');
+                break;
+            case BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID:
+                uart_write_char('S');
+                break;
+            default:
+                uart_write_char('U'); // Unknown error
+                break;
+        }
+    }
+    
+    frame_parser_reset(&g_frame_parser);
     
     return frame_processed;
 }

@@ -30,10 +30,27 @@ void test_print(const char* message)
     uart_write_string("\r\n");
 }
 
-int run_bootloader_oracle_basic_main(void)
+void run_bootloader_oracle_basic_main(void)
 {
+    // PHASE 1: QUICK PROOF OF LIFE - LED BLINK (FAST!)
+    // Configure PC6 LED (host interfacce Pin 13) immediately for proof of execution
+    gpio_pin_config(13, GPIO_OUTPUT);
+    
+    // Quick blink to prove execution, then get to bootloader FAST
+    for (int i = 0; i < 3; i++) {
+        gpio_pin_write(13, true);
+        delay_ms(50);   // Much faster
+        gpio_pin_write(13, false);  
+        delay_ms(50);
+    }
+    // Total time: 3 × 100ms = 300ms - Oracle won't miss us!
+    
     // Host interface initialization
     host_interface_init();
+    
+    // PHASE 2: PROVE UART IS WORKING
+    uart_begin(115200);
+    uart_write_string("BOOTLOADER_TEST_ALIVE\r\n");
     
     test_print("=== CockpitVM Bootloader Oracle Basic Test ===");
     test_print("Basic Oracle Protocol Cycle Testing");
@@ -73,7 +90,7 @@ int run_bootloader_oracle_basic_main(void)
         test_print("✓ Emergency recovery armed");
     } else {
         test_print("✗ CockpitVM Unified Bootloader initialization failed");
-        return -1;
+        return; // Changed from return -1 since function is now void
     }
     
     test_print("");
@@ -101,7 +118,9 @@ int run_bootloader_oracle_basic_main(void)
     uart_write_string("\r\n");
     
     // THE MAGIC: Unified bootloader handles complete Oracle protocol cycle
+    uart_write_string("ENTERING_BOOTLOADER_MAIN_LOOP\r\n");
     vm_bootloader_run_result_t oracle_result = vm_bootloader_main_loop(&oracle_basic_ctx);
+    uart_write_string("EXITED_BOOTLOADER_MAIN_LOOP\r\n");
     
     // Report Oracle basic test results
     uart_write_string("\r\n");
@@ -180,5 +199,4 @@ int run_bootloader_oracle_basic_main(void)
     delay_ms(500);
     gpio_pin_write(13, false);
     
-    return 0;
 }

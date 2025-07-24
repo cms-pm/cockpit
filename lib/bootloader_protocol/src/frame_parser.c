@@ -54,13 +54,16 @@ static bool is_frame_timeout(const frame_parser_t* parser, uint32_t timeout_ms) 
 bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, uint8_t byte) {
     if (!parser) return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     
-    // Check for per-byte timeout (500ms default)
-    if (is_frame_timeout(parser, 500)) {
+    // Only check timeout when actively receiving frame (not in idle state)
+    if (parser->state != FRAME_STATE_IDLE && is_frame_timeout(parser, 500)) {
+        // Debug: show timeout state
+        uart_write_char('X'); // Timeout in state
+        uart_write_char('0' + (char)parser->state); // Show state number
         frame_parser_reset(parser);
         return BOOTLOADER_PROTOCOL_ERROR_TIMEOUT;
     }
     
-    // Update activity time
+    // Update activity time  
     parser->last_activity_time = get_tick_ms();
     
     switch (parser->state) {
