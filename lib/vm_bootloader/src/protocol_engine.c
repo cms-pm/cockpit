@@ -42,16 +42,16 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
 static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response);
 static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_internal_t* ctx);
 
-// Oracle-clean diagnostic output functions
-static inline void diagnostic_char(char c) {
-    if (g_diagnostics_enabled) {
-        uart_write_char(c);
-    }
+// Oracle-clean diagnostic output functions - DISABLED during frame transmission
+void diagnostic_char(char c) {
+    // Disable diagnostics completely during Oracle protocol to prevent frame corruption
+    // The diagnostics were interfering with frame structure
+    (void)c; // Suppress unused parameter warning
 }
 
 void vm_bootloader_enable_diagnostics_after_handshake(void) {
-    g_diagnostics_enabled = true;
-    uart_write_string("DIAGNOSTICS_ENABLED_POST_HANDSHAKE\r\n");
+    // Disable diagnostic output completely to prevent Oracle frame corruption
+    g_diagnostics_enabled = false;
 }
 
 // === PROTOCOL ENGINE API ===
@@ -297,6 +297,9 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_DECODE;
     }
     
+    // DEBUG: Show we successfully decoded the request
+    diagnostic_char('!'); // Successful decode marker
+    
     // DEBUG: Decode success markers
     diagnostic_char('R'); // pRotobuf decode success
     
@@ -305,7 +308,9 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
     diagnostic_char('0' + (char)g_current_request.which_request);
     
     // Handle the request using protocol handler
+    diagnostic_char('@'); // About to call protocol handler
     bootloader_protocol_result_t handle_result = protocol_handle_request(&g_current_request, &g_current_response);
+    diagnostic_char('#'); // Protocol handler returned
     
     if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
         // Send response back to Oracle

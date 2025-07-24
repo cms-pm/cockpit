@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdint.h>
 
+
 // External CRC16 function
 extern uint16_t calculate_frame_crc16(uint16_t length, const uint8_t* payload);
 
@@ -129,14 +130,20 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
                 // Verify CRC
                 if (parser->frame.calculated_crc == parser->frame.received_crc) {
                     parser->state = FRAME_STATE_COMPLETE;
+                    // Disable diagnostic output to prevent Oracle frame corruption
+                    // uart_write_string("Cc"); // CRC match
                     return BOOTLOADER_PROTOCOL_SUCCESS;
                 } else {
                     frame_parser_reset(parser);
+                    // Disable diagnostic output to prevent Oracle frame corruption
+                    // uart_write_string("Cf"); // Handle failed
                     return BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH;
                 }
             } else {
                 // Invalid END byte
                 frame_parser_reset(parser);
+                // Disable diagnostic output to prevent Oracle frame corruption
+                // uart_write_string("Cx"); // Handle failed
                 return BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID;
             }
             break;

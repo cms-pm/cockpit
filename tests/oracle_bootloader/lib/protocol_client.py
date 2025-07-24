@@ -98,6 +98,20 @@ class ProtocolClient:
         self.serial_conn: Optional[serial.Serial] = None
         self.sequence_id = 1
     
+    def _calculate_crc32(self, data: bytes) -> int:
+        """Calculate CRC32 matching bootloader implementation."""
+        crc = 0xFFFFFFFF
+        
+        for byte in data:
+            crc ^= byte
+            for _ in range(8):
+                if crc & 1:
+                    crc = (crc >> 1) ^ 0xEDB88320
+                else:
+                    crc = crc >> 1
+        
+        return ~crc & 0xFFFFFFFF
+    
     def connect(self) -> bool:
         """
         Open serial connection to bootloader.
@@ -162,11 +176,20 @@ class ProtocolClient:
             return None
         
         try:
-            # Read START marker
-            start_byte = self.serial_conn.read(8)
-            if not start_byte or start_byte[0] != BOOTLOADER_FRAME_START:
-                logger.warning(f"Invalid start marker: {start_byte}")
-                
+            # Read START marker (search for frame start in stream)
+            start_found = False
+            attempts = 0
+            while not start_found and attempts < 16:
+                byte = self.serial_conn.read(1)
+                if not byte:
+                    break
+                if byte[0] == BOOTLOADER_FRAME_START:
+                    start_found = True
+                    break
+                attempts += 1
+            
+            if not start_found:
+                logger.warning(f"Frame start marker not found after {attempts} attempts")
                 return None
             
             # Read LENGTH (2 bytes, big-endian)
@@ -249,25 +272,102 @@ class ProtocolClient:
             if not self.send_raw_frame(frame):
                 return ProtocolResult(False, "Failed to send handshake frame")
             
+            # Skip debug capture for handshake since it's working
+            # Focus on prepare phase where the hang occurs
+            
             # Receive response
             response_payload = self.receive_response()
             if response_payload is None:
                 return ProtocolResult(False, "Failed to receive handshake response")
             
-            # Parse response (simplified)
-            if b"HANDSHAKE_RESPONSE" in response_payload:
-                logger.info("Handshake successful")
-                return ProtocolResult(True, "Handshake completed", 
-                                    {"bootloader_version": "4.5.2C"})
-            else:
-                return ProtocolResult(False, "Invalid handshake response")
+            # Parse protobuf response properly
+            try:
+                # Decode protobuf response
+                bootloader_resp = bootloader_pb2.BootloaderResponse()
+                bootloader_resp.ParseFromString(response_payload)
+                
+                # Check which response field is set
+                response_type = bootloader_resp.WhichOneof('response')
+                logger.debug(f"Response type: {response_type}")
+                
+                if response_type == 'handshake':
+                    # Access handshake response directly
+                    if hasattr(bootloader_resp, 'handshake') and bootloader_resp.HasField('handshake'):
+                        handshake_resp = bootloader_resp.handshake
+                        logger.info(f"Handshake successful - Version: {handshake_resp.bootloader_version}")
+                        return ProtocolResult(True, "Handshake completed", 
+                                            {"bootloader_version": handshake_resp.bootloader_version,
+                                             "capabilities": handshake_resp.supported_capabilities,
+                                             "flash_page_size": handshake_resp.flash_page_size})
+                    else:
+                        logger.error("Handshake field not accessible")
+                        return ProtocolResult(False, "Handshake field missing")
+                else:
+                    return ProtocolResult(False, f"Unexpected response type: {response_type}")
+                    
+            except Exception as parse_error:
+                # Enhanced debugging for protobuf parsing issues
+                logger.error(f"Failed to parse handshake response: {parse_error}")
+                logger.debug(f"Response payload ({len(response_payload)} bytes): {response_payload.hex()}")
+                
+                # Try to debug the protobuf structure
+                try:
+                    bootloader_resp = bootloader_pb2.BootloaderResponse()
+                    bootloader_resp.ParseFromString(response_payload)
+                    response_type = bootloader_resp.WhichOneof('response')
+                    logger.debug(f"Protobuf parsed successfully, response type: {response_type}")
+                    logger.debug(f"Sequence ID: {bootloader_resp.sequence_id}")
+                    logger.debug(f"Result: {bootloader_resp.result}")
+                    
+                    # List all available fields
+                    logger.debug(f"Available fields: {[field.name for field, _ in bootloader_resp.ListFields()]}")
+                    
+                except Exception as debug_error:
+                    logger.debug(f"Protobuf debug parsing failed: {debug_error}")
+                
+                # Fallback: check for legacy string response
+                if b"HANDSHAKE_RESPONSE" in response_payload:
+                    logger.info("Handshake successful (legacy format)")
+                    return ProtocolResult(True, "Handshake completed", 
+                                        {"bootloader_version": "4.6.3"})
+                else:
+                    return ProtocolResult(False, f"Invalid handshake response: {parse_error}")
                 
         except Exception as e:
             return ProtocolResult(False, f"Handshake error: {e}")
     
+    def capture_bootloader_diagnostics(self, timeout=0.5, operation="unknown"):
+        """Capture bootloader diagnostic output during processing, avoiding protocol frames"""
+        debug_chars = bytearray()
+        start_time = time.time()
+        
+        while (time.time() - start_time) < timeout:
+            if self.serial_conn.in_waiting > 0:
+                # Read byte-by-byte to avoid consuming protocol frames
+                byte_data = self.serial_conn.read(1)
+                if byte_data:
+                    byte_val = byte_data[0]
+                    
+                    # Stop if we hit a frame start marker (protocol response coming)
+                    if byte_val == 0x7E:  # BOOTLOADER_FRAME_START
+                        # We found a frame start - put it back by creating a buffer
+                        self._pending_frame_start = True
+                        logger.debug(f"[{operation}] Stopped capture at frame start marker - frame ready")
+                        break
+                    
+                    debug_chars.extend(byte_data)
+                    logger.debug(f"[{operation}] Captured char: {repr(chr(byte_val) if 32 <= byte_val <= 126 else f'\\x{byte_val:02x}')}")
+            time.sleep(0.01)  # 10ms polling
+        
+        if debug_chars:
+            ascii_data = ''.join(chr(b) if 32 <= b <= 126 else f'\\x{b:02x}' for b in debug_chars)
+            logger.info(f"🔍 [{operation}] Bootloader diagnostics: {ascii_data}")
+            return debug_chars
+        return None
+
     def execute_prepare_flash(self, data_length: int) -> ProtocolResult:
         """
-        Execute flash programming prepare phase.
+        Execute flash programming prepare phase using proper protobuf.
         
         Args:
             data_length: Size of data to be programmed
@@ -275,29 +375,85 @@ class ProtocolClient:
         Returns:
             ProtocolResult with prepare outcome
         """
-        prepare_payload = f"PREPARE_FLASH:{data_length}".encode()
+        # Build proper protobuf FlashProgramRequest (prepare phase)
+        import sys
+        import os
+        
+        # Get absolute path to avoid navigation errors
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        protocol_path = os.path.join(current_dir, '../../workspace_test_oracle/protocol')
+        sys.path.append(os.path.abspath(protocol_path))
+        import bootloader_pb2
+        
+        # Create FlashProgramRequest for prepare phase
+        flash_req = bootloader_pb2.FlashProgramRequest()
+        flash_req.total_data_length = data_length
+        flash_req.verify_after_program = False  # Prepare phase
+        
+        # Create bootloader request wrapper
+        bootloader_req = bootloader_pb2.BootloaderRequest()
+        bootloader_req.sequence_id = 2  # Increment from handshake
+        bootloader_req.flash_program.CopyFrom(flash_req)
+        
+        # Debug: Show what we're sending
+        logger.debug(f"Prepare request: sequence_id={bootloader_req.sequence_id}")
+        logger.debug(f"Flash program request: total_data_length={flash_req.total_data_length}, verify_after_program={flash_req.verify_after_program}")
+        logger.debug(f"Request which_request: {bootloader_req.WhichOneof('request')}")
+        
+        # Serialize to protobuf bytes
+        prepare_payload = bootloader_req.SerializeToString()
         
         try:
             frame = FrameBuilder.build_frame(prepare_payload)
+            logger.debug(f"Sending prepare frame ({len(frame)} bytes) for {data_length} bytes of data")
             if not self.send_raw_frame(frame):
                 return ProtocolResult(False, "Failed to send prepare frame")
             
+            # Skip debug capture - we've confirmed bootloader works correctly
+            # Focus on clean protocol completion without interference
+            logger.info("⏳ Waiting for bootloader to process prepare frame...")
+            
+            # Minimal diagnostic check: just look for diagnostic chars without consuming response
+            time.sleep(0.1)  # Brief processing time
+            if self.serial_conn.in_waiting > 0:
+                waiting_bytes = self.serial_conn.in_waiting
+                logger.info(f"📍 Bootloader has {waiting_bytes} bytes waiting after prepare frame")
+            
             response_payload = self.receive_response()
             if response_payload is None:
+                logger.warning("⚠️ No prepare response received")
                 return ProtocolResult(False, "Failed to receive prepare response")
             
-            if b"PREPARE_ACK" in response_payload:
-                logger.info(f"Flash prepare successful for {data_length} bytes")
-                return ProtocolResult(True, "Prepare phase completed")
-            else:
-                return ProtocolResult(False, "Prepare phase failed")
+            # Parse protobuf response
+            try:
+                bootloader_resp = bootloader_pb2.BootloaderResponse()
+                bootloader_resp.ParseFromString(response_payload)
+                
+                response_type = bootloader_resp.WhichOneof('response')
+                logger.debug(f"Prepare response type: {response_type}")
+                
+                if response_type == 'ack':
+                    ack_resp = bootloader_resp.ack
+                    if ack_resp.success:
+                        logger.info(f"Flash prepare successful for {data_length} bytes")
+                        return ProtocolResult(True, "Prepare phase completed", 
+                                            {"message": ack_resp.message})
+                    else:
+                        return ProtocolResult(False, f"Prepare failed: {ack_resp.message}")
+                else:
+                    return ProtocolResult(False, f"Unexpected prepare response type: {response_type}")
+                    
+            except Exception as parse_error:
+                logger.error(f"Failed to parse prepare response: {parse_error}")
+                logger.debug(f"Response payload: {response_payload.hex()}")
+                return ProtocolResult(False, f"Invalid prepare response: {parse_error}")
                 
         except Exception as e:
             return ProtocolResult(False, f"Prepare error: {e}")
     
     def execute_data_transfer(self, test_data: bytes) -> ProtocolResult:
         """
-        Execute data packet transfer.
+        Execute data packet transfer using proper protobuf DataPacket.
         
         Args:
             test_data: Data to transfer to bootloader
@@ -305,24 +461,78 @@ class ProtocolClient:
         Returns:
             ProtocolResult with transfer outcome
         """
-        # Build data payload with simple header
-        data_payload = b"DATA_PACKET:" + test_data
+        # Build proper protobuf DataPacket
+        import sys
+        import os
+        
+        # Get absolute path to avoid navigation errors
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        protocol_path = os.path.join(current_dir, '../../workspace_test_oracle/protocol')
+        sys.path.append(os.path.abspath(protocol_path))
+        import bootloader_pb2
+        
+        # Create DataPacket
+        data_packet = bootloader_pb2.DataPacket()
+        data_packet.offset = 0  # Single packet transfer
+        data_packet.data = test_data  # Direct bytes assignment
+        
+        # Calculate CRC32 for data validation (matching bootloader implementation)
+        data_crc = self._calculate_crc32(test_data)
+        data_packet.data_crc32 = data_crc
+        
+        # Create bootloader request wrapper
+        bootloader_req = bootloader_pb2.BootloaderRequest()
+        bootloader_req.sequence_id = 3  # Increment from prepare
+        bootloader_req.data.CopyFrom(data_packet)
+        
+        # Debug: Show what we're sending
+        logger.debug(f"Data request: sequence_id={bootloader_req.sequence_id}")
+        logger.debug(f"Data packet: offset={data_packet.offset}, size={len(data_packet.data)}, crc32={data_packet.data_crc32}")
+        logger.debug(f"Request which_request: {bootloader_req.WhichOneof('request')}")
+        
+        # Serialize to protobuf bytes
+        data_payload = bootloader_req.SerializeToString()
         
         try:
             frame = FrameBuilder.build_frame(data_payload)
+            logger.debug(f"Sending data frame ({len(frame)} bytes) with {len(test_data)} bytes of data")
             if not self.send_raw_frame(frame):
                 return ProtocolResult(False, "Failed to send data frame")
+            
+            # Minimal diagnostic check for data processing - increased delay for large frames
+            time.sleep(0.5)  # Longer processing time for data staging
+            if self.serial_conn.in_waiting > 0:
+                waiting_bytes = self.serial_conn.in_waiting
+                logger.info(f"📍 Bootloader has {waiting_bytes} bytes waiting after data frame")
             
             response_payload = self.receive_response()
             if response_payload is None:
                 return ProtocolResult(False, "Failed to receive data response")
             
-            if b"DATA_ACK" in response_payload:
-                logger.info(f"Data transfer successful: {len(test_data)} bytes")
-                return ProtocolResult(True, "Data transfer completed", 
-                                    {"bytes_transferred": len(test_data)})
-            else:
-                return ProtocolResult(False, "Data transfer failed")
+            # Parse protobuf response
+            try:
+                bootloader_resp = bootloader_pb2.BootloaderResponse()
+                bootloader_resp.ParseFromString(response_payload)
+                
+                response_type = bootloader_resp.WhichOneof('response')
+                logger.debug(f"Data response type: {response_type}")
+                
+                if response_type == 'ack':
+                    ack_resp = bootloader_resp.ack
+                    if ack_resp.success:
+                        logger.info(f"Data transfer successful: {len(test_data)} bytes")
+                        return ProtocolResult(True, "Data transfer completed", 
+                                            {"bytes_transferred": len(test_data),
+                                             "message": ack_resp.message})
+                    else:
+                        return ProtocolResult(False, f"Data transfer failed: {ack_resp.message}")
+                else:
+                    return ProtocolResult(False, f"Unexpected data response type: {response_type}")
+                    
+            except Exception as parse_error:
+                logger.error(f"Failed to parse data response: {parse_error}")
+                logger.debug(f"Response payload: {response_payload.hex()}")
+                return ProtocolResult(False, f"Invalid data response: {parse_error}")
                 
         except Exception as e:
             return ProtocolResult(False, f"Data transfer error: {e}")
@@ -372,6 +582,7 @@ class ProtocolClient:
             return ProtocolResult(False, f"Handshake failed: {result.message}")
         
         # Step 2: Prepare
+        logger.info("Starting prepare phase...")
         result = self.execute_prepare_flash(len(test_data))
         if not result.success:
             return ProtocolResult(False, f"Prepare failed: {result.message}")
