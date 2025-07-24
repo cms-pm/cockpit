@@ -48,9 +48,19 @@ void run_bootloader_oracle_basic_main(void)
     // Host interface initialization
     host_interface_init();
     
-    // PHASE 2: PROVE UART IS WORKING
+    // PHASE 2: ORACLE-CLEAN UART INITIALIZATION
     uart_begin(115200);
-    uart_write_string("BOOTLOADER_TEST_ALIVE\r\n");
+    
+    // CRITICAL: UART stabilization delay to prevent null byte contamination
+    delay_ms(200);
+    
+    // Clear any startup artifacts from UART buffer
+    while (uart_data_available()) {
+        uart_read_char(); // Discard initialization noise
+    }
+    
+    // Send Oracle synchronization signal instead of test diagnostics
+    uart_write_string("ORACLE_SYNC_READY\r\n");
     
     test_print("=== CockpitVM Bootloader Oracle Basic Test ===");
     test_print("Basic Oracle Protocol Cycle Testing");

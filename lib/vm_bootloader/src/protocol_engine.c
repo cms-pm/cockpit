@@ -26,6 +26,9 @@ static protocol_context_t g_protocol_context;
 static frame_parser_t g_frame_parser;
 static bool g_protocol_initialized = false;
 
+// Oracle-clean diagnostic output control
+static bool g_diagnostics_enabled = false;
+
 // Message buffers for protobuf encoding/decoding
 static uint8_t g_request_buffer[BOOTLOADER_MAX_FRAME_SIZE];
 static uint8_t g_response_buffer[BOOTLOADER_MAX_FRAME_SIZE];
@@ -38,6 +41,18 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
 static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootloader_context_internal_t* ctx, const bootloader_frame_t* frame);
 static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response);
 static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_internal_t* ctx);
+
+// Oracle-clean diagnostic output functions
+static inline void diagnostic_char(char c) {
+    if (g_diagnostics_enabled) {
+        uart_write_char(c);
+    }
+}
+
+void vm_bootloader_enable_diagnostics_after_handshake(void) {
+    g_diagnostics_enabled = true;
+    uart_write_string("DIAGNOSTICS_ENABLED_POST_HANDSHAKE\r\n");
+}
 
 // === PROTOCOL ENGINE API ===
 
@@ -170,7 +185,7 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
         uint8_t byte = (uint8_t)uart_read_char();
         
         // Debug: Show byte being processed
-        if (byte == 0x7E) uart_write_char('S'); // START byte
+        if (byte == 0x7E) diagnostic_char('S'); // START byte
         
         // Feed byte to frame parser
         parse_result = frame_parser_process_byte(&g_frame_parser, byte);
@@ -182,7 +197,7 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
             // Check if frame is complete
             if (frame_parser_is_complete(&g_frame_parser)) {
                 // DEBUG: Frame complete marker
-                uart_write_char('G'); // Got complete frame
+                diagnostic_char('G'); // Got complete frame
                 
                 // Process complete frame
                 bootloader_protocol_result_t handle_result = 
@@ -190,9 +205,9 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
                 
                 if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
                     frame_processed = true;
-                    uart_write_char('H'); // Handle success
+                    diagnostic_char('H'); // Handle success
                 } else {
-                    uart_write_char('I'); // Handle failed
+                    diagnostic_char('I'); // Handle failed
                 }
                 
                 // Reset parser for next frame
@@ -214,27 +229,27 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
     // Handle any parsing errors that occurred
     if (!frame_processed && parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
         // Frame parsing error - reset and continue
-        uart_write_char('J'); // Parse error
+        diagnostic_char('J'); // Parse error
         
         // Debug specific error type
         switch (parse_result) {
             case BOOTLOADER_PROTOCOL_ERROR_TIMEOUT:
-                uart_write_char('T');
+                diagnostic_char('T');
                 break;
             case BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE:
-                uart_write_char('L');
+                diagnostic_char('L');
                 break;
             case BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH:
-                uart_write_char('C');
+                diagnostic_char('C');
                 break;
             case BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID:
-                uart_write_char('F');
+                diagnostic_char('F');
                 break;
             case BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID:
-                uart_write_char('S');
+                diagnostic_char('S');
                 break;
             default:
-                uart_write_char('U'); // Unknown error
+                diagnostic_char('U'); // Unknown error
                 break;
         }
     }
@@ -258,36 +273,36 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
     // Decode protobuf request from frame payload
     pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
     
-    // DEBUG: Add comprehensive protobuf decode diagnostics
-    uart_write_char('P'); // Protobuf decode attempt
+    // DEBUG: Add comprehensive protobuf decode diagnostics (Oracle-clean)
+    diagnostic_char('P'); // Protobuf decode attempt
     
     // Debug: show payload length and first few bytes
     char len_debug = '0' + (frame->payload_length % 10);
-    uart_write_char(len_debug);
+    diagnostic_char(len_debug);
     
     // Show first 3 bytes of payload for pattern recognition
     if (frame->payload_length >= 3) {
         char byte1 = (frame->payload[0] < 32) ? '.' : frame->payload[0];
         char byte2 = (frame->payload[1] < 32) ? '.' : frame->payload[1]; 
         char byte3 = (frame->payload[2] < 32) ? '.' : frame->payload[2];
-        uart_write_char(byte1);
-        uart_write_char(byte2);
-        uart_write_char(byte3);
+        diagnostic_char(byte1);
+        diagnostic_char(byte2);
+        diagnostic_char(byte3);
     }
     
     if (!pb_decode(&input_stream, BootloaderRequest_fields, &g_current_request)) {
         // Protobuf decode failed - enhanced diagnostics
-        uart_write_char('D'); // Decode failed marker
+        diagnostic_char('D'); // Decode failed marker
         g_protocol_context.state = PROTOCOL_STATE_ERROR;
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_DECODE;
     }
     
     // DEBUG: Decode success markers
-    uart_write_char('R'); // pRotobuf decode success
+    diagnostic_char('R'); // pRotobuf decode success
     
     // Show which union field is set (critical for debugging)
-    uart_write_char('W'); // Which field marker
-    uart_write_char('0' + (char)g_current_request.which_request);
+    diagnostic_char('W'); // Which field marker
+    diagnostic_char('0' + (char)g_current_request.which_request);
     
     // Handle the request using protocol handler
     bootloader_protocol_result_t handle_result = protocol_handle_request(&g_current_request, &g_current_response);
@@ -306,23 +321,23 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     memset(g_response_buffer, 0, sizeof(g_response_buffer));
     memset(g_request_buffer, 0, sizeof(g_request_buffer));
     
-    // DEBUG: Send diagnostic markers about response construction
-    uart_write_char('A'); // Response function called marker
+    // DEBUG: Send diagnostic markers about response construction (Oracle-clean)
+    diagnostic_char('A'); // Response function called marker
     
     // Encode protobuf response
     pb_ostream_t output_stream = pb_ostream_from_buffer(g_response_buffer, sizeof(g_response_buffer));
     
     if (!pb_encode(&output_stream, BootloaderResponse_fields, response)) {
-        uart_write_char('B'); // Protobuf encode failed
+        diagnostic_char('B'); // Protobuf encode failed
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
     }
     
     // DEBUG: Send protobuf encode success and size
-    uart_write_char('C'); // Protobuf encode success
+    diagnostic_char('C'); // Protobuf encode success
     if (output_stream.bytes_written > 0) {
-        uart_write_char('D'); // Non-zero bytes written
+        diagnostic_char('D'); // Non-zero bytes written
     } else {
-        uart_write_char('Z'); // Zero bytes written!
+        diagnostic_char('Z'); // Zero bytes written!
     }
     
     // Frame the response - CRITICAL BUG FIX: Initialize frame_length to buffer size
@@ -335,16 +350,22 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     );
     
     if (frame_result != BOOTLOADER_PROTOCOL_SUCCESS) {
-        uart_write_char('E'); // Frame encode failed
+        diagnostic_char('E'); // Frame encode failed
         return frame_result;
     }
     
     // DEBUG: Frame encode success
-    uart_write_char('F'); // Frame encode success
+    diagnostic_char('F'); // Frame encode success
     
     // Send framed response via UART
     for (size_t i = 0; i < frame_length; i++) {
         uart_write_char((char)g_request_buffer[i]);
+    }
+    
+    // CRITICAL: Enable diagnostics after successful response transmission
+    // This ensures Oracle gets clean handshake, then we enable debugging
+    if (!g_diagnostics_enabled) {
+        vm_bootloader_enable_diagnostics_after_handshake();
     }
     
     return BOOTLOADER_PROTOCOL_SUCCESS;

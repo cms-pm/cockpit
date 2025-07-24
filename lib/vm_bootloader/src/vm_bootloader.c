@@ -49,13 +49,7 @@ vm_bootloader_init_result_t vm_bootloader_init(vm_bootloader_context_t* ctx, con
     // Cast to internal context structure
     vm_bootloader_context_internal_t* internal_ctx = (vm_bootloader_context_internal_t*)ctx;
     
-    // UART output test - compare string vs character
-    uart_write_string("BOOTLOADER_INIT_TEST\r\n");
-    uart_write_char('B'); // Bootloader init marker
-    uart_write_char('I'); // Init marker
-    uart_write_string("CHAR_TEST_COMPLETE\r\n");
-    
-    // Initialize context to safe defaults
+    // Initialize context to safe defaults FIRST - no UART output during init
     memset(internal_ctx, 0, sizeof(vm_bootloader_context_internal_t));
     vm_bootloader_context_init_defaults(internal_ctx);
     
@@ -534,8 +528,16 @@ static vm_bootloader_init_result_t vm_bootloader_init_subsystems(vm_bootloader_c
     // Initialize host interface (UART, GPIO, timing)
     host_interface_init();
     
-    // Configure UART for protocol communication
+    // Configure UART for protocol communication with Oracle-clean initialization
     uart_begin(115200);
+    
+    // CRITICAL: UART stabilization delay to prevent null byte transmission
+    delay_ms(200);
+    
+    // Clear any startup artifacts from UART buffer
+    while (uart_data_available()) {
+        uart_read_char(); // Discard initialization noise
+    }
     
     // Configure status LED
     gpio_pin_config(13, GPIO_OUTPUT);  // PC6 = pin 13
