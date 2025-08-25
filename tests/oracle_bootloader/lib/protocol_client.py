@@ -122,6 +122,7 @@ class ProtocolClient:
         """Create nanopb-compatible DataPacket with explicit offset field."""
         
         # Manual protobuf wire format construction
+        # Disabled for now
         # Field 1 (offset): tag=0x08, wire type 0, value=0
         # Field 2 (data): tag=0x12, wire type 2, length, data
         # Field 3 (crc32): tag=0x18, wire type 0, value (varint)
@@ -518,74 +519,48 @@ class ProtocolClient:
         sys.path.append(os.path.abspath(protocol_path))
         import bootloader_pb2
         
-        # Create DataPacket - NANOPB COMPATIBLE FORMAT
+        # Create DataPacket
         data_packet = bootloader_pb2.DataPacket()
-        
-        # CRITICAL FIX: Force offset field serialization even when 0
-        # Python protobuf omits fields with default values, but nanopb requires explicit fields
         data_packet.offset = 0  # Single packet transfer
-        
-        # Ensure data field is set correctly
-        data_packet.data = test_data
-        
-        # TEMPORARY: Disable manual serialization and use Python protobuf directly for now
-        logger.debug("Using standard Python protobuf serialization for DataPacket")
-        
-        logger.debug(f"DataPacket created - offset: {data_packet.offset}, data_length: {len(test_data)}")
+        data_packet.data = test_data  # Direct bytes assignment
         
         # Calculate CRC32 for data validation (matching bootloader implementation)
         data_crc = self._calculate_crc32(test_data)
         data_packet.data_crc32 = data_crc
         
-        # Create bootloader request wrapper with nanopb-compatible DataPacket
+        # Create bootloader request wrapper
         bootloader_req = bootloader_pb2.BootloaderRequest()
         bootloader_req.sequence_id = 3  # Increment from prepare
+        bootloader_req.data.CopyFrom(data_packet)
         
-        # CRITICAL FIX: Use nanopb-compatible DataPacket construction
-        logger.info("Using nanopb-compatible manual DataPacket construction for bootloader compatibility")
-        nanopb_data_packet_bytes = self._create_nanopb_compatible_datapacket(data_packet)
-        logger.debug(f"Nanpb DataPacket created: {len(nanopb_data_packet_bytes)} bytes")
-        logger.debug(f"Nanpb DataPacket hex: {nanopb_data_packet_bytes.hex()}")
+        # Debug: Show what we're sending
+        logger.debug(f"Data request: sequence_id={bootloader_req.sequence_id}")
+        logger.debug(f"Data packet: offset={data_packet.offset}, size={len(data_packet.data)}, crc32={data_packet.data_crc32}")
+        logger.debug(f"Request which_request: {bootloader_req.WhichOneof('request')}")
         
-        # Create manual BootloaderRequest with nanopb-compatible DataPacket
-        # Field 1: sequence_id (tag=1, wire type=varint)
-        manual_request = bytearray()
-        manual_request.extend([0x08, 0x03])  # sequence_id = 3
-        
-        # Field 3: data field (tag=3, wire type=length-delimited) 
-        manual_request.extend([0x1A])  # tag=3|wire_type=2
-        # Encode DataPacket length as varint
-        data_packet_len = len(nanopb_data_packet_bytes)
-        if data_packet_len >= 0x80:
-            while data_packet_len >= 0x80:
-                manual_request.append((data_packet_len & 0x7F) | 0x80)
-                data_packet_len >>= 7
-            manual_request.append(data_packet_len & 0x7F)
-        else:
-            manual_request.append(data_packet_len)
+        # Serialize to protobuf bytes
+        data_payload = bootloader_req.SerializeToString()
         
         # Add the nanopb-compatible DataPacket bytes
-        manual_request.extend(nanopb_data_packet_bytes)
+
+        logger.debug(f"BootloaderRequest created: {len(data_payload)} bytes")
+        logger.debug(f"Request hex: {data_payload.hex()}")
         
-        data_payload = bytes(manual_request)
-        logger.debug(f"Manual BootloaderRequest created: {len(data_payload)} bytes")
-        logger.debug(f"Manual request hex: {data_payload.hex()}")
-        
-        # Skip the standard protobuf serialization - use our manual construction
+        # Skip the standard protobuf serialization - use our standard construction
         
         # Debug: Show what we're sending with enhanced protobuf details
-        logger.debug(f"Data request: sequence_id=3 (manual)")
+        logger.debug(f"Data request: sequence_id={bootloader_req.sequence_id}")
         logger.debug(f"Data packet: offset={data_packet.offset}, size={len(data_packet.data)}, crc32=0x{data_packet.data_crc32:08x}")
-        logger.debug(f"Using manual nanopb-compatible construction")
+        logger.debug(f"Using standard protobuf construction")
         
         # ENHANCED DEBUG: Show first few bytes of data for verification
         preview_data = data_packet.data[:16]  # First 16 bytes
-        preview_hex = preview_data.hex()
+        preview_hex = data_packet.data.hex()
         logger.debug(f"Data preview (first 16 bytes): {preview_hex}")
         
-        # ENHANCED DEBUG: Show manual construction details
-        logger.debug(f"Manual construction size: {len(data_payload)} bytes")
-        logger.debug(f"Manual payload preview: {data_payload[:32].hex()}...")  # First 32 bytes
+        # ENHANCED DEBUG: Show payload construction details
+        logger.debug(f"Payload construction size: {len(data_payload)} bytes")
+        logger.debug(f"Payload payload preview: {data_payload[:32].hex()}...")  # First 32 bytes
         
         try:
             frame = FrameBuilder.build_frame(data_payload)
@@ -598,6 +573,9 @@ class ProtocolClient:
             if self.serial_conn.in_waiting > 0:
                 waiting_bytes = self.serial_conn.in_waiting
                 logger.info(f"📍 Bootloader has {waiting_bytes} bytes waiting after data frame")
+                self.decode_leftover_data(waiting_bytes)
+                
+            # Receive data response
             
             response_payload = self.receive_response()
             if response_payload is None:
@@ -626,34 +604,7 @@ class ProtocolClient:
             except Exception as parse_error:
                 logger.error(f"Failed to parse data response: {parse_error}")
                 logger.debug(f"Response payload ({len(response_payload)} bytes): {response_payload.hex()}")
-                
-                # DECODE 3-BYTE RESPONSE ANALYSIS
-                if len(response_payload) == 3:
-                    logger.info("🔍 ANALYZING 3-BYTE RESPONSE PATTERN:")
-                    logger.info(f"   Raw bytes: {response_payload.hex()}")
-                    logger.info(f"   As integers: {list(response_payload)}")
-                    logger.info(f"   As chars: {[chr(b) if 32 <= b <= 126 else f'\\x{b:02x}' for b in response_payload]}")
-                    
-                    # Check if it's diagnostic characters
-                    diagnostic_chars = []
-                    for b in response_payload:
-                        if 32 <= b <= 126:  # Printable ASCII
-                            diagnostic_chars.append(chr(b))
-                        else:
-                            diagnostic_chars.append(f'\\x{b:02x}')
-                    
-                    logger.info(f"   Diagnostic interpretation: {''.join(diagnostic_chars)}")
-                    
-                    # Check for known patterns
-                    if response_payload == b'SGH':
-                        logger.info("   → SUCCESS pattern: S(start) G(got frame) H(handle success)")
-                    elif response_payload[0:2] == b'SG':
-                        logger.info(f"   → Partial success: S(start) G(got frame) + {diagnostic_chars[2]}")
-                    elif b'D' in response_payload:
-                        logger.info("   → Contains D(decode) - protobuf decode attempt")
-                    elif b'P' in response_payload:
-                        logger.info("   → Contains P(protobuf) - protobuf processing")
-                    
+                  
                 return ProtocolResult(False, f"Invalid data response: {parse_error}")
                 
         except Exception as e:
@@ -722,3 +673,38 @@ class ProtocolClient:
         logger.info("Complete protocol sequence successful")
         return ProtocolResult(True, "Complete protocol sequence successful",
                             {"test_data_size": len(test_data)})
+    
+    def decode_leftover_data(self, number_of_bytes: int) -> ProtocolResult:
+        """
+        Decode leftover data from bootloader.
+        
+        Returns:
+            ProtocolResult with leftover data outcome
+        """
+        response_payload = self.serial_conn.read(number_of_bytes)
+
+        logger.info(f"🔍 ANALYZING {number_of_bytes}-BYTE RESPONSE PATTERN:")
+        logger.info(f"   Raw bytes: {response_payload.hex()}")
+        logger.info(f"   As integers: {list(response_payload)}")
+        logger.info(f"   As chars: {[chr(b) if 32 <= b <= 126 else f'\\x{b:02x}' for b in response_payload]}")
+        
+        # Check if it's diagnostic characters
+        diagnostic_chars = []
+        for b in response_payload:
+            if 32 <= b <= 126:  # Printable ASCII
+                diagnostic_chars.append(chr(b))
+            else:
+                diagnostic_chars.append(f'\\x{b:02x}')
+        
+        logger.info(f"   Diagnostic interpretation: {''.join(diagnostic_chars)}")
+        
+        # Check for known patterns
+        if response_payload == b'SGH':
+            logger.info("   → SUCCESS pattern: S(start) G(got frame) H(handle success)")
+        elif response_payload[0:2] == b'SG':
+            logger.info(f"   → Partial success: S(start) G(got frame) + {diagnostic_chars[2]}")
+        elif b'D' in response_payload:
+            logger.info("   → Contains D(decode) - protobuf decode attempt")
+        elif b'P' in response_payload:
+            logger.info("   → Contains P(protobuf) - protobuf processing")
+        return ProtocolResult(False, "Leftover {bytes_decoded} bytes decoded")

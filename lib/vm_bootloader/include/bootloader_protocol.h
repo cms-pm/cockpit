@@ -37,6 +37,13 @@ extern "C" {
 #define BOOTLOADER_FLASH_PAGE_SIZE    2048    // STM32G431CB page size
 #define BOOTLOADER_FLASH_WRITE_ALIGN  8       // 64-bit alignment required
 
+// Byte stuffing constants
+#define STUFFING_ESC_BYTE         0x7D
+#define STUFFING_REPLACEMENT_7E   0x5E // Escaped START byte (0x7E)
+#define STUFFING_REPLACEMENT_7F   0x5F // Escaped END byte (0x7F)
+#define STUFFING_REPLACEMENT_7D   0x5D // Escaped ESCAPE byte (0x7D)
+
+
 // Protocol result codes
 typedef enum {
     BOOTLOADER_PROTOCOL_SUCCESS = 0,
@@ -77,6 +84,7 @@ typedef struct {
     bootloader_frame_t frame;
     uint16_t bytes_received;
     uint32_t last_activity_time;  // For timeout detection
+    bool escape_next;             // For bit stuffing/escape sequence handling
 } frame_parser_t;
 
 // Flash write context for 64-bit alignment
