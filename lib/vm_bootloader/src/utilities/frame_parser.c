@@ -66,6 +66,9 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
     // Update activity time
     parser->last_activity_time = get_tick_ms();
     
+    // Debug: Show current state before processing
+    if (parser->state == FRAME_STATE_SYNC) diagnostic_char('Q'); // Query: in SYNC state
+    
     switch (parser->state) {
         case FRAME_STATE_IDLE:
             if (byte == BOOTLOADER_FRAME_START) {
@@ -94,6 +97,7 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
         case FRAME_STATE_LENGTH_HIGH:
             // Expecting length low byte
             diagnostic_char('L'); // Low byte of length
+            diagnostic_char('B'); // Bug diagnostic - this should be SYNC state!
             // Show low byte value range for debugging
             if (byte < 10) diagnostic_char('0' + byte);
             else if (byte == 14) diagnostic_char('E'); // Expected 0x0E (14) for 270 bytes
