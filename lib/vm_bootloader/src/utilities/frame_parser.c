@@ -103,7 +103,7 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             
             if (parser->bytes_received < parser->frame.payload_length) {
                 
-                // Handle escape sequences
+                // Handle escape sequences with detailed diagnostics
                 if (byte == 0x7D) {
                     // This is an escape marker - need to read next byte and unescape
                     diagnostic_char('E'); // Escape sequence detected
@@ -115,10 +115,18 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
                     parser->frame.payload[parser->bytes_received] = unescaped_byte;
                     parser->bytes_received++;  // Count unescaped bytes only
                     parser->escape_next = false;
+                    
+                    // Debug: Show critical unescaped bytes
+                    if (unescaped_byte == 0x7D) diagnostic_char('M'); // unescaped to 0x7D (Marker)
+                    if (unescaped_byte == 0x7E) diagnostic_char('F'); // unescaped to 0x7E (Frame)
                 } else {
                     // Normal byte, no escaping
                     parser->frame.payload[parser->bytes_received] = byte;
                     parser->bytes_received++;  // Count unescaped bytes only
+                    
+                    // Debug: Show critical normal bytes
+                    if (byte == 0x7D) diagnostic_char('m'); // normal 0x7D (should not happen)
+                    if (byte == 0x7E) diagnostic_char('f'); // normal 0x7E (should not happen)
                 }
                 
                 // Check if we've received all unescaped payload bytes
