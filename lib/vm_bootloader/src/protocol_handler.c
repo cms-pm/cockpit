@@ -182,28 +182,37 @@ static bootloader_protocol_result_t handle_handshake_request(
 static bootloader_protocol_result_t handle_data_packet(
     const DataPacket* packet, Acknowledgment* ack) {
     
+    diagnostic_char('D'); // Data packet processing start
     protocol_context_t* ctx = protocol_get_context();
     
     // Validate protocol state
     if (ctx->state != PROTOCOL_STATE_READY_FOR_DATA) {
+        diagnostic_char('S'); // State error
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
+    diagnostic_char('1'); // State validation passed
     
     // Validate offset (single-packet only for Phase 4.5.2C)
     if (packet->offset != 0) {
+        diagnostic_char('O'); // Offset error
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
+    diagnostic_char('2'); // Offset validation passed
     
     // Validate data length matches expected
     if (packet->data.size != ctx->expected_data_length) {
+        diagnostic_char('L'); // Length error
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
+    diagnostic_char('3'); // Length validation passed
     
     // Verify data CRC32 (double CRC protection)
     uint32_t calculated_crc = calculate_crc32(packet->data.bytes, packet->data.size);
     if (calculated_crc != packet->data_crc32) {
+        diagnostic_char('C'); // CRC error
         return BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH;
     }
+    diagnostic_char('4'); // CRC validation passed
     
     // Stage data using Phase 4.5.2B flash staging
     bootloader_protocol_result_t result = flash_stage_data(&ctx->flash_ctx, 

@@ -68,7 +68,22 @@ class FrameBuilder:
         frame = bytearray()
         frame.append(BOOTLOADER_FRAME_START)                    # START
         frame.extend(struct.pack('>H', length))                 # LENGTH (big-endian)
-        frame.extend(payload)                                   # PAYLOAD
+        
+        # PAYLOAD - with bit stuffing to escape frame markers
+        for byte in payload:
+            # Check if we need to escape this byte
+            if byte == BOOTLOADER_FRAME_START or byte == BOOTLOADER_FRAME_END:
+                # Add escape byte (0x7D) followed by XOR with 0x20
+                frame.append(0x7D)           # Escape marker
+                frame.append(byte ^ 0x20)    # Escaped byte
+            elif byte == 0x7D:
+                # Escape the escape byte itself
+                frame.append(0x7D)           # Escape marker  
+                frame.append(0x7D ^ 0x20)    # Escaped escape byte (0x5D)
+            else:
+                # Normal byte, no escaping needed
+                frame.append(byte)
+        
         frame.extend(struct.pack('>H', crc16))                  # CRC16 (big-endian)
         frame.append(BOOTLOADER_FRAME_END)                      # END
         
