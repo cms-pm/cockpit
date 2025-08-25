@@ -78,6 +78,10 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
         case FRAME_STATE_SYNC:
             // Expecting length high byte
             diagnostic_char('H'); // High byte of length
+            // Show actual high byte value for debugging
+            if (byte == 0) diagnostic_char('0');
+            else if (byte == 1) diagnostic_char('1'); 
+            else diagnostic_char('?'); // Unexpected high byte
             parser->frame.payload_length = ((uint16_t)byte) << 8;
             parser->state = FRAME_STATE_LENGTH_HIGH;
             break;
@@ -85,6 +89,10 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
         case FRAME_STATE_LENGTH_HIGH:
             // Expecting length low byte
             diagnostic_char('L'); // Low byte of length
+            // Show low byte value range for debugging
+            if (byte < 10) diagnostic_char('0' + byte);
+            else if (byte == 14) diagnostic_char('E'); // Expected 0x0E (14) for 270 bytes
+            else diagnostic_char('?'); // Unexpected low byte
             parser->frame.payload_length |= byte;
             
             // Validate payload length
@@ -97,6 +105,7 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             diagnostic_char('P'); // Payload parsing start
             parser->state = FRAME_STATE_LENGTH_LOW;
             parser->bytes_received = 0;
+            parser->total_bytes_processed = 0; // Reset total counter for payload
             break;
             
         case FRAME_STATE_LENGTH_LOW:
@@ -104,6 +113,13 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             // bytes_received = unescaped payload bytes (matches LENGTH field)
             // total_bytes_processed = all bytes including escape sequences
             parser->total_bytes_processed++;
+            
+            // Debug: Show byte processing progress for first few bytes
+            if (parser->total_bytes_processed <= 5) {
+                diagnostic_char('0' + parser->total_bytes_processed); // Show position 1-5
+            } else if (parser->total_bytes_processed == 10) {
+                diagnostic_char('T'); // Ten bytes processed
+            }
             
             if (parser->bytes_received < parser->frame.payload_length) {
                 
