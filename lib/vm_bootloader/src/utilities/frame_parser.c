@@ -77,20 +77,24 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             
         case FRAME_STATE_SYNC:
             // Expecting length high byte
+            diagnostic_char('H'); // High byte of length
             parser->frame.payload_length = ((uint16_t)byte) << 8;
             parser->state = FRAME_STATE_LENGTH_HIGH;
             break;
             
         case FRAME_STATE_LENGTH_HIGH:
             // Expecting length low byte
+            diagnostic_char('L'); // Low byte of length
             parser->frame.payload_length |= byte;
             
             // Validate payload length
             if (parser->frame.payload_length > BOOTLOADER_MAX_PAYLOAD_SIZE) {
+                diagnostic_char('X'); // Length too large
                 frame_parser_reset(parser);
                 return BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE;
             }
             
+            diagnostic_char('P'); // Payload parsing start
             parser->state = FRAME_STATE_LENGTH_LOW;
             parser->bytes_received = 0;
             break;
