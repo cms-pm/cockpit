@@ -11,9 +11,9 @@
 #include <string.h>
 #include <stdint.h>
 
-
-// External CRC16 function
+// External functions
 extern uint16_t calculate_frame_crc16(uint16_t length, const uint8_t* payload);
+extern void diagnostic_char(char c);
 
 void frame_parser_init(frame_parser_t* parser) {
     if (!parser) return;
