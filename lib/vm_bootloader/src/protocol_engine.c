@@ -42,11 +42,14 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
 static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response);
 static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_internal_t* ctx);
 
-// Oracle-clean diagnostic output functions - DISABLED during frame transmission
+// Oracle-clean diagnostic output functions - SURGICAL DIAGNOSTICS ENABLED  
 void diagnostic_char(char c) {
-    // Disable diagnostics completely during Oracle protocol to prevent frame corruption
-    // The diagnostics were interfering with frame structure
-    (void)c; // Suppress unused parameter warning
+    // Enable SURGICAL diagnostics for data handler failure analysis
+    // Allow specific critical markers: T(timeout), D(decode), C(crc), S(state), L(large)
+    if (c == 'T' || c == 'D' || c == 'C' || c == 'S' || c == 'L' || c == 'P' || c == 'R' || c == 'W') {
+        uart_write_char(c);
+    }
+    // Suppress all other diagnostic output to maintain Oracle frame integrity
 }
 
 void vm_bootloader_enable_diagnostics_after_handshake(void) {

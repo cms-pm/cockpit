@@ -541,30 +541,51 @@ class ProtocolClient:
         bootloader_req = bootloader_pb2.BootloaderRequest()
         bootloader_req.sequence_id = 3  # Increment from prepare
         
-        # Use fixed DataPacket if needed
-        if 'final_data_packet_serialized' in locals():
-            # We have a manually constructed DataPacket - need to reconstruct the full request
-            logger.debug("Using nanopb-compatible manual DataPacket construction")
-            # For now, use the standard approach and let the manual fix handle the DataPacket part
-            
-        bootloader_req.data.CopyFrom(data_packet)
+        # CRITICAL FIX: Use nanpb-compatible DataPacket construction
+        logger.info("Using nanpb-compatible manual DataPacket construction for bootloader compatibility")
+        nanpb_data_packet_bytes = self._create_nanopb_compatible_datapacket(data_packet)
+        logger.debug(f"Nanpb DataPacket created: {len(nanpb_data_packet_bytes)} bytes")
+        logger.debug(f"Nanpb DataPacket hex: {nanpb_data_packet_bytes.hex()}")
+        
+        # Create manual BootloaderRequest with nanpb-compatible DataPacket
+        # Field 1: sequence_id (tag=1, wire type=varint)
+        manual_request = bytearray()
+        manual_request.extend([0x08, 0x03])  # sequence_id = 3
+        
+        # Field 3: data field (tag=3, wire type=length-delimited) 
+        manual_request.extend([0x1A])  # tag=3|wire_type=2
+        # Encode DataPacket length as varint
+        data_packet_len = len(nanpb_data_packet_bytes)
+        if data_packet_len >= 0x80:
+            while data_packet_len >= 0x80:
+                manual_request.append((data_packet_len & 0x7F) | 0x80)
+                data_packet_len >>= 7
+            manual_request.append(data_packet_len & 0x7F)
+        else:
+            manual_request.append(data_packet_len)
+        
+        # Add the nanpb-compatible DataPacket bytes
+        manual_request.extend(nanpb_data_packet_bytes)
+        
+        data_payload = bytes(manual_request)
+        logger.debug(f"Manual BootloaderRequest created: {len(data_payload)} bytes")
+        logger.debug(f"Manual request hex: {data_payload.hex()}")
+        
+        # Skip the standard protobuf serialization - use our manual construction
         
         # Debug: Show what we're sending with enhanced protobuf details
-        logger.debug(f"Data request: sequence_id={bootloader_req.sequence_id}")
+        logger.debug(f"Data request: sequence_id=3 (manual)")
         logger.debug(f"Data packet: offset={data_packet.offset}, size={len(data_packet.data)}, crc32=0x{data_packet.data_crc32:08x}")
-        logger.debug(f"Request which_request: {bootloader_req.WhichOneof('request')}")
+        logger.debug(f"Using manual nanpb-compatible construction")
         
         # ENHANCED DEBUG: Show first few bytes of data for verification
         preview_data = data_packet.data[:16]  # First 16 bytes
         preview_hex = preview_data.hex()
         logger.debug(f"Data preview (first 16 bytes): {preview_hex}")
         
-        # ENHANCED DEBUG: Show protobuf serialization details
-        serialized_size = len(bootloader_req.SerializeToString())
-        logger.debug(f"Protobuf serialized size: {serialized_size} bytes")
-        
-        # Serialize to protobuf bytes
-        data_payload = bootloader_req.SerializeToString()
+        # ENHANCED DEBUG: Show manual construction details
+        logger.debug(f"Manual construction size: {len(data_payload)} bytes")
+        logger.debug(f"Manual payload preview: {data_payload[:32].hex()}...")  # First 32 bytes
         
         try:
             frame = FrameBuilder.build_frame(data_payload)
