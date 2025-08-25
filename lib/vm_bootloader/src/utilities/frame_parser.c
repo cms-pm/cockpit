@@ -76,8 +76,9 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             break;
             
         case FRAME_STATE_SYNC:
-            // Expecting length high byte
-            diagnostic_char('H'); // High byte of length
+            // Expecting length high byte - ALWAYS trigger diagnostic
+            diagnostic_char('H'); // High byte of length (guaranteed)
+            diagnostic_char('I'); // In high byte processing (guaranteed)
             // Show actual high byte value for debugging
             if (byte == 0) diagnostic_char('0');
             else if (byte == 1) diagnostic_char('1'); 
