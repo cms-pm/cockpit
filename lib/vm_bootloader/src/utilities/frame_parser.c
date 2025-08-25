@@ -84,6 +84,7 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             else diagnostic_char('?'); // Unexpected high byte
             parser->frame.payload_length = ((uint16_t)byte) << 8;
             parser->state = FRAME_STATE_LENGTH_HIGH;
+            diagnostic_char('N'); // Next state set (debugging state transition)
             break;
             
         case FRAME_STATE_LENGTH_HIGH:
