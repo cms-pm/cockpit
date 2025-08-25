@@ -132,18 +132,30 @@ class ProtocolClient:
         frame.extend([0x08, 0x00])  # tag=1|wire_type=0, value=0
         
         # Field 2: data (length-delimited)
-        frame.extend([0x12, len(data_packet.data)])  # tag=2|wire_type=2, length
-        frame.extend(data_packet.data)
+        data_len = len(data_packet.data)
+        frame.extend([0x12])  # tag=2|wire_type=2
+        
+        # Encode length as varint (for lengths > 127)
+        if data_len >= 0x80:
+            while data_len >= 0x80:
+                frame.append((data_len & 0x7F) | 0x80)
+                data_len >>= 7
+            frame.append(data_len & 0x7F)
+        else:
+            frame.append(data_len)  # Single byte for lengths < 128
+            
+        frame.extend(data_packet.data)  # Add actual data bytes
         
         # Field 3: crc32 (varint encoding)
         frame.extend([0x18])  # tag=3|wire_type=0
         
-        # Encode CRC32 as varint
+        # Encode CRC32 as varint (handle large values correctly)
         crc32_value = data_packet.data_crc32
         while crc32_value >= 0x80:
-            frame.append((crc32_value & 0x7F) | 0x80)  # Continuation bit
+            byte_val = (crc32_value & 0x7F) | 0x80  # Continuation bit
+            frame.append(byte_val & 0xFF)  # Ensure byte range
             crc32_value >>= 7
-        frame.append(crc32_value & 0x7F)  # Final byte
+        frame.append((crc32_value & 0x7F) & 0xFF)  # Final byte, ensure range
         
         return bytes(frame)
     
@@ -516,16 +528,8 @@ class ProtocolClient:
         # Ensure data field is set correctly
         data_packet.data = test_data
         
-        # VERIFICATION: Check that offset field will be serialized
-        temp_serialized = data_packet.SerializeToString()
-        if temp_serialized.startswith(b'\x08\x00'):  # Field 1, wire type 0, value 0
-            logger.debug("✅ Offset field correctly serialized")
-            final_data_packet_serialized = temp_serialized
-        else:
-            logger.warning("⚠️  Offset field missing - applying nanopb compatibility fix")
-            # NANOPB COMPATIBILITY FIX: Manual protobuf construction with explicit offset
-            final_data_packet_serialized = self._create_nanopb_compatible_datapacket(data_packet)
-            logger.debug("✅ Applied manual nanopb-compatible serialization")
+        # TEMPORARY: Disable manual serialization and use Python protobuf directly for now
+        logger.debug("Using standard Python protobuf serialization for DataPacket")
         
         logger.debug(f"DataPacket created - offset: {data_packet.offset}, data_length: {len(test_data)}")
         
