@@ -69,8 +69,11 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
     switch (parser->state) {
         case FRAME_STATE_IDLE:
             if (byte == BOOTLOADER_FRAME_START) {
+                diagnostic_char('S'); // START byte detected (we see this)
+                diagnostic_char('T'); // Testing diagnostic system
                 parser->state = FRAME_STATE_SYNC;
                 parser->bytes_received = 0;
+                diagnostic_char('R'); // Ready for next state
             }
             // Ignore other bytes when idle
             break;
