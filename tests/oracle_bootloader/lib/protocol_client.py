@@ -541,13 +541,13 @@ class ProtocolClient:
         bootloader_req = bootloader_pb2.BootloaderRequest()
         bootloader_req.sequence_id = 3  # Increment from prepare
         
-        # CRITICAL FIX: Use nanpb-compatible DataPacket construction
-        logger.info("Using nanpb-compatible manual DataPacket construction for bootloader compatibility")
-        nanpb_data_packet_bytes = self._create_nanopb_compatible_datapacket(data_packet)
-        logger.debug(f"Nanpb DataPacket created: {len(nanpb_data_packet_bytes)} bytes")
-        logger.debug(f"Nanpb DataPacket hex: {nanpb_data_packet_bytes.hex()}")
+        # CRITICAL FIX: Use nanopb-compatible DataPacket construction
+        logger.info("Using nanopb-compatible manual DataPacket construction for bootloader compatibility")
+        nanopb_data_packet_bytes = self._create_nanopb_compatible_datapacket(data_packet)
+        logger.debug(f"Nanpb DataPacket created: {len(nanopb_data_packet_bytes)} bytes")
+        logger.debug(f"Nanpb DataPacket hex: {nanopb_data_packet_bytes.hex()}")
         
-        # Create manual BootloaderRequest with nanpb-compatible DataPacket
+        # Create manual BootloaderRequest with nanopb-compatible DataPacket
         # Field 1: sequence_id (tag=1, wire type=varint)
         manual_request = bytearray()
         manual_request.extend([0x08, 0x03])  # sequence_id = 3
@@ -555,7 +555,7 @@ class ProtocolClient:
         # Field 3: data field (tag=3, wire type=length-delimited) 
         manual_request.extend([0x1A])  # tag=3|wire_type=2
         # Encode DataPacket length as varint
-        data_packet_len = len(nanpb_data_packet_bytes)
+        data_packet_len = len(nanopb_data_packet_bytes)
         if data_packet_len >= 0x80:
             while data_packet_len >= 0x80:
                 manual_request.append((data_packet_len & 0x7F) | 0x80)
@@ -564,8 +564,8 @@ class ProtocolClient:
         else:
             manual_request.append(data_packet_len)
         
-        # Add the nanpb-compatible DataPacket bytes
-        manual_request.extend(nanpb_data_packet_bytes)
+        # Add the nanopb-compatible DataPacket bytes
+        manual_request.extend(nanopb_data_packet_bytes)
         
         data_payload = bytes(manual_request)
         logger.debug(f"Manual BootloaderRequest created: {len(data_payload)} bytes")
@@ -576,7 +576,7 @@ class ProtocolClient:
         # Debug: Show what we're sending with enhanced protobuf details
         logger.debug(f"Data request: sequence_id=3 (manual)")
         logger.debug(f"Data packet: offset={data_packet.offset}, size={len(data_packet.data)}, crc32=0x{data_packet.data_crc32:08x}")
-        logger.debug(f"Using manual nanpb-compatible construction")
+        logger.debug(f"Using manual nanopb-compatible construction")
         
         # ENHANCED DEBUG: Show first few bytes of data for verification
         preview_data = data_packet.data[:16]  # First 16 bytes
@@ -625,7 +625,35 @@ class ProtocolClient:
                     
             except Exception as parse_error:
                 logger.error(f"Failed to parse data response: {parse_error}")
-                logger.debug(f"Response payload: {response_payload.hex()}")
+                logger.debug(f"Response payload ({len(response_payload)} bytes): {response_payload.hex()}")
+                
+                # DECODE 3-BYTE RESPONSE ANALYSIS
+                if len(response_payload) == 3:
+                    logger.info("🔍 ANALYZING 3-BYTE RESPONSE PATTERN:")
+                    logger.info(f"   Raw bytes: {response_payload.hex()}")
+                    logger.info(f"   As integers: {list(response_payload)}")
+                    logger.info(f"   As chars: {[chr(b) if 32 <= b <= 126 else f'\\x{b:02x}' for b in response_payload]}")
+                    
+                    # Check if it's diagnostic characters
+                    diagnostic_chars = []
+                    for b in response_payload:
+                        if 32 <= b <= 126:  # Printable ASCII
+                            diagnostic_chars.append(chr(b))
+                        else:
+                            diagnostic_chars.append(f'\\x{b:02x}')
+                    
+                    logger.info(f"   Diagnostic interpretation: {''.join(diagnostic_chars)}")
+                    
+                    # Check for known patterns
+                    if response_payload == b'SGH':
+                        logger.info("   → SUCCESS pattern: S(start) G(got frame) H(handle success)")
+                    elif response_payload[0:2] == b'SG':
+                        logger.info(f"   → Partial success: S(start) G(got frame) + {diagnostic_chars[2]}")
+                    elif b'D' in response_payload:
+                        logger.info("   → Contains D(decode) - protobuf decode attempt")
+                    elif b'P' in response_payload:
+                        logger.info("   → Contains P(protobuf) - protobuf processing")
+                    
                 return ProtocolResult(False, f"Invalid data response: {parse_error}")
                 
         except Exception as e:
