@@ -78,6 +78,23 @@ typedef struct {
     uint16_t received_crc;
 } bootloader_frame_t;
 
+// Frame parser debug buffer
+#define FRAME_DEBUG_BUFFER_SIZE 10
+typedef struct {
+    uint8_t bytes[FRAME_DEBUG_BUFFER_SIZE];
+    uint8_t states[FRAME_DEBUG_BUFFER_SIZE]; 
+    uint8_t count;
+    bool buffer_complete;
+} frame_debug_buffer_t;
+
+// Protocol flow debug buffer for A-J flow tracking
+#define PROTOCOL_FLOW_BUFFER_SIZE 16
+typedef struct {
+    char flow_steps[PROTOCOL_FLOW_BUFFER_SIZE];
+    uint8_t step_count;
+    bool flow_complete;
+} protocol_flow_debug_t;
+
 // Frame parser context  
 typedef struct {
     frame_parse_state_t state;
@@ -86,6 +103,7 @@ typedef struct {
     uint32_t last_activity_time;  // For timeout detection
     bool escape_next;             // For bit stuffing/escape sequence handling
     uint16_t total_bytes_processed; // Total bytes including escapes (for debugging)
+    frame_debug_buffer_t debug_buffer; // Debug hex dump buffer
 } frame_parser_t;
 
 // Flash write context for 64-bit alignment
@@ -114,6 +132,13 @@ void frame_parser_init(frame_parser_t* parser);
 bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, uint8_t byte);
 bool frame_parser_is_complete(const frame_parser_t* parser);
 void frame_parser_reset(frame_parser_t* parser);
+void frame_parser_debug_dump(const frame_parser_t* parser); // Output buffered debug data
+frame_parser_t* protocol_get_frame_parser(void); // Get global frame parser for debug access
+
+// Protocol flow debug functions
+void protocol_flow_log_step(char step); // Log A-J flow step
+void protocol_flow_debug_dump(void);    // Output protocol flow debug data
+void protocol_flow_reset(void);         // Reset flow debug buffer
 
 // Frame encoding/decoding
 bootloader_protocol_result_t frame_encode(const uint8_t* payload, uint16_t length, uint8_t* frame_buffer, size_t* frame_length);
@@ -152,6 +177,9 @@ typedef struct {
     bool data_received;                 // DataPacket received flag
     uint32_t expected_data_length;      // From prepare request
     uint32_t actual_data_length;        // From DataPacket
+    
+    // Protocol flow debug tracking
+    protocol_flow_debug_t flow_debug;   // A-J flow diagnostics buffer
 } protocol_context_t;
 
 // Protocol context management

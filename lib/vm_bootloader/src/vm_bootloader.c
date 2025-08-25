@@ -582,5 +582,29 @@ static void vm_bootloader_handle_timeout(vm_bootloader_context_internal_t* ctx)
     
     if (ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
         uart_write_string("CockpitVM Bootloader session timeout handled\r\n");
+        
+        // Output protocol flow debug data first
+        protocol_flow_debug_dump();
+        
+        // Output frame parser debug data on timeout
+        uart_write_string("=== TIMEOUT DEBUG: FRAME PARSER DATA ===\r\n");
+        frame_parser_t* parser = protocol_get_frame_parser();
+        if (parser) {
+            // Check if debug buffer has data
+            if (parser->debug_buffer.count > 0) {
+                uart_write_string("Frame parser has debug data:\r\n");
+                frame_parser_debug_dump(parser);
+            } else {
+                uart_write_string("Frame parser has NO debug data - buffer empty\r\n");
+                uart_write_string("Buffer count: ");
+                char count_str[4];
+                sprintf(count_str, "%d", parser->debug_buffer.count);
+                uart_write_string(count_str);
+                uart_write_string("\r\n");
+            }
+        } else {
+            uart_write_string("ERROR: No frame parser available\r\n");
+        }
+        uart_write_string("=== END TIMEOUT DEBUG ===\r\n");
     }
 }

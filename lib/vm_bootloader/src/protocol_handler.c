@@ -12,8 +12,6 @@
 #include "host_interface/host_interface.h"
 #include <string.h>
 
-// Oracle-clean diagnostic output (declaration only - defined in protocol_engine.c)
-extern void diagnostic_char(char c);
 
 // External functions
 extern void protocol_context_init(protocol_context_t* ctx);
@@ -77,40 +75,27 @@ bootloader_protocol_result_t protocol_handle_request(const BootloaderRequest* re
     // Dispatch based on request type
     bootloader_protocol_result_t result = BOOTLOADER_PROTOCOL_SUCCESS;
     
-    // DEBUG: Show dispatch entry and which_request value
-    diagnostic_char('Q'); // reQuest dispatch marker
-    diagnostic_char('0' + (char)request->which_request); // Show which field
     
     switch (request->which_request) {
         case BootloaderRequest_handshake_tag:
-            diagnostic_char('H'); // Handshake case
             response->which_response = BootloaderResponse_handshake_tag;
             result = handle_handshake_request(&request->request.handshake, 
                                             &response->response.handshake);
             break;
             
         case BootloaderRequest_data_tag:
-            diagnostic_char('T'); // daTa case
             response->which_response = BootloaderResponse_ack_tag;
             result = handle_data_packet(&request->request.data, 
                                       &response->response.ack);
             break;
             
         case BootloaderRequest_flash_program_tag:
-            diagnostic_char('F'); // Flash case
-            // Debug: Show if it's prepare (false) or verify (true) phase
-            if (request->request.flash_program.verify_after_program) {
-                diagnostic_char('V'); // Verify phase
-            } else {
-                diagnostic_char('P'); // Prepare phase
-            }
             // Response type set by handler based on operation type
             result = handle_flash_program_request(&request->request.flash_program, 
                                                 response);
             break;
             
         default:
-            diagnostic_char('U'); // Unknown/invalid case
             response->result = ResultCode_ERROR_INVALID_REQUEST;
             return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
@@ -141,22 +126,17 @@ static bootloader_protocol_result_t handle_handshake_request(
     
     protocol_context_t* ctx = protocol_get_context();
     
-    // DEBUG: Handshake processing markers
-    diagnostic_char('V'); // Validation start
     
     // Validate capabilities - simple string matching for now
     if (strstr(req->capabilities, "flash_program") == NULL) {
-        diagnostic_char('X'); // Capability validation failed
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
     
     // Validate max packet size
     if (req->max_packet_size > BOOTLOADER_MAX_PAYLOAD_SIZE) {
-        diagnostic_char('Y'); // Packet size validation failed
         return BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE;
     }
     
-    diagnostic_char('B'); // Building response
     
     // Build response with CockpitVM identification
     strncpy(resp->bootloader_version, "CockpitVM-4.6.3", sizeof(resp->bootloader_version) - 1);
@@ -169,12 +149,10 @@ static bootloader_protocol_result_t handle_handshake_request(
     resp->flash_page_size = BOOTLOADER_FLASH_PAGE_SIZE;
     resp->target_flash_address = BOOTLOADER_TEST_PAGE_ADDR;
     
-    diagnostic_char('S'); // State update
     
     // Update protocol state
     ctx->state = PROTOCOL_STATE_HANDSHAKE_COMPLETE;
     
-    diagnostic_char('K'); // handshake complete (success)
     
     return BOOTLOADER_PROTOCOL_SUCCESS;
 }
@@ -182,37 +160,28 @@ static bootloader_protocol_result_t handle_handshake_request(
 static bootloader_protocol_result_t handle_data_packet(
     const DataPacket* packet, Acknowledgment* ack) {
     
-    diagnostic_char('D'); // Data packet processing start
     protocol_context_t* ctx = protocol_get_context();
     
     // Validate protocol state
     if (ctx->state != PROTOCOL_STATE_READY_FOR_DATA) {
-        diagnostic_char('S'); // State error
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
-    diagnostic_char('1'); // State validation passed
     
     // Validate offset (single-packet only for Phase 4.5.2C)
     if (packet->offset != 0) {
-        diagnostic_char('O'); // Offset error
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
-    diagnostic_char('2'); // Offset validation passed
     
     // Validate data length matches expected
     if (packet->data.size != ctx->expected_data_length) {
-        diagnostic_char('L'); // Length error
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
-    diagnostic_char('3'); // Length validation passed
     
     // Verify data CRC32 (double CRC protection)
     uint32_t calculated_crc = calculate_crc32(packet->data.bytes, packet->data.size);
     if (calculated_crc != packet->data_crc32) {
-        diagnostic_char('C'); // CRC error
         return BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH;
     }
-    diagnostic_char('4'); // CRC validation passed
     
     // Stage data using Phase 4.5.2B flash staging
     bootloader_protocol_result_t result = flash_stage_data(&ctx->flash_ctx, 
@@ -280,49 +249,38 @@ static bootloader_protocol_result_t handle_flash_program_request(
         
     } else {
         // Phase 1: Prepare operation
-        diagnostic_char('1'); // Prepare phase entry
         if (ctx->state != PROTOCOL_STATE_HANDSHAKE_COMPLETE) {
-            diagnostic_char('S'); // State error
             return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
         }
         
         // Validate data length
-        diagnostic_char('2'); // Length validation
         if (req->total_data_length == 0 || req->total_data_length > BOOTLOADER_MAX_PAYLOAD_SIZE) {
-            diagnostic_char('L'); // Length error
             return BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE;
         }
         
         // Initialize flash context and erase page
-        diagnostic_char('3'); // Flash init
         result = flash_context_init(&ctx->flash_ctx);
         if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
-            diagnostic_char('I'); // Init error
             return result;
         }
         
-        diagnostic_char('4'); // Flash erase
         result = flash_erase_page(BOOTLOADER_TEST_PAGE_ADDR);
         if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
-            diagnostic_char('E'); // Erase error
             return result;
         }
         
         // Update context
-        diagnostic_char('5'); // Context update
         ctx->expected_data_length = req->total_data_length;
         ctx->data_received = false;
         ctx->actual_data_length = 0;
         ctx->state = PROTOCOL_STATE_READY_FOR_DATA;
         
         // Build acknowledgment
-        diagnostic_char('6'); // Response build
         response->which_response = BootloaderResponse_ack_tag;
         response->response.ack.success = true;
         strncpy(response->response.ack.message, "ready for data", 
                 sizeof(response->response.ack.message) - 1);
         response->response.ack.message[sizeof(response->response.ack.message) - 1] = '\0';
-        diagnostic_char('7'); // Response complete
     }
     
     return BOOTLOADER_PROTOCOL_SUCCESS;

@@ -10,10 +10,10 @@
 #include "host_interface/host_interface.h"
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // External functions
 extern uint16_t calculate_frame_crc16(uint16_t length, const uint8_t* payload);
-extern void diagnostic_char(char c);
 
 void frame_parser_init(frame_parser_t* parser) {
     if (!parser) return;
@@ -26,16 +26,52 @@ void frame_parser_init(frame_parser_t* parser) {
     parser->last_activity_time = get_tick_ms();
     parser->escape_next = false;
     parser->total_bytes_processed = 0;
+    
+    // Initialize debug buffer
+    parser->debug_buffer.count = 0;
+    parser->debug_buffer.buffer_complete = false;
 }
 
 void frame_parser_reset(frame_parser_t* parser) {
     if (!parser) return;
+    
+    // Preserve debug buffer during reset
+    frame_debug_buffer_t saved_debug = parser->debug_buffer;
+    
     frame_parser_init(parser);
+    
+    // Restore debug buffer after reset
+    parser->debug_buffer = saved_debug;
 }
 
 bool frame_parser_is_complete(const frame_parser_t* parser) {
     if (!parser) return false;
     return (parser->state == FRAME_STATE_COMPLETE);
+}
+
+void frame_parser_debug_dump(const frame_parser_t* parser) {
+    if (!parser || parser->debug_buffer.count == 0) return;
+    
+    // Output debug header
+    uart_write_string("\r\n=== FRAME PARSER DEBUG DUMP ===\r\n");
+    
+    for (uint8_t i = 0; i < parser->debug_buffer.count; i++) {
+        // State letter: A=IDLE, B=SYNC, C=LENGTH_HIGH, D=LENGTH_LOW, etc.
+        char state_char = 'A' + parser->debug_buffer.states[i];
+        
+        // Byte as hex
+        uint8_t byte = parser->debug_buffer.bytes[i];
+        char hex_str[8];
+        sprintf(hex_str, "%c%02X ", state_char, byte);
+        uart_write_string(hex_str);
+        
+        // Line break every 5 entries for readability
+        if ((i + 1) % 5 == 0) {
+            uart_write_string("\r\n");
+        }
+    }
+    
+    uart_write_string("\r\n=== END DEBUG DUMP ===\r\n");
 }
 
 static bool is_frame_timeout(const frame_parser_t* parser, uint32_t timeout_ms) {
@@ -66,52 +102,48 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
     // Update activity time
     parser->last_activity_time = get_tick_ms();
     
-    // Debug: Show current state before processing
-    if (parser->state == FRAME_STATE_SYNC) diagnostic_char('Q'); // Query: in SYNC state
+    // Reset debug buffer on new frame start (fresh data for each frame)
+    if (parser->state == FRAME_STATE_IDLE && byte == BOOTLOADER_FRAME_START) {
+        parser->debug_buffer.count = 0;
+        parser->debug_buffer.buffer_complete = false;
+    }
+    
+    // Buffer first 10 bytes with states for post-protocol debug output
+    if (!parser->debug_buffer.buffer_complete && parser->debug_buffer.count < FRAME_DEBUG_BUFFER_SIZE) {
+        parser->debug_buffer.bytes[parser->debug_buffer.count] = byte;
+        parser->debug_buffer.states[parser->debug_buffer.count] = parser->state;
+        parser->debug_buffer.count++;
+        
+        if (parser->debug_buffer.count >= FRAME_DEBUG_BUFFER_SIZE) {
+            parser->debug_buffer.buffer_complete = true;
+        }
+    }
     
     switch (parser->state) {
         case FRAME_STATE_IDLE:
             if (byte == BOOTLOADER_FRAME_START) {
-                diagnostic_char('S'); // START byte detected (we see this)
-                diagnostic_char('T'); // Testing diagnostic system
                 parser->state = FRAME_STATE_SYNC;
                 parser->bytes_received = 0;
-                diagnostic_char('R'); // Ready for next state
             }
             // Ignore other bytes when idle
             break;
             
         case FRAME_STATE_SYNC:
-            // Expecting length high byte - ALWAYS trigger diagnostic
-            diagnostic_char('H'); // High byte of length (guaranteed)
-            diagnostic_char('I'); // In high byte processing (guaranteed)
-            // Show actual high byte value for debugging
-            if (byte == 0) diagnostic_char('0');
-            else if (byte == 1) diagnostic_char('1'); 
-            else diagnostic_char('?'); // Unexpected high byte
+            // Expecting length high byte
             parser->frame.payload_length = ((uint16_t)byte) << 8;
             parser->state = FRAME_STATE_LENGTH_HIGH;
-            diagnostic_char('N'); // Next state set (debugging state transition)
             break;
             
         case FRAME_STATE_LENGTH_HIGH:
-            // Expecting length low byte
-            diagnostic_char('L'); // Low byte of length
-            diagnostic_char('B'); // Bug diagnostic - this should be SYNC state!
-            // Show low byte value range for debugging
-            if (byte < 10) diagnostic_char('0' + byte);
-            else if (byte == 14) diagnostic_char('E'); // Expected 0x0E (14) for 270 bytes
-            else diagnostic_char('?'); // Unexpected low byte
+
             parser->frame.payload_length |= byte;
             
             // Validate payload length
             if (parser->frame.payload_length > BOOTLOADER_MAX_PAYLOAD_SIZE) {
-                diagnostic_char('X'); // Length too large
                 frame_parser_reset(parser);
                 return BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE;
             }
             
-            diagnostic_char('P'); // Payload parsing start
             parser->state = FRAME_STATE_LENGTH_LOW;
             parser->bytes_received = 0;
             parser->total_bytes_processed = 0; // Reset total counter for payload
@@ -123,39 +155,23 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             // total_bytes_processed = all bytes including escape sequences
             parser->total_bytes_processed++;
             
-            // Debug: Show byte processing progress for first few bytes
-            if (parser->total_bytes_processed <= 5) {
-                diagnostic_char('0' + parser->total_bytes_processed); // Show position 1-5
-            } else if (parser->total_bytes_processed == 10) {
-                diagnostic_char('T'); // Ten bytes processed
-            }
-            
             if (parser->bytes_received < parser->frame.payload_length) {
                 
                 // Handle escape sequences with detailed diagnostics
                 if (byte == 0x7D) {
-                    // This is an escape marker - need to read next byte and unescape
-                    diagnostic_char('E'); // Escape sequence detected
                     parser->escape_next = true;
                 } else if (parser->escape_next) {
                     // Previous byte was escape marker - unescape this byte
-                    diagnostic_char('U'); // Unescape completed
                     uint8_t unescaped_byte = byte ^ 0x20;
                     parser->frame.payload[parser->bytes_received] = unescaped_byte;
                     parser->bytes_received++;  // Count unescaped bytes only
                     parser->escape_next = false;
-                    
-                    // Debug: Show critical unescaped bytes
-                    if (unescaped_byte == 0x7D) diagnostic_char('M'); // unescaped to 0x7D (Marker)
-                    if (unescaped_byte == 0x7E) diagnostic_char('F'); // unescaped to 0x7E (Frame)
+
                 } else {
                     // Normal byte, no escaping
                     parser->frame.payload[parser->bytes_received] = byte;
                     parser->bytes_received++;  // Count unescaped bytes only
                     
-                    // Debug: Show critical normal bytes
-                    if (byte == 0x7D) diagnostic_char('m'); // normal 0x7D (should not happen)
-                    if (byte == 0x7E) diagnostic_char('f'); // normal 0x7E (should not happen)
                 }
                 
                 // Check if we've received all unescaped payload bytes
@@ -205,8 +221,6 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             } else {
                 // Invalid END byte
                 frame_parser_reset(parser);
-                // Disable diagnostic output to prevent Oracle frame corruption
-                // uart_write_string("Cx"); // Handle failed
                 return BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID;
             }
             break;

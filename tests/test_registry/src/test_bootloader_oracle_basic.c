@@ -23,6 +23,9 @@
 // CockpitVM Unified Bootloader - Complete lifecycle management
 #include "vm_bootloader.h"
 
+// Bootloader protocol for debug access
+#include "bootloader_protocol.h"
+
 // Test function for non-semihosting output
 void test_print(const char* message)
 {
@@ -78,8 +81,8 @@ void run_bootloader_oracle_basic_main(void)
     vm_bootloader_context_t oracle_basic_ctx;
     vm_bootloader_config_t oracle_basic_config;
     
-    // Oracle basic test configuration
-    oracle_basic_config.session_timeout_ms = 30000;  // 30 seconds for single cycle
+    // Oracle basic test configuration - SHORT timeout for debug testing
+    oracle_basic_config.session_timeout_ms = 10000;   // 5 seconds - short for debug
     oracle_basic_config.frame_timeout_ms = 2000;     // 2 seconds per frame
     oracle_basic_config.initial_mode = VM_BOOTLOADER_MODE_DEBUG;
     oracle_basic_config.enable_debug_output = true;
@@ -131,6 +134,37 @@ void run_bootloader_oracle_basic_main(void)
     uart_write_string("ENTERING_BOOTLOADER_MAIN_LOOP\r\n");
     vm_bootloader_run_result_t oracle_result = vm_bootloader_main_loop(&oracle_basic_ctx);
     uart_write_string("EXITED_BOOTLOADER_MAIN_LOOP\r\n");
+    
+    // Give Oracle time to disconnect cleanly before debug output
+    uart_write_string("Waiting for Oracle disconnect...\r\n");
+    delay_ms(3000); // 3 second delay for Oracle to disconnect
+    
+    // Output frame parser debug data for analysis  
+    uart_write_string("\r\n=== FRAME PARSER DEBUG ANALYSIS ===\r\n");
+    uart_write_string("Connect with CuteCom to see this debug data!\r\n");
+    frame_parser_t* parser = protocol_get_frame_parser();
+    if (parser) {
+        frame_parser_debug_dump(parser);
+    } else {
+        uart_write_string("No frame parser available\r\n");
+    }
+    uart_write_string("=== END FRAME PARSER DEBUG ===\r\n");
+    
+    // Keep outputting debug info in a loop for CuteCom viewing
+    uart_write_string("\r\n=== DEBUG LOOP FOR CUTECOM VIEWING ===\r\n");
+    for (int i = 0; i < 5; i++) {
+        uart_write_string("Debug loop iteration: ");
+        char iter_str[4];
+        sprintf(iter_str, "%d", i + 1);
+        uart_write_string(iter_str);
+        uart_write_string("\r\n");
+        
+        if (parser) {
+            frame_parser_debug_dump(parser);
+        }
+        
+        delay_ms(2000); // 2 second delay between iterations
+    }
     
     // Report Oracle basic test results
     uart_write_string("\r\n");

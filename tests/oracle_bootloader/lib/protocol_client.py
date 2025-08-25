@@ -332,6 +332,14 @@ class ProtocolClient:
         try:
             # Build and send frame
             frame = FrameBuilder.build_frame(handshake_payload)
+            
+            # ORACLE INVESTIGATION: Raw frame hex logging
+            logger.info(f"🔍 ORACLE FRAME INVESTIGATION - HANDSHAKE FRAME:")
+            logger.info(f"   ACTUAL_FRAME_HEX: {frame.hex()}")
+            logger.info(f"   FRAME_LENGTH: {len(frame)} bytes") 
+            logger.info(f"   FRAME_BREAKDOWN: START={frame[0]:02X} LEN_H={frame[1]:02X} LEN_L={frame[2]:02X}")
+            logger.info(f"   EXPECTED_PAYLOAD_LENGTH: {len(handshake_payload)} bytes")
+            
             if not self.send_raw_frame(frame):
                 return ProtocolResult(False, "Failed to send handshake frame")
             
@@ -468,6 +476,14 @@ class ProtocolClient:
         
         try:
             frame = FrameBuilder.build_frame(prepare_payload)
+            
+            # ORACLE INVESTIGATION: Raw frame hex logging
+            logger.info(f"🔍 ORACLE FRAME INVESTIGATION - PREPARE FRAME:")
+            logger.info(f"   ACTUAL_FRAME_HEX: {frame.hex()}")
+            logger.info(f"   FRAME_LENGTH: {len(frame)} bytes")
+            logger.info(f"   FRAME_BREAKDOWN: START={frame[0]:02X} LEN_H={frame[1]:02X} LEN_L={frame[2]:02X}")
+            logger.info(f"   EXPECTED_PAYLOAD_LENGTH: {len(prepare_payload)} bytes")
+            
             logger.debug(f"Sending prepare frame ({len(frame)} bytes) for {data_length} bytes of data")
             if not self.send_raw_frame(frame):
                 return ProtocolResult(False, "Failed to send prepare frame")
@@ -571,14 +587,23 @@ class ProtocolClient:
         # ENHANCED DEBUG: Show first few bytes of data for verification
         preview_data = data_packet.data[:16]  # First 16 bytes
         preview_hex = data_packet.data.hex()
-        logger.debug(f"Data preview (first 16 bytes): {preview_hex}")
+        logger.debug(f"Data bytes: {preview_hex}")
         
         # ENHANCED DEBUG: Show payload construction details
         logger.debug(f"Payload construction size: {len(data_payload)} bytes")
-        logger.debug(f"Payload payload preview: {data_payload[:32].hex()}...")  # First 32 bytes
+        logger.debug(f"Payload bytes: {data_payload.hex()}...")  # First 32 bytes
         
         try:
             frame = FrameBuilder.build_frame(data_payload)
+            
+            # ORACLE INVESTIGATION: Raw frame hex logging
+            logger.info(f"🔍 ORACLE FRAME INVESTIGATION - DATA FRAME:")
+            logger.info(f"   ACTUAL_FRAME_HEX: {frame.hex()}")
+            logger.info(f"   FRAME_LENGTH: {len(frame)} bytes")
+            logger.info(f"   FRAME_BREAKDOWN: START={frame[0]:02X} LEN_H={frame[1]:02X} LEN_L={frame[2]:02X}")
+            logger.info(f"   EXPECTED_PAYLOAD_LENGTH: {len(data_payload)} bytes")
+            logger.info(f"   FIRST_10_FRAME_BYTES: {frame[:10].hex()}")
+            
             logger.debug(f"Sending data frame ({len(frame)} bytes) with {len(test_data)} bytes of data")
             if not self.send_raw_frame(frame):
                 return ProtocolResult(False, "Failed to send data frame")

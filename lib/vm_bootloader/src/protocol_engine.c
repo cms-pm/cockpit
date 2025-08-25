@@ -42,15 +42,7 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
 static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response);
 static void vm_bootloader_protocol_update_session_state(vm_bootloader_context_internal_t* ctx);
 
-// Oracle-clean diagnostic output functions - SURGICAL DIAGNOSTICS ENABLED  
-void diagnostic_char(char c) {
-    // Enable SURGICAL diagnostics for data handler failure analysis
-    // Allow specific critical markers: T(timeout), D(decode), C(crc), S(state), L(large)
-    if (c == 'T' || c == 'D' || c == 'C' || c == 'S' || c == 'L' || c == 'P' || c == 'R' || c == 'W') {
-        uart_write_char(c);
-    }
-    // Suppress all other diagnostic output to maintain Oracle frame integrity
-}
+
 
 void vm_bootloader_enable_diagnostics_after_handshake(void) {
     // Disable diagnostic output completely to prevent Oracle frame corruption
@@ -73,6 +65,11 @@ protocol_context_t* vm_bootloader_protocol_get_context(void)
         vm_bootloader_protocol_engine_init();
     }
     return &g_protocol_context;
+}
+
+frame_parser_t* protocol_get_frame_parser(void)
+{
+    return &g_frame_parser;
 }
 
 bool vm_bootloader_protocol_process_frame(vm_bootloader_context_internal_t* ctx)
@@ -174,6 +171,11 @@ static void vm_bootloader_protocol_init_internal(void)
     g_protocol_context.expected_data_length = 0;
     g_protocol_context.actual_data_length = 0;
     
+    // Initialize protocol flow debug buffer
+    memset(&g_protocol_context.flow_debug, 0, sizeof(protocol_flow_debug_t));
+    g_protocol_context.flow_debug.step_count = 0;
+    g_protocol_context.flow_debug.flow_complete = false;
+    
     // Initialize frame parser
     frame_parser_init(&g_frame_parser);
 }
@@ -187,8 +189,6 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
     while (uart_data_available()) {
         uint8_t byte = (uint8_t)uart_read_char();
         
-        // Debug: Show byte being processed
-        if (byte == 0x7E) diagnostic_char('S'); // START byte
         
         // Feed byte to frame parser
         parse_result = frame_parser_process_byte(&g_frame_parser, byte);
@@ -199,18 +199,19 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
             
             // Check if frame is complete
             if (frame_parser_is_complete(&g_frame_parser)) {
-                // DEBUG: Frame complete marker
-                diagnostic_char('G'); // Got complete frame
+                protocol_flow_log_step('A'); // Frame ready for protocol processing
                 
                 // Process complete frame
+                protocol_flow_log_step('B'); // About to call handle_frame
                 bootloader_protocol_result_t handle_result = 
                     vm_bootloader_protocol_handle_frame(ctx, &g_frame_parser.frame);
+                protocol_flow_log_step('C'); // handle_frame returned
                 
                 if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
                     frame_processed = true;
-                    diagnostic_char('H'); // Handle success
+                    protocol_flow_log_step('D'); // Handle success
                 } else {
-                    diagnostic_char('I'); // Handle failed
+                    protocol_flow_log_step('E'); // Handle failed
                 }
                 
                 // Reset parser for next frame
@@ -232,29 +233,7 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
     // Handle any parsing errors that occurred
     if (!frame_processed && parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
         // Frame parsing error - reset and continue
-        diagnostic_char('J'); // Parse error
-        
-        // Debug specific error type
-        switch (parse_result) {
-            case BOOTLOADER_PROTOCOL_ERROR_TIMEOUT:
-                diagnostic_char('T');
-                break;
-            case BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE:
-                diagnostic_char('L');
-                break;
-            case BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH:
-                diagnostic_char('C');
-                break;
-            case BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID:
-                diagnostic_char('F');
-                break;
-            case BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID:
-                diagnostic_char('S');
-                break;
-            default:
-                diagnostic_char('U'); // Unknown error
-                break;
-        }
+        // No diagnostic output to maintain clean slate
     }
     
     frame_parser_reset(&g_frame_parser);
@@ -276,48 +255,27 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
     // Decode protobuf request from frame payload
     pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
     
-    // DEBUG: Add comprehensive protobuf decode diagnostics (Oracle-clean)
-    diagnostic_char('P'); // Protobuf decode attempt
-    
-    // Debug: show payload length and first few bytes
-    char len_debug = '0' + (frame->payload_length % 10);
-    diagnostic_char(len_debug);
-    
-    // Show first 3 bytes of payload for pattern recognition
-    if (frame->payload_length >= 3) {
-        char byte1 = (frame->payload[0] < 32) ? '.' : frame->payload[0];
-        char byte2 = (frame->payload[1] < 32) ? '.' : frame->payload[1]; 
-        char byte3 = (frame->payload[2] < 32) ? '.' : frame->payload[2];
-        diagnostic_char(byte1);
-        diagnostic_char(byte2);
-        diagnostic_char(byte3);
-    }
+    protocol_flow_log_step('F'); // Starting protobuf decode
     
     if (!pb_decode(&input_stream, BootloaderRequest_fields, &g_current_request)) {
-        // Protobuf decode failed - enhanced diagnostics
-        diagnostic_char('D'); // Decode failed marker
+        // Protobuf decode failed
+        protocol_flow_log_step('G'); // Protobuf decode failed
         g_protocol_context.state = PROTOCOL_STATE_ERROR;
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_DECODE;
     }
     
-    // DEBUG: Show we successfully decoded the request
-    diagnostic_char('!'); // Successful decode marker
-    
-    // DEBUG: Decode success markers
-    diagnostic_char('R'); // pRotobuf decode success
-    
-    // Show which union field is set (critical for debugging)
-    diagnostic_char('W'); // Which field marker
-    diagnostic_char('0' + (char)g_current_request.which_request);
+    protocol_flow_log_step('H'); // Protobuf decode success
     
     // Handle the request using protocol handler
-    diagnostic_char('@'); // About to call protocol handler
+    protocol_flow_log_step('I'); // About to call protocol handler
     bootloader_protocol_result_t handle_result = protocol_handle_request(&g_current_request, &g_current_response);
-    diagnostic_char('#'); // Protocol handler returned
+    protocol_flow_log_step('J'); // Protocol handler returned
     
     if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
         // Send response back to Oracle
         return vm_bootloader_protocol_send_response(&g_current_response);
+    } else {
+        protocol_flow_log_step('K'); // Protocol handler failed
     }
     
     return handle_result;
@@ -329,27 +287,23 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     memset(g_response_buffer, 0, sizeof(g_response_buffer));
     memset(g_request_buffer, 0, sizeof(g_request_buffer));
     
-    // DEBUG: Send diagnostic markers about response construction (Oracle-clean)
-    diagnostic_char('A'); // Response function called marker
+    protocol_flow_log_step('L'); // Response function called
+    
     
     // Encode protobuf response
     pb_ostream_t output_stream = pb_ostream_from_buffer(g_response_buffer, sizeof(g_response_buffer));
     
+    protocol_flow_log_step('M'); // Protobuf response encode start
     if (!pb_encode(&output_stream, BootloaderResponse_fields, response)) {
-        diagnostic_char('B'); // Protobuf encode failed
+        protocol_flow_log_step('N'); // Protobuf encode failed
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
     }
+    protocol_flow_log_step('O'); // Protobuf encode success
     
-    // DEBUG: Send protobuf encode success and size
-    diagnostic_char('C'); // Protobuf encode success
-    if (output_stream.bytes_written > 0) {
-        diagnostic_char('D'); // Non-zero bytes written
-    } else {
-        diagnostic_char('Z'); // Zero bytes written!
-    }
     
     // Frame the response - CRITICAL BUG FIX: Initialize frame_length to buffer size
     size_t frame_length = BOOTLOADER_MAX_FRAME_SIZE;  // Set to actual buffer size!
+    protocol_flow_log_step('P'); // Frame encode start
     bootloader_protocol_result_t frame_result = frame_encode(
         g_response_buffer, 
         output_stream.bytes_written,
@@ -358,17 +312,17 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     );
     
     if (frame_result != BOOTLOADER_PROTOCOL_SUCCESS) {
-        diagnostic_char('E'); // Frame encode failed
+        protocol_flow_log_step('Q'); // Frame encode failed
         return frame_result;
     }
-    
-    // DEBUG: Frame encode success
-    diagnostic_char('F'); // Frame encode success
+    protocol_flow_log_step('R'); // Frame encode success
     
     // Send framed response via UART
+    protocol_flow_log_step('S'); // UART transmission start
     for (size_t i = 0; i < frame_length; i++) {
         uart_write_char((char)g_request_buffer[i]);
     }
+    protocol_flow_log_step('T'); // UART transmission complete
     
     // CRITICAL: Enable diagnostics after successful response transmission
     // This ensures Oracle gets clean handshake, then we enable debugging
@@ -426,4 +380,73 @@ bool protocol_is_session_timeout(const protocol_context_t* ctx)
 {
     (void)ctx; // Use global context
     return vm_bootloader_protocol_is_session_timeout();
+}
+
+// === PROTOCOL FLOW DEBUG FUNCTIONS ===
+
+void protocol_flow_log_step(char step) 
+{
+    if (!g_protocol_initialized) {
+        vm_bootloader_protocol_engine_init();
+    }
+    
+    protocol_flow_debug_t* flow = &g_protocol_context.flow_debug;
+    
+    // Reset flow buffer on 'A' (start of new flow)
+    if (step == 'A') {
+        flow->step_count = 0;
+        flow->flow_complete = false;
+    }
+    
+    // Add step to buffer if space available
+    if (flow->step_count < PROTOCOL_FLOW_BUFFER_SIZE - 1) {
+        flow->flow_steps[flow->step_count] = step;
+        flow->step_count++;
+        flow->flow_steps[flow->step_count] = '\0'; // Null terminate
+    }
+    
+    // Mark complete on success steps
+    if (step == 'D' || step == 'J') {
+        flow->flow_complete = true;
+    }
+}
+
+void protocol_flow_debug_dump(void)
+{
+    if (!g_protocol_initialized) {
+        return;
+    }
+    
+    protocol_flow_debug_t* flow = &g_protocol_context.flow_debug;
+    
+    uart_write_string("=== PROTOCOL FLOW DEBUG ===\r\n");
+    
+    if (flow->step_count > 0) {
+        uart_write_string("Flow steps: ");
+        uart_write_string(flow->flow_steps);
+        uart_write_string("\r\n");
+        
+        uart_write_string("Step meanings:\r\n");
+        uart_write_string("  A=Frame ready, B=Call handle, C=Handle returned\r\n");
+        uart_write_string("  D=Handle success, E=Handle failed\r\n");
+        uart_write_string("  F=Protobuf decode start, G=Decode failed, H=Decode success\r\n");
+        uart_write_string("  I=Protocol handler start, J=Handler returned, K=Handler failed\r\n");
+        uart_write_string("  L=Response start, M=Response encode, N=Encode failed, O=Encode success\r\n");
+        uart_write_string("  P=Frame encode, Q=Frame failed, R=Frame success, S=UART start, T=UART done\r\n");
+    } else {
+        uart_write_string("No flow steps recorded\r\n");
+    }
+    
+    uart_write_string("===========================\r\n");
+}
+
+void protocol_flow_reset(void)
+{
+    if (!g_protocol_initialized) {
+        return;
+    }
+    
+    memset(&g_protocol_context.flow_debug, 0, sizeof(protocol_flow_debug_t));
+    g_protocol_context.flow_debug.step_count = 0;
+    g_protocol_context.flow_debug.flow_complete = false;
 }
