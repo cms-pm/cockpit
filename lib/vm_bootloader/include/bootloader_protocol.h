@@ -82,9 +82,10 @@ typedef struct {
 typedef struct {
     frame_parse_state_t state;
     bootloader_frame_t frame;
-    uint16_t bytes_received;
+    uint16_t bytes_received;      // Unescaped payload bytes received
     uint32_t last_activity_time;  // For timeout detection
     bool escape_next;             // For bit stuffing/escape sequence handling
+    uint16_t total_bytes_processed; // Total bytes including escapes (for debugging)
 } frame_parser_t;
 
 // Flash write context for 64-bit alignment

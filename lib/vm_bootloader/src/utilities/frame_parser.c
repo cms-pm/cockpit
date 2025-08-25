@@ -25,6 +25,7 @@ void frame_parser_init(frame_parser_t* parser) {
     parser->frame.received_crc = 0;
     parser->last_activity_time = get_tick_ms();
     parser->escape_next = false;
+    parser->total_bytes_processed = 0;
 }
 
 void frame_parser_reset(frame_parser_t* parser) {
@@ -95,26 +96,32 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             break;
             
         case FRAME_STATE_LENGTH_LOW:
-            // Receiving payload bytes with escape handling
+            // Receiving payload bytes with escape-aware handling
+            // bytes_received = unescaped payload bytes (matches LENGTH field)
+            // total_bytes_processed = all bytes including escape sequences
+            parser->total_bytes_processed++;
+            
             if (parser->bytes_received < parser->frame.payload_length) {
                 
                 // Handle escape sequences
                 if (byte == 0x7D) {
                     // This is an escape marker - need to read next byte and unescape
+                    diagnostic_char('E'); // Escape sequence detected
                     parser->escape_next = true;
                 } else if (parser->escape_next) {
                     // Previous byte was escape marker - unescape this byte
+                    diagnostic_char('U'); // Unescape completed
                     uint8_t unescaped_byte = byte ^ 0x20;
                     parser->frame.payload[parser->bytes_received] = unescaped_byte;
-                    parser->bytes_received++;
+                    parser->bytes_received++;  // Count unescaped bytes only
                     parser->escape_next = false;
                 } else {
                     // Normal byte, no escaping
                     parser->frame.payload[parser->bytes_received] = byte;
-                    parser->bytes_received++;
+                    parser->bytes_received++;  // Count unescaped bytes only
                 }
                 
-                // Check if we've received all payload
+                // Check if we've received all unescaped payload bytes
                 if (parser->bytes_received >= parser->frame.payload_length) {
                     parser->state = FRAME_STATE_PAYLOAD;
                     parser->escape_next = false;  // Reset escape state
