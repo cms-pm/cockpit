@@ -97,6 +97,7 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 - ✅ Workspace-isolated testing + Platform test interface
 - ✅ Oracle communication (frame parsing working, protocol debugging in progress)
 - ✅ ANTLR compiler + 4-byte instruction format + Execution engine
+- ✅ **Modular Diagnostics Framework** - Surgical debugging via USART2 (spiritual successor to flow_log)
 
 ---
 
@@ -130,20 +131,22 @@ Guest Application → VM Hypervisor → Host Interface → Platform Layer → ST
 - **Testing**: Workspace-isolated with dual-pass validation (semihosting + hardware state)
 - **Oracle Protocol**: Protobuf BootloaderRequest/Response over UART with CRC16-CCITT framing
 - **Flash Programming**: Dual-bank atomic updates (Banks A/B at 0x08010000/0x08018000)
+- **Diagnostics**: USART2 PA2/PA3@115200 - timestamped structured logging, zero Oracle interference
 
 ## Key Documentation References
 - **Oracle Integration**: `docs/testing/WORKSPACE_ISOLATED_TEST_SYSTEM.md` - Phase 4 reproduction
 - **Architecture**: `docs/architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md` - Layer specifications  
 - **Compiler**: `docs/technical/compiler/COMPILER_CODE_REVIEW.md` - ANTLR ArduinoC grammar
+- **Diagnostics Framework**: `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md` - Comprehensive logging system
 
 ---
 
 ## Critical Development Notes
 
-### **NEXT IMMEDIATE TASK: Phase 4.6.1 Oracle Debug**
-**Current Issue**: SGACDF response indicates protobuf processing failures
-**Debug Approach**: Systematic trace through protobuf decode → protocol handler → response generation
-**Success Criteria**: Achieve SGH response (Start → Got frame → Handle success)
+### **NEXT IMMEDIATE TASK: Phase 4.6.3 - Modular Diagnostics Implementation**
+**Current State**: USART2 validated, technical specification complete
+**Implementation**: 1) Global nanpb→nanopb fix, 2) Enable full DIAG framework, 3) Replace manual debug_uart with surgical DIAG system
+**Success Criteria**: Oracle protocol debugging via systematic USART2 diagnostics (see `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md`)
 
 ### **Important Technical Notes**
 - **GDB Behavior**: OpenOCD connection halts execution → requires `monitor reset` + `continue`

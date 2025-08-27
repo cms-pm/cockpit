@@ -1,185 +1,219 @@
 /*
- * CockpitVM Bootloader Diagnostics - Implementation
- * 
- * Oracle-style diagnostic logging system outputting to USART2 for
- * Oracle-clean debugging without interference with USART1 protocol.
+ * CockpitVM Bootloader - Modular Diagnostics Framework Implementation
+ * Phase 4.6.3: Structured logging with timestamps and modular output drivers
  */
 
 #include "bootloader_diagnostics.h"
-#include "host_interface/host_interface.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 
-// External timing function for microsecond timestamps
-extern uint32_t get_tick_us(void);
+#ifdef PLATFORM_STM32G4
+#include "platform/platform_interface.h"
+#include "stm32g4xx_hal.h"
+extern HAL_StatusTypeDef stm32g4_debug_uart_init(uint32_t baud_rate);
+extern HAL_StatusTypeDef stm32g4_debug_uart_transmit(uint8_t* data, uint16_t size);
+extern uint32_t get_tick_ms(void);
+#endif
 
-// Diagnostic system state
-static bool g_diag_enabled = false;
-static bool g_diag_initialized = false;
-static bootloader_diag_level_t g_diag_level = DIAG_LEVEL_INFO;
-static uint32_t g_session_start_time_us = 0;
+// =================================================================
+// Global State
+// =================================================================
+static const diag_output_driver_t* g_output_driver = NULL;
+static bool g_diagnostics_initialized = false;
+static uint32_t g_init_timestamp = 0;
 
-// Component name strings for Oracle-style output
-static const char* component_names[] = {
-    "PROTOCOL_ENGINE",
-    "FRAME_PARSER",
-    "NANOPB_DECODE",
-    "NANOPB_ENCODE", 
-    "MESSAGE_HANDLER",
-    "FLASH_PROGRAMMER",
-    "VM_BOOTLOADER",
-    "CONTEXT_MANAGER"
+// =================================================================
+// Level and Status Code Strings
+// =================================================================
+static const char* level_strings[] = {
+    "ERROR", "WARN ", "INFO ", "DEBUG", "TRACE"
 };
 
-// Level name strings for Oracle-style output
-static const char* level_names[] = {
-    "ERROR",
-    "WARN ",
-    "INFO ",
-    "DEBUG",
-    "TRACE"
+static const char* status_strings[] = {
+    "SUCCESS", "ERR_GEN", "ERR_PB ", "ERR_FRM", "ERR_PROT", 
+    "ERR_FLH", "ERR_MEM", "ERR_TOUT", "ERR_CRC", "ERR_STAT"
 };
 
 // =================================================================
-// Internal Helper Functions
+// USART2 Output Driver Implementation
 // =================================================================
-
-static void diag_raw_output(const char* str) {
-    if (!g_diag_enabled || !g_diag_initialized) {
-        return;
-    }
-    
-    debug_uart_write_string(str);
+#ifdef PLATFORM_STM32G4
+static bool usart2_init(uint32_t baud_rate) {
+    return (stm32g4_debug_uart_init(baud_rate) == HAL_OK);
 }
 
-static uint32_t diag_get_timestamp_us(void) {
-    uint32_t current_time = get_tick_us();
-    if (g_session_start_time_us == 0) {
-        g_session_start_time_us = current_time;
-        return 0;
-    }
-    return current_time - g_session_start_time_us;
+static bool usart2_write(const char* message, uint16_t length) {
+    return (stm32g4_debug_uart_transmit((uint8_t*)message, length) == HAL_OK);
 }
 
+static void usart2_flush(void) {
+    // STM32 HAL handles flushing automatically
+}
+
+const diag_output_driver_t diag_driver_usart2 = {
+    .name = "USART2",
+    .init = usart2_init,
+    .write = usart2_write,
+    .flush = usart2_flush
+};
+#endif
+
 // =================================================================
-// Public API Implementation
+// Core Implementation
 // =================================================================
 
-bool bootloader_diag_init(bool enable_output) {
-    // Initialize debug UART (USART2) at 115200 baud
-    debug_uart_begin(115200);
-    
-    g_diag_enabled = enable_output;
-    g_diag_initialized = true;
-    g_session_start_time_us = 0; // Reset on next timestamp call
-    
-    if (enable_output) {
-        // Output Oracle-style initialization message
-        diag_raw_output("\r\n=== CockpitVM Bootloader Diagnostics Started ===\r\n");
-        diag_raw_output("Format: [timestamp_us] LEVEL COMPONENT: message\r\n");
-        diag_raw_output("A-J Flow: Frame processing steps A through J\r\n");
-        diag_raw_output("Debug Channel: USART2 PA2/PA3 @ 115200 8N1\r\n");
-        diag_raw_output("Protocol Channel: USART1 PA9/PA10 @ 115200 8N1\r\n");
-        diag_raw_output("=================================================\r\n\r\n");
+bool bootloader_diag_init(const diag_output_driver_t* driver, uint32_t baud_rate) {
+    // Use default USART2 driver if none specified
+    if (driver == NULL) {
+#ifdef PLATFORM_STM32G4
+        driver = &diag_driver_usart2;
+#else
+        return false; // No default driver available
+#endif
     }
+    
+    // Initialize the output driver
+    if (!driver->init(baud_rate)) {
+        return false;
+    }
+    
+    g_output_driver = driver;
+    g_diagnostics_initialized = true;
+    
+#ifdef PLATFORM_STM32G4
+    g_init_timestamp = get_tick_ms();
+#else
+    g_init_timestamp = 0;
+#endif
+    
+    // Send initialization message
+    char init_msg[256];
+    snprintf(init_msg, sizeof(init_msg), 
+            "\r\n=== CockpitVM Diagnostics v4.6.3 ===\r\n"
+            "Driver: %s @ %lu baud\r\n"
+            "Format: [time] [level] [module] [file:line] [status] msg\r\n\r\n",
+            driver->name, (unsigned long)baud_rate);
+    
+    g_output_driver->write(init_msg, strlen(init_msg));
     
     return true;
 }
 
-void bootloader_diag_set_level(bootloader_diag_level_t level) {
-    g_diag_level = level;
-}
-
-void bootloader_diag_set_enabled(bool enabled) {
-    g_diag_enabled = enabled;
-}
-
-void bootloader_diag_log(bootloader_diag_level_t level, 
-                        bootloader_diag_component_t component,
-                        const char* message) {
-    if (!g_diag_enabled || !g_diag_initialized || level > g_diag_level) {
+void bootloader_diag_log_full(log_level_t level, const char* module, const char* file, 
+                             int line, status_code_t status, const char* format, ...) {
+    if (!g_diagnostics_initialized || !g_output_driver) {
         return;
     }
     
-    // Format: [timestamp_us] LEVEL COMPONENT: message
-    char formatted_msg[256];
-    uint32_t timestamp = diag_get_timestamp_us();
-    
-    snprintf(formatted_msg, sizeof(formatted_msg), 
-             "[%08lu] %s %s: %s\r\n",
-             timestamp,
-             level_names[level],
-             component_names[component],
-             message ? message : "NULL");
-    
-    diag_raw_output(formatted_msg);
-}
-
-void bootloader_diag_logf(bootloader_diag_level_t level, 
-                         bootloader_diag_component_t component,
-                         const char* format, ...) {
-    if (!g_diag_enabled || !g_diag_initialized || level > g_diag_level) {
-        return;
+    // Extract filename from full path
+    const char* filename = file;
+    const char* last_slash = strrchr(file, '/');
+    if (last_slash) {
+        filename = last_slash + 1;
+    }
+    const char* last_backslash = strrchr(filename, '\\');
+    if (last_backslash) {
+        filename = last_backslash + 1;
     }
     
-    char message_buffer[192];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(message_buffer, sizeof(message_buffer), format, args);
-    va_end(args);
+    // Get current timestamp (relative to initialization)
+    uint32_t timestamp = 0;
+#ifdef PLATFORM_STM32G4
+    timestamp = get_tick_ms() - g_init_timestamp;
+#endif
     
-    bootloader_diag_log(level, component, message_buffer);
-}
-
-void bootloader_diag_flow_step(bootloader_diag_flow_step_t flow_step, 
-                              const char* context) {
-    if (!g_diag_enabled || !g_diag_initialized) {
-        return;
-    }
+    // Build log message
+    char log_buffer[512];
+    int header_len = snprintf(log_buffer, sizeof(log_buffer),
+                             "[%08lu] [%s] [%s] [%s:%d] [%s] ",
+                             (unsigned long)timestamp,
+                             level < 5 ? level_strings[level] : "UNKN ",
+                             module ? module : "NULL",
+                             filename,
+                             line,
+                             status < 10 ? status_strings[status] : "UNKN");
     
-    // Oracle-style A-J flow output: [timestamp] FLOW_X: context
-    char flow_msg[128];
-    uint32_t timestamp = diag_get_timestamp_us();
-    
-    snprintf(flow_msg, sizeof(flow_msg),
-             "[%08lu] FLOW_%c: %s\r\n",
-             timestamp,
-             (char)flow_step,
-             context ? context : "");
-    
-    diag_raw_output(flow_msg);
-}
-
-void bootloader_diag_log_buffer(bootloader_diag_level_t level,
-                               bootloader_diag_component_t component,
-                               const char* label,
-                               const uint8_t* buffer,
-                               size_t length) {
-    if (!g_diag_enabled || !g_diag_initialized || level > g_diag_level) {
-        return;
-    }
-    
-    if (buffer == NULL || length == 0) {
-        bootloader_diag_logf(level, component, "%s: NULL or empty buffer", label ? label : "BUFFER");
-        return;
-    }
-    
-    // Oracle-style hex dump with header
-    bootloader_diag_logf(level, component, "%s (%u bytes):", label ? label : "BUFFER", (unsigned int)length);
-    
-    // Hex output in 16-byte lines
-    char hex_line[64];
-    for (size_t i = 0; i < length; i += 16) {
-        char hex_bytes[64] = {0};
-        size_t line_length = (length - i > 16) ? 16 : (length - i);
+    if (header_len > 0 && header_len < (int)sizeof(log_buffer)) {
+        // Add the formatted message
+        va_list args;
+        va_start(args, format);
+        int msg_len = vsnprintf(log_buffer + header_len, 
+                               sizeof(log_buffer) - header_len - 2, // Reserve space for \r\n
+                               format, args);
+        va_end(args);
         
-        for (size_t j = 0; j < line_length; j++) {
-            snprintf(hex_bytes + (j * 3), 4, "%02X ", buffer[i + j]);
+        if (msg_len > 0) {
+            int total_len = header_len + msg_len;
+            if (total_len < (int)sizeof(log_buffer) - 2) {
+                // Add newline
+                log_buffer[total_len] = '\r';
+                log_buffer[total_len + 1] = '\n';
+                total_len += 2;
+                
+                // Send to output driver
+                g_output_driver->write(log_buffer, total_len);
+            }
+        }
+    }
+}
+
+void bootloader_diag_flow_step(char step, const char* description, status_code_t status) {
+    if (!g_diagnostics_initialized) {
+        return;
+    }
+    
+    bootloader_diag_log_full(LOG_LEVEL_INFO, "FLOW", __FILE__, __LINE__, status,
+                            "Step %c: %s", step, description ? description : "");
+}
+
+void bootloader_diag_hex_dump(const char* label, const uint8_t* data, uint16_t length) {
+    if (!g_diagnostics_initialized || !data || length == 0) {
+        return;
+    }
+    
+    bootloader_diag_log_full(LOG_LEVEL_DEBUG, "HEXDUMP", __FILE__, __LINE__, STATUS_SUCCESS,
+                            "%s (%u bytes):", label ? label : "Data", length);
+    
+    // Dump data in 16-byte rows
+    char hex_line[128];
+    for (uint16_t i = 0; i < length; i += 16) {
+        int line_len = snprintf(hex_line, sizeof(hex_line), "  %04X: ", i);
+        
+        // Hex bytes
+        uint16_t row_end = (i + 16 < length) ? i + 16 : length;
+        for (uint16_t j = i; j < row_end; j++) {
+            line_len += snprintf(hex_line + line_len, sizeof(hex_line) - line_len, 
+                                "%02X ", data[j]);
         }
         
-        snprintf(hex_line, sizeof(hex_line), "  %04X: %s", (unsigned int)i, hex_bytes);
-        diag_raw_output(hex_line);
-        diag_raw_output("\r\n");
+        // Padding for short rows
+        for (uint16_t j = row_end; j < i + 16; j++) {
+            line_len += snprintf(hex_line + line_len, sizeof(hex_line) - line_len, "   ");
+        }
+        
+        // ASCII representation
+        line_len += snprintf(hex_line + line_len, sizeof(hex_line) - line_len, " |");
+        for (uint16_t j = i; j < row_end; j++) {
+            char c = (data[j] >= 32 && data[j] <= 126) ? data[j] : '.';
+            line_len += snprintf(hex_line + line_len, sizeof(hex_line) - line_len, "%c", c);
+        }
+        line_len += snprintf(hex_line + line_len, sizeof(hex_line) - line_len, "|\r\n");
+        
+        if (g_output_driver && line_len > 0) {
+            g_output_driver->write(hex_line, line_len);
+        }
     }
+}
+
+void bootloader_diag_nanopb_test(void) {
+    if (!g_diagnostics_initialized) {
+        return;
+    }
+    
+    DIAG_INFO(MOD_NANOPB, "Starting nanopb encode/decode test");
+    
+    // Test implementation would go here
+    // For now, just log that the test is available
+    DIAG_INFO(MOD_NANOPB, "nanopb test framework ready");
 }

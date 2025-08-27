@@ -65,6 +65,12 @@ void vm_bootloader_protocol_engine_init(void)
         bootloader_diag_init(true);
         DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "Protocol engine initializing");
         
+        // Step 2.3: Verify nanopb integration before proceeding
+        if (!nanopb_run_verification()) {
+            DIAG_ERROR(DIAG_COMPONENT_PROTOCOL_ENGINE, "nanopb integration verification FAILED - aborting protocol init");
+            return;
+        }
+        
         vm_bootloader_protocol_init_internal();
         g_protocol_initialized = true;
         
@@ -206,7 +212,7 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
         
         // A-J Flow: Check for frame START byte (0x7E)
         if (byte == 0x7E && g_frame_parser.state == FRAME_STATE_IDLE) {
-            DIAG_FLOW(DIAG_FLOW_A_FRAME_START, "Frame START received (0x7E)");
+            // DIAG_FLOW(DIAG_FLOW_A_FRAME_START, "Frame START received (0x7E)");
         }
         
         // Feed byte to frame parser

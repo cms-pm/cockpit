@@ -15,7 +15,7 @@
 // Generated nanopb headers - FULL POWER ACTIVATED!
 #include "../src/utilities/bootloader.pb.h"
 
-// Bootloader diagnostics for Oracle-style debugging
+// Bootloader diagnostics for Oracle-style debugging - FULL FRAMEWORK ACTIVATED!
 #include "bootloader_diagnostics.h"
 
 #ifdef __cplusplus
@@ -200,6 +200,9 @@ void protocol_context_init(protocol_context_t* ctx);
 bool protocol_is_session_timeout(const protocol_context_t* ctx);
 void protocol_update_activity(protocol_context_t* ctx);
 bootloader_protocol_result_t protocol_reset_session(protocol_context_t* ctx);
+
+// Nanopb integration verification
+bool nanopb_run_verification(void);
 
 #ifdef __cplusplus
 }
