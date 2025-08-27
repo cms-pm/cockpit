@@ -26,22 +26,20 @@ void frame_parser_init(frame_parser_t* parser) {
     parser->last_activity_time = get_tick_ms();
     parser->escape_next = false;
     parser->total_bytes_processed = 0;
-    
-    // Initialize debug buffer
-    parser->debug_buffer.count = 0;
-    parser->debug_buffer.buffer_complete = false;
 }
 
 void frame_parser_reset(frame_parser_t* parser) {
     if (!parser) return;
     
-    // Preserve debug buffer during reset
-    frame_debug_buffer_t saved_debug = parser->debug_buffer;
-    
-    frame_parser_init(parser);
-    
-    // Restore debug buffer after reset
-    parser->debug_buffer = saved_debug;
+    // SAFE RESET: Avoid get_tick_ms() call that might be causing hard fault
+    parser->state = FRAME_STATE_IDLE;
+    parser->bytes_received = 0;
+    parser->frame.payload_length = 0;
+    parser->frame.calculated_crc = 0;
+    parser->frame.received_crc = 0;
+    // Don't update last_activity_time to avoid get_tick_ms() call
+    parser->escape_next = false;
+    parser->total_bytes_processed = 0;
 }
 
 bool frame_parser_is_complete(const frame_parser_t* parser) {
@@ -50,28 +48,8 @@ bool frame_parser_is_complete(const frame_parser_t* parser) {
 }
 
 void frame_parser_debug_dump(const frame_parser_t* parser) {
-    if (!parser || parser->debug_buffer.count == 0) return;
-    
-    // Output debug header
-    uart_write_string("\r\n=== FRAME PARSER DEBUG DUMP ===\r\n");
-    
-    for (uint8_t i = 0; i < parser->debug_buffer.count; i++) {
-        // State letter: A=IDLE, B=SYNC, C=LENGTH_HIGH, D=LENGTH_LOW, etc.
-        char state_char = 'A' + parser->debug_buffer.states[i];
-        
-        // Byte as hex
-        uint8_t byte = parser->debug_buffer.bytes[i];
-        char hex_str[8];
-        sprintf(hex_str, "%c%02X ", state_char, byte);
-        uart_write_string(hex_str);
-        
-        // Line break every 5 entries for readability
-        if ((i + 1) % 5 == 0) {
-            uart_write_string("\r\n");
-        }
-    }
-    
-    uart_write_string("\r\n=== END DEBUG DUMP ===\r\n");
+    // Debug buffer removed to reduce memory overhead
+    (void)parser; // Suppress unused parameter warning
 }
 
 static bool is_frame_timeout(const frame_parser_t* parser, uint32_t timeout_ms) {
@@ -102,22 +80,7 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
     // Update activity time
     parser->last_activity_time = get_tick_ms();
     
-    // Reset debug buffer on new frame start (fresh data for each frame)
-    if (parser->state == FRAME_STATE_IDLE && byte == BOOTLOADER_FRAME_START) {
-        parser->debug_buffer.count = 0;
-        parser->debug_buffer.buffer_complete = false;
-    }
-    
-    // Buffer first 10 bytes with states for post-protocol debug output
-    if (!parser->debug_buffer.buffer_complete && parser->debug_buffer.count < FRAME_DEBUG_BUFFER_SIZE) {
-        parser->debug_buffer.bytes[parser->debug_buffer.count] = byte;
-        parser->debug_buffer.states[parser->debug_buffer.count] = parser->state;
-        parser->debug_buffer.count++;
-        
-        if (parser->debug_buffer.count >= FRAME_DEBUG_BUFFER_SIZE) {
-            parser->debug_buffer.buffer_complete = true;
-        }
-    }
+    // Debug buffer removed to reduce memory overhead
     
     switch (parser->state) {
         case FRAME_STATE_IDLE:

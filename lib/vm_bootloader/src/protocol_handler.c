@@ -87,6 +87,11 @@ bootloader_protocol_result_t protocol_handle_request(const BootloaderRequest* re
             response->which_response = BootloaderResponse_ack_tag;
             result = handle_data_packet(&request->request.data, 
                                       &response->response.ack);
+            // Ensure acknowledgment is properly set (match prepare response pattern)
+            if (result == BOOTLOADER_PROTOCOL_SUCCESS) {
+                response->response.ack.success = true;
+                response->response.ack.message[0] = '\0';
+            }
             break;
             
         case BootloaderRequest_flash_program_tag:
@@ -158,7 +163,7 @@ static bootloader_protocol_result_t handle_handshake_request(
 }
 
 static bootloader_protocol_result_t handle_data_packet(
-    const DataPacket* packet, Acknowledgment* ack) {
+    const DataPacket* packet, Acknowledgment* ack __attribute__((unused))) {
     
     protocol_context_t* ctx = protocol_get_context();
     
@@ -197,11 +202,7 @@ static bootloader_protocol_result_t handle_data_packet(
     ctx->actual_data_length = packet->data.size;
     ctx->state = PROTOCOL_STATE_DATA_RECEIVED;
     
-    // Build acknowledgment
-    ack->success = true;
-    strncpy(ack->message, "data received", sizeof(ack->message) - 1);
-    ack->message[sizeof(ack->message) - 1] = '\0';
-    
+    // Acknowledgment will be set by main dispatch
     return BOOTLOADER_PROTOCOL_SUCCESS;
 }
 
@@ -275,12 +276,11 @@ static bootloader_protocol_result_t handle_flash_program_request(
         ctx->actual_data_length = 0;
         ctx->state = PROTOCOL_STATE_READY_FOR_DATA;
         
-        // Build acknowledgment
+        // Build minimal acknowledgment to match Oracle's 7-byte expectation
         response->which_response = BootloaderResponse_ack_tag;
         response->response.ack.success = true;
-        strncpy(response->response.ack.message, "ready for data", 
-                sizeof(response->response.ack.message) - 1);
-        response->response.ack.message[sizeof(response->response.ack.message) - 1] = '\0';
+        // Empty message to minimize protobuf encoding size
+        response->response.ack.message[0] = '\0';
     }
     
     return BOOTLOADER_PROTOCOL_SUCCESS;

@@ -13,6 +13,10 @@
 #include "context_internal.h"
 #include "vm_bootloader.h"
 #include "host_interface/host_interface.h"
+#include "platform/platform_interface.h"
+
+// External timing function
+extern uint32_t get_tick_us(void);
 
 #include <string.h>
 #include <stdio.h>
@@ -29,9 +33,12 @@ static bool g_protocol_initialized = false;
 // Oracle-clean diagnostic output control
 static bool g_diagnostics_enabled = false;
 
-// Message buffers for protobuf encoding/decoding
-static uint8_t g_request_buffer[BOOTLOADER_MAX_FRAME_SIZE];
-static uint8_t g_response_buffer[BOOTLOADER_MAX_FRAME_SIZE];
+// Message buffers for protobuf encoding/decoding (separated to prevent conflicts)
+
+
+
+static uint8_t g_response_buffer[BOOTLOADER_MAX_FRAME_SIZE];  // Protobuf encoding
+static uint8_t g_outbound_buffer[BOOTLOADER_MAX_FRAME_SIZE];  // Outbound framed responses  
 static BootloaderRequest g_current_request;
 static BootloaderResponse g_current_response;
 
@@ -175,6 +182,8 @@ static void vm_bootloader_protocol_init_internal(void)
     memset(&g_protocol_context.flow_debug, 0, sizeof(protocol_flow_debug_t));
     g_protocol_context.flow_debug.step_count = 0;
     g_protocol_context.flow_debug.flow_complete = false;
+    g_protocol_context.flow_debug.flow_start_time = 0;
+    g_protocol_context.flow_debug.response_logged = false;
     
     // Initialize frame parser
     frame_parser_init(&g_frame_parser);
@@ -203,13 +212,29 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
                 
                 // Process complete frame
                 protocol_flow_log_step('B'); // About to call handle_frame
-                bootloader_protocol_result_t handle_result = 
-                    vm_bootloader_protocol_handle_frame(ctx, &g_frame_parser.frame);
-                protocol_flow_log_step('C'); // handle_frame returned
+                bootloader_protocol_result_t handle_result = vm_bootloader_protocol_handle_frame(ctx, &g_frame_parser.frame);
+                protocol_flow_log_step('U'); // About to check handle_result
+                // PRIORITY 3 INVESTIGATION: Show return value from handle_frame
+                if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
+                    protocol_flow_log_step('W'); // handle_frame returned SUCCESS
+                } else {
+                    protocol_flow_log_step('V'); // handle_frame returned ERROR
+                }
                 
                 if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
                     frame_processed = true;
                     protocol_flow_log_step('D'); // Handle success
+                    
+                    protocol_flow_log_step('1'); // TRACE: After D diagnostic
+                    
+                    // PRIORITY 1 INVESTIGATION: Check for immediate Oracle response during CD phase
+                    if (uart_data_available()) {
+                        protocol_flow_log_step('X'); // Oracle sent new data during CD phase - SMOKING GUN!
+                    } else {
+                        protocol_flow_log_step('2'); // TRACE: No immediate Oracle data
+                    }
+                    
+                    protocol_flow_log_step('3'); // TRACE: About to reset parser
                 } else {
                     protocol_flow_log_step('E'); // Handle failed
                 }
@@ -230,14 +255,22 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
         }
     }
     
+    protocol_flow_log_step('9'); // TRACE: After processing loop exit
+    
     // Handle any parsing errors that occurred
     if (!frame_processed && parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
+        protocol_flow_log_step('@'); // TRACE: Frame parsing error path
         // Frame parsing error - reset and continue
         // No diagnostic output to maintain clean slate
+    } else {
+        protocol_flow_log_step('#'); // TRACE: Frame processing successful path
     }
     
+    protocol_flow_log_step('$'); // TRACE: About to final reset parser
     frame_parser_reset(&g_frame_parser);
+    protocol_flow_log_step('%'); // TRACE: Final reset complete
     
+    protocol_flow_log_step('&'); // TRACE: About to return from process_uart_data
     return frame_processed;
 }
 
@@ -273,11 +306,14 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
     
     if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
         // Send response back to Oracle
-        return vm_bootloader_protocol_send_response(&g_current_response);
-    } else {
-        protocol_flow_log_step('K'); // Protocol handler failed
+        protocol_flow_log_step('Z'); // PRIORITY 3: About to return from handle_frame after successful response
+        // below is returning an unknown value contained at &g_current_response but should be BOOTLOADER_PROTOCOL_SUCCESS
+        bootloader_protocol_result_t send_result = vm_bootloader_protocol_send_response(&g_current_response);
+         protocol_flow_log_step('9'); // PRIORITY 3: About to return from handle_frame after successful response
+        return send_result;
     }
     
+    protocol_flow_log_step('Y'); // PRIORITY 3: About to return from handle_frame with error
     return handle_result;
 }
 
@@ -285,50 +321,36 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
 {
     // Clear buffers for clean encoding
     memset(g_response_buffer, 0, sizeof(g_response_buffer));
-    memset(g_request_buffer, 0, sizeof(g_request_buffer));
-    
-    protocol_flow_log_step('L'); // Response function called
-    
+    memset(g_outbound_buffer, 0, sizeof(g_outbound_buffer));
     
     // Encode protobuf response
     pb_ostream_t output_stream = pb_ostream_from_buffer(g_response_buffer, sizeof(g_response_buffer));
     
-    protocol_flow_log_step('M'); // Protobuf response encode start
     if (!pb_encode(&output_stream, BootloaderResponse_fields, response)) {
-        protocol_flow_log_step('N'); // Protobuf encode failed
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
     }
-    protocol_flow_log_step('O'); // Protobuf encode success
     
-    
-    // Frame the response - CRITICAL BUG FIX: Initialize frame_length to buffer size
-    size_t frame_length = BOOTLOADER_MAX_FRAME_SIZE;  // Set to actual buffer size!
-    protocol_flow_log_step('P'); // Frame encode start
+    // Frame the response - Initialize frame_length to buffer size
+    size_t frame_length = BOOTLOADER_MAX_FRAME_SIZE;
     bootloader_protocol_result_t frame_result = frame_encode(
         g_response_buffer, 
         output_stream.bytes_written,
-        g_request_buffer,  // Reuse request buffer for framed response
+        g_outbound_buffer,  // Use dedicated outbound buffer
         &frame_length
     );
     
     if (frame_result != BOOTLOADER_PROTOCOL_SUCCESS) {
-        protocol_flow_log_step('Q'); // Frame encode failed
         return frame_result;
     }
-    protocol_flow_log_step('R'); // Frame encode success
     
-    // Send framed response via UART
-    protocol_flow_log_step('S'); // UART transmission start
-    for (size_t i = 0; i < frame_length; i++) {
-        uart_write_char((char)g_request_buffer[i]);
-    }
-    protocol_flow_log_step('T'); // UART transmission complete
+    // Send framed response via UART - ATOMIC TRANSMISSION with dedicated buffer
+    platform_uart_transmit((const uint8_t*)g_outbound_buffer, (uint16_t)frame_length);
     
     // CRITICAL: Enable diagnostics after successful response transmission
     // This ensures Oracle gets clean handshake, then we enable debugging
-    if (!g_diagnostics_enabled) {
-        vm_bootloader_enable_diagnostics_after_handshake();
-    }
+    // if (!g_diagnostics_enabled) {
+    //     vm_bootloader_enable_diagnostics_after_handshake();
+    // }
     
     return BOOTLOADER_PROTOCOL_SUCCESS;
 }
@@ -386,29 +408,36 @@ bool protocol_is_session_timeout(const protocol_context_t* ctx)
 
 void protocol_flow_log_step(char step) 
 {
-    if (!g_protocol_initialized) {
-        vm_bootloader_protocol_engine_init();
+    if (!step) {
+        return;
     }
+    // if (!g_protocol_initialized) {
+    //     return;
+    // }
     
-    protocol_flow_debug_t* flow = &g_protocol_context.flow_debug;
+    // protocol_flow_debug_t* flow = &g_protocol_context.flow_debug;
+    // uint32_t current_time = get_tick_us();
     
-    // Reset flow buffer on 'A' (start of new flow)
-    if (step == 'A') {
-        flow->step_count = 0;
-        flow->flow_complete = false;
-    }
+    // // Reset flow buffer on 'A' (start of new flow)
+    // if (step == 'A') {
+    //     flow->step_count = 0;
+    //     flow->flow_complete = false;
+    //     flow->flow_start_time = current_time;
+    //     flow->response_logged = false;
+    // }
     
-    // Add step to buffer if space available
-    if (flow->step_count < PROTOCOL_FLOW_BUFFER_SIZE - 1) {
-        flow->flow_steps[flow->step_count] = step;
-        flow->step_count++;
-        flow->flow_steps[flow->step_count] = '\0'; // Null terminate
-    }
+    // // Add step to buffer if space available
+    // if (flow->step_count < PROTOCOL_FLOW_BUFFER_SIZE - 1) {
+    //     flow->flow_steps[flow->step_count] = step;
+    //     flow->step_timestamps[flow->step_count] = current_time;
+    //     flow->step_count++;
+    //     flow->flow_steps[flow->step_count] = '\0'; // Null terminate
+    // }
     
-    // Mark complete on success steps
-    if (step == 'D' || step == 'J') {
-        flow->flow_complete = true;
-    }
+    // // Mark complete on success steps
+    // if (step == '7' || step == 'H') {
+    //     flow->flow_complete = true;
+    // }
 }
 
 void protocol_flow_debug_dump(void)
@@ -426,6 +455,47 @@ void protocol_flow_debug_dump(void)
         uart_write_string(flow->flow_steps);
         uart_write_string("\r\n");
         
+        // Show timing analysis - focus on ST→CD transition
+        uart_write_string("CRITICAL TIMING ANALYSIS:\r\n");
+        for (uint8_t i = 0; i < flow->step_count; i++) {
+            char step = flow->flow_steps[i];
+            uint32_t delta_ms = (flow->step_timestamps[i] - flow->flow_start_time) / 1000;
+            
+            // Focus on key transitions
+            if (step == 'S' || step == 'T' || step == 'C' || step == 'D') {
+                uart_write_string("  ");
+                uart_write_char(step);
+                uart_write_string("@");
+                
+                // Simple decimal output for timing
+                if (delta_ms < 10) {
+                    uart_write_char('0' + delta_ms);
+                } else if (delta_ms < 100) {
+                    uart_write_char('0' + (delta_ms / 10));
+                    uart_write_char('0' + (delta_ms % 10));
+                } else {
+                    uart_write_string("99+");
+                }
+                uart_write_string("ms ");
+            }
+        }
+        uart_write_string("\r\n");
+        
+        // Show response hex for bit stuffing analysis
+        if (flow->response_logged) {
+            uart_write_string("RESPONSE HEX SENT: ");
+            for (uint8_t i = 0; i < flow->response_length; i++) {
+                uint8_t byte = flow->response_hex[i];
+                // Simple hex output
+                uint8_t high = (byte >> 4) & 0x0F;
+                uint8_t low = byte & 0x0F;
+                uart_write_char((high < 10) ? ('0' + high) : ('A' + high - 10));
+                uart_write_char((low < 10) ? ('0' + low) : ('A' + low - 10));
+                uart_write_char(' ');
+            }
+            uart_write_string("\r\n");
+        }
+        
         uart_write_string("Step meanings:\r\n");
         uart_write_string("  A=Frame ready, B=Call handle, C=Handle returned\r\n");
         uart_write_string("  D=Handle success, E=Handle failed\r\n");
@@ -433,6 +503,9 @@ void protocol_flow_debug_dump(void)
         uart_write_string("  I=Protocol handler start, J=Handler returned, K=Handler failed\r\n");
         uart_write_string("  L=Response start, M=Response encode, N=Encode failed, O=Encode success\r\n");
         uart_write_string("  P=Frame encode, Q=Frame failed, R=Frame success, S=UART start, T=UART done\r\n");
+        uart_write_string("  U=About to check handle_result, V=handle_frame ERROR, W=handle_frame SUCCESS\r\n");
+        uart_write_string("  Y=About to return ERROR, Z=About to return SUCCESS\r\n");
+        uart_write_string("  X=Oracle sent new data during CD phase (SMOKING GUN!)\r\n");
     } else {
         uart_write_string("No flow steps recorded\r\n");
     }

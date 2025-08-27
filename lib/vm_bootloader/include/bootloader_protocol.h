@@ -15,6 +15,9 @@
 // Generated nanopb headers - FULL POWER ACTIVATED!
 #include "../src/utilities/bootloader.pb.h"
 
+// Bootloader diagnostics for Oracle-style debugging
+#include "bootloader_diagnostics.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -89,10 +92,18 @@ typedef struct {
 
 // Protocol flow debug buffer for A-J flow tracking
 #define PROTOCOL_FLOW_BUFFER_SIZE 16
+#define RESPONSE_HEX_BUFFER_SIZE 8
 typedef struct {
     char flow_steps[PROTOCOL_FLOW_BUFFER_SIZE];
+    uint32_t step_timestamps[PROTOCOL_FLOW_BUFFER_SIZE];  // Microsecond timestamps
     uint8_t step_count;
     bool flow_complete;
+    uint32_t flow_start_time;  // Reference time for deltas
+    
+    // Response hex logging for bit stuffing verification
+    uint8_t response_hex[RESPONSE_HEX_BUFFER_SIZE];
+    uint8_t response_length;
+    bool response_logged;
 } protocol_flow_debug_t;
 
 // Frame parser context  
@@ -103,7 +114,7 @@ typedef struct {
     uint32_t last_activity_time;  // For timeout detection
     bool escape_next;             // For bit stuffing/escape sequence handling
     uint16_t total_bytes_processed; // Total bytes including escapes (for debugging)
-    frame_debug_buffer_t debug_buffer; // Debug hex dump buffer
+    // debug_buffer removed to reduce memory overhead and eliminate stack overflow risk
 } frame_parser_t;
 
 // Flash write context for 64-bit alignment

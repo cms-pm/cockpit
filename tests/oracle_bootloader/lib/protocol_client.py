@@ -175,6 +175,13 @@ class ProtocolClient:
         
         return bytes(frame)
     
+    def flush_serial_buffers(self):
+        """Clear both input and output buffers before critical operations"""
+        if self.serial_conn and self.serial_conn.is_open:
+            self.serial_conn.reset_input_buffer()
+            self.serial_conn.reset_output_buffer()
+            time.sleep(0.01)  # Allow hardware buffers to settle
+
     def connect(self) -> bool:
         """
         Open serial connection to bootloader.
@@ -186,8 +193,13 @@ class ProtocolClient:
             self.serial_conn = serial.Serial(
                 self.device_path,
                 self.baud_rate,
-                timeout=self.timeout
+                timeout=0.5,  # Faster individual timeout
+                inter_byte_timeout=0.1,  # Detect frame boundaries
+                rtscts=False,
+                dsrdtr=False
             )
+            # Clear any stale data from buffers
+            self.flush_serial_buffers()
             logger.info(f"Connected to bootloader at {self.device_path}")
             return True
             
@@ -216,6 +228,9 @@ class ProtocolClient:
             logger.error("Serial connection not open")
             return False
             
+        # Clear buffers before sending critical frame
+        self.flush_serial_buffers()
+            
         try:
             bytes_written = self.serial_conn.write(frame)
             self.serial_conn.flush()
@@ -228,6 +243,8 @@ class ProtocolClient:
             return False
     
     def receive_response(self) -> Optional[bytes]:
+        import sys
+        import traceback
         """
         Receive response frame from bootloader.
         
@@ -242,13 +259,15 @@ class ProtocolClient:
             # Read START marker (search for frame start in stream)
             start_found = False
             attempts = 0
-            while not start_found and attempts < 16:
+            byte = [0]
+            while attempts < 32 and not start_found:
                 byte = self.serial_conn.read(1)
-                if not byte:
-                    break
-                if byte[0] == BOOTLOADER_FRAME_START:
-                    start_found = True
-                    break
+                if byte:
+                    if byte[0] == BOOTLOADER_FRAME_START:
+                        start_found = True
+                        break
+                if byte:
+                    logger.debug(f"Discarding byte: {hex(byte[0])}")
                 attempts += 1
             
             if not start_found:
@@ -296,7 +315,12 @@ class ProtocolClient:
             return payload
             
         except Exception as e:
-            logger.error(f"Failed to receive response: {e}")
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            # Extract the traceback information
+            tb_info = traceback.extract_tb(exc_traceback)
+            # Get the last entry in the traceback, which points to the error location
+            filename, line_number, function_name, text = tb_info[-1]
+            logger.error(f"Failed to receive response: {e} on line {line_number} of {filename}")
             return None
     
     def execute_handshake(self) -> ProtocolResult:

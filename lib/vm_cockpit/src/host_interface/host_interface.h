@@ -81,6 +81,13 @@ void uart_write_string(const char* str);
 void uart_write_char(char c);
 
 /**
+ * @brief Write binary frame data to UART atomically
+ * @param frame_data Pointer to frame data buffer
+ * @param frame_length Length of frame data in bytes
+ */
+void uart_write_frame(const uint8_t* frame_data, uint16_t frame_length);
+
+/**
  * @brief Check if UART data is available for reading
  * @return true if data available, false otherwise
  */
@@ -91,6 +98,29 @@ bool uart_data_available(void);
  * @return Received character, or 0 if no data available
  */
 char uart_read_char(void);
+
+// =================================================================
+// Debug UART Operations (USART2 - Oracle-clean diagnostics)
+// =================================================================
+
+/**
+ * @brief Initialize debug UART with specified baud rate
+ * @param baud_rate Debug UART baud rate (e.g. 115200)
+ */
+void debug_uart_begin(uint32_t baud_rate);
+
+/**
+ * @brief Write null-terminated string to debug UART
+ * @param str String to transmit
+ */
+void debug_uart_write_string(const char* str);
+
+/**
+ * @brief Write binary data to debug UART
+ * @param data Pointer to data buffer
+ * @param length Length of data in bytes
+ */
+void debug_uart_write_data(const uint8_t* data, uint16_t length);
 
 // =================================================================
 // Timing Operations
