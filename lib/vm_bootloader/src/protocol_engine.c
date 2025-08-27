@@ -62,7 +62,7 @@ void vm_bootloader_protocol_engine_init(void)
 {
     if (!g_protocol_initialized) {
         // Initialize Oracle-style diagnostics first
-        bootloader_diag_init(true);
+        bootloader_diag_init(NULL, 115200);
         DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "Protocol engine initializing");
         
         // Step 2.3: Verify nanopb integration before proceeding
@@ -345,7 +345,7 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     
     // I: Response encode completed
     DIAG_FLOW(DIAG_FLOW_I_RESPONSE_ENCODE_OK, "Response protobuf encode success");
-    DIAG_DEBUGF(DIAG_COMPONENT_NANOPB_ENCODE, "Encoded %u bytes", (unsigned int)output_stream.bytes_written);
+    DIAG_DEBUGF(DIAG_COMPONENT_NANOPB_ENCODE, STATUS_SUCCESS, "Encoded %u bytes", (unsigned int)output_stream.bytes_written);
     
     // Frame the response - Initialize frame_length to buffer size
     size_t frame_length = BOOTLOADER_MAX_FRAME_SIZE;

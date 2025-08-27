@@ -123,31 +123,31 @@ bool nanopb_verify_integration(nanopb_test_results_t* results)
     return true;
 }
 
-// /**
-//  * @brief Run nanopb verification and log results
-//  * @return true if verification passes, false otherwise
-//  */
-// bool nanopb_run_verification(void)
-// {
-//     nanopb_test_results_t results;
+/**
+ * @brief Run nanopb verification and log results
+ * @return true if verification passes, false otherwise
+ */
+bool nanopb_run_verification(void)
+{
+    nanopb_test_results_t results;
     
-//     DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "=== NANOPB INTEGRATION VERIFICATION ===");
+    DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "=== NANOPB INTEGRATION VERIFICATION ===");
     
-//     bool success = nanopb_verify_integration(&results);
+    bool success = nanopb_verify_integration(&results);
     
-//     if (success) {
-//         DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "NANOPB VERIFICATION: ALL TESTS PASSED");
-//     } else {
-//         DIAG_ERROR(DIAG_COMPONENT_PROTOCOL_ENGINE, "NANOPB VERIFICATION: TESTS FAILED");
-//         DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "HandshakeRequest encode: %s", 
-//                    results.handshake_request_test_passed ? "PASS" : "FAIL");
-//         DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "HandshakeResponse encode: %s", 
-//                    results.handshake_response_test_passed ? "PASS" : "FAIL");
-//         DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "Round-trip test: %s", 
-//                    results.encode_decode_round_trip_passed ? "PASS" : "FAIL");
-//     }
+    if (success) {
+        DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "NANOPB VERIFICATION: ALL TESTS PASSED");
+    } else {
+        DIAG_ERROR(DIAG_COMPONENT_PROTOCOL_ENGINE, "NANOPB VERIFICATION: TESTS FAILED");
+        DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "HandshakeRequest encode: %s", 
+                   results.handshake_request_test_passed ? "PASS" : "FAIL");
+        DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "HandshakeResponse encode: %s", 
+                   results.handshake_response_test_passed ? "PASS" : "FAIL");
+        DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "Round-trip test: %s", 
+                   results.encode_decode_round_trip_passed ? "PASS" : "FAIL");
+    }
     
-//     DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "=== END NANOPB VERIFICATION ===");
+    DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "=== END NANOPB VERIFICATION ===");
     
-//     return success;
-//}
+    return success;
+}
