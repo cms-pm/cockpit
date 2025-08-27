@@ -61,8 +61,14 @@ void vm_bootloader_enable_diagnostics_after_handshake(void) {
 void vm_bootloader_protocol_engine_init(void)
 {
     if (!g_protocol_initialized) {
+        // Initialize Oracle-style diagnostics first
+        bootloader_diag_init(true);
+        DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "Protocol engine initializing");
+        
         vm_bootloader_protocol_init_internal();
         g_protocol_initialized = true;
+        
+        DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "Protocol engine initialization complete");
     }
 }
 
@@ -198,6 +204,10 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
     while (uart_data_available()) {
         uint8_t byte = (uint8_t)uart_read_char();
         
+        // A-J Flow: Check for frame START byte (0x7E)
+        if (byte == 0x7E && g_frame_parser.state == FRAME_STATE_IDLE) {
+            DIAG_FLOW(DIAG_FLOW_A_FRAME_START, "Frame START received (0x7E)");
+        }
         
         // Feed byte to frame parser
         parse_result = frame_parser_process_byte(&g_frame_parser, byte);
@@ -206,37 +216,24 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
             // Update activity on successful byte processing
             vm_bootloader_protocol_update_activity();
             
+            // A-J Flow: Track frame parsing progress
+            if (g_frame_parser.state == FRAME_STATE_PAYLOAD && g_frame_parser.bytes_received == 2) {
+                DIAG_FLOW(DIAG_FLOW_B_FRAME_LENGTH, "Frame length decoded");
+            }
+            
             // Check if frame is complete
             if (frame_parser_is_complete(&g_frame_parser)) {
-                protocol_flow_log_step('A'); // Frame ready for protocol processing
+                DIAG_FLOW(DIAG_FLOW_C_FRAME_PAYLOAD, "Frame payload received");
+                DIAG_FLOW(DIAG_FLOW_D_FRAME_CRC_OK, "Frame CRC validated");
                 
                 // Process complete frame
-                protocol_flow_log_step('B'); // About to call handle_frame
                 bootloader_protocol_result_t handle_result = vm_bootloader_protocol_handle_frame(ctx, &g_frame_parser.frame);
-                protocol_flow_log_step('U'); // About to check handle_result
-                // PRIORITY 3 INVESTIGATION: Show return value from handle_frame
-                if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
-                    protocol_flow_log_step('W'); // handle_frame returned SUCCESS
-                } else {
-                    protocol_flow_log_step('V'); // handle_frame returned ERROR
-                }
                 
                 if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
                     frame_processed = true;
-                    protocol_flow_log_step('D'); // Handle success
-                    
-                    protocol_flow_log_step('1'); // TRACE: After D diagnostic
-                    
-                    // PRIORITY 1 INVESTIGATION: Check for immediate Oracle response during CD phase
-                    if (uart_data_available()) {
-                        protocol_flow_log_step('X'); // Oracle sent new data during CD phase - SMOKING GUN!
-                    } else {
-                        protocol_flow_log_step('2'); // TRACE: No immediate Oracle data
-                    }
-                    
-                    protocol_flow_log_step('3'); // TRACE: About to reset parser
+                    DIAG_DEBUG(DIAG_COMPONENT_PROTOCOL_ENGINE, "Frame processed successfully");
                 } else {
-                    protocol_flow_log_step('E'); // Handle failed
+                    DIAG_ERROR(DIAG_COMPONENT_PROTOCOL_ENGINE, "Frame processing failed");
                 }
                 
                 // Reset parser for next frame
@@ -248,29 +245,19 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
                 // Break out after processing complete frame
                 break;
             }
-            // Continue processing more bytes - don't treat success as error
         } else {
             // Frame parsing error occurred - break out and handle
+            DIAG_ERROR(DIAG_COMPONENT_FRAME_PARSER, "Frame parsing error");
             break;
         }
     }
     
-    protocol_flow_log_step('9'); // TRACE: After processing loop exit
-    
     // Handle any parsing errors that occurred
     if (!frame_processed && parse_result != BOOTLOADER_PROTOCOL_SUCCESS) {
-        protocol_flow_log_step('@'); // TRACE: Frame parsing error path
-        // Frame parsing error - reset and continue
-        // No diagnostic output to maintain clean slate
-    } else {
-        protocol_flow_log_step('#'); // TRACE: Frame processing successful path
+        DIAG_WARN(DIAG_COMPONENT_FRAME_PARSER, "Frame parsing error - resetting parser");
+        frame_parser_reset(&g_frame_parser);
     }
     
-    protocol_flow_log_step('$'); // TRACE: About to final reset parser
-    frame_parser_reset(&g_frame_parser);
-    protocol_flow_log_step('%'); // TRACE: Final reset complete
-    
-    protocol_flow_log_step('&'); // TRACE: About to return from process_uart_data
     return frame_processed;
 }
 
@@ -278,43 +265,54 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
 {
     // Context IS needed for proper protocol state management
     if (!ctx) {
+        DIAG_ERROR(DIAG_COMPONENT_PROTOCOL_ENGINE, "Invalid context in handle_frame");
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
     }
+    
+    // Log frame payload for debugging
+    DIAG_BUFFER(DIAG_LEVEL_DEBUG, DIAG_COMPONENT_PROTOCOL_ENGINE, "Frame payload", frame->payload, frame->payload_length);
     
     // Clear message structures for clean initialization
     memset(&g_current_request, 0, sizeof(g_current_request));
     memset(&g_current_response, 0, sizeof(g_current_response));
     
-    // Decode protobuf request from frame payload
+    // Buffer boundary checking
+    if (frame->payload_length > BOOTLOADER_MAX_PAYLOAD_SIZE) {
+        DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "Payload too large: %u > %u", 
+                   (unsigned int)frame->payload_length, BOOTLOADER_MAX_PAYLOAD_SIZE);
+        return BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE;
+    }
+    
+    // E: Protobuf decode initiated
+    DIAG_FLOW(DIAG_FLOW_E_PROTOBUF_DECODE_START, "Starting protobuf decode");
     pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
     
-    protocol_flow_log_step('F'); // Starting protobuf decode
-    
     if (!pb_decode(&input_stream, BootloaderRequest_fields, &g_current_request)) {
-        // Protobuf decode failed
-        protocol_flow_log_step('G'); // Protobuf decode failed
+        // Protobuf decode failed - log more details
+        DIAG_ERRORF(DIAG_COMPONENT_NANOPB_DECODE, "Protobuf decode failed, payload_length=%u", 
+                   (unsigned int)frame->payload_length);
         g_protocol_context.state = PROTOCOL_STATE_ERROR;
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_DECODE;
     }
     
-    protocol_flow_log_step('H'); // Protobuf decode success
+    // F: Protobuf decode completed successfully
+    DIAG_FLOW(DIAG_FLOW_F_PROTOBUF_DECODE_OK, "Protobuf decode success");
     
-    // Handle the request using protocol handler
-    protocol_flow_log_step('I'); // About to call protocol handler
+    // G: Message processing started
+    DIAG_FLOW(DIAG_FLOW_G_MESSAGE_PROCESSING, "Starting message processing");
     bootloader_protocol_result_t handle_result = protocol_handle_request(&g_current_request, &g_current_response);
-    protocol_flow_log_step('J'); // Protocol handler returned
     
     if (handle_result == BOOTLOADER_PROTOCOL_SUCCESS) {
+        // H: Response generation started
+        DIAG_FLOW(DIAG_FLOW_H_RESPONSE_GENERATION, "Response generation success");
+        
         // Send response back to Oracle
-        protocol_flow_log_step('Z'); // PRIORITY 3: About to return from handle_frame after successful response
-        // below is returning an unknown value contained at &g_current_response but should be BOOTLOADER_PROTOCOL_SUCCESS
         bootloader_protocol_result_t send_result = vm_bootloader_protocol_send_response(&g_current_response);
-         protocol_flow_log_step('9'); // PRIORITY 3: About to return from handle_frame after successful response
         return send_result;
+    } else {
+        DIAG_ERROR(DIAG_COMPONENT_MESSAGE_HANDLER, "Message processing failed");
+        return handle_result;
     }
-    
-    protocol_flow_log_step('Y'); // PRIORITY 3: About to return from handle_frame with error
-    return handle_result;
 }
 
 static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const BootloaderResponse* response)
@@ -327,8 +325,21 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     pb_ostream_t output_stream = pb_ostream_from_buffer(g_response_buffer, sizeof(g_response_buffer));
     
     if (!pb_encode(&output_stream, BootloaderResponse_fields, response)) {
+        DIAG_ERRORF(DIAG_COMPONENT_NANOPB_ENCODE, "Protobuf encode failed, buffer_size=%u", 
+                   (unsigned int)sizeof(g_response_buffer));
         return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
     }
+    
+    // Buffer boundary checking for encoded data
+    if (output_stream.bytes_written > sizeof(g_response_buffer)) {
+        DIAG_ERRORF(DIAG_COMPONENT_NANOPB_ENCODE, "Encode buffer overflow: %u > %u", 
+                   (unsigned int)output_stream.bytes_written, (unsigned int)sizeof(g_response_buffer));
+        return BOOTLOADER_PROTOCOL_ERROR_PROTOBUF_ENCODE;
+    }
+    
+    // I: Response encode completed
+    DIAG_FLOW(DIAG_FLOW_I_RESPONSE_ENCODE_OK, "Response protobuf encode success");
+    DIAG_DEBUGF(DIAG_COMPONENT_NANOPB_ENCODE, "Encoded %u bytes", (unsigned int)output_stream.bytes_written);
     
     // Frame the response - Initialize frame_length to buffer size
     size_t frame_length = BOOTLOADER_MAX_FRAME_SIZE;
@@ -340,17 +351,25 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
     );
     
     if (frame_result != BOOTLOADER_PROTOCOL_SUCCESS) {
+        DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "Frame encoding failed, result=%d", frame_result);
         return frame_result;
     }
+    
+    // Buffer boundary checking for framed data
+    if (frame_length > BOOTLOADER_MAX_FRAME_SIZE) {
+        DIAG_ERRORF(DIAG_COMPONENT_PROTOCOL_ENGINE, "Frame too large: %u > %u", 
+                   (unsigned int)frame_length, BOOTLOADER_MAX_FRAME_SIZE);
+        return BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID;
+    }
+    
+    // Log outbound frame for debugging
+    DIAG_BUFFER(DIAG_LEVEL_DEBUG, DIAG_COMPONENT_PROTOCOL_ENGINE, "Outbound frame", g_outbound_buffer, frame_length);
     
     // Send framed response via UART - ATOMIC TRANSMISSION with dedicated buffer
     platform_uart_transmit((const uint8_t*)g_outbound_buffer, (uint16_t)frame_length);
     
-    // CRITICAL: Enable diagnostics after successful response transmission
-    // This ensures Oracle gets clean handshake, then we enable debugging
-    // if (!g_diagnostics_enabled) {
-    //     vm_bootloader_enable_diagnostics_after_handshake();
-    // }
+    // J: Response transmitted
+    DIAG_FLOW(DIAG_FLOW_J_RESPONSE_TRANSMITTED, "Response transmitted successfully");
     
     return BOOTLOADER_PROTOCOL_SUCCESS;
 }
