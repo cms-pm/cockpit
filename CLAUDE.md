@@ -70,10 +70,9 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 ### **PHASE 4: BOOTLOADER COMPLETION & SOS MVP (Hardware-focused)**
 
 **Phase 4.6: Oracle Protocol Completion**
-- **Current**: SGACDF response (frame parsing works, protocol processing fails)
-- **4.6.1**: Debug protobuf decode/response generation chain
-- **4.6.2**: Complete handshake → achieve SGH response  
-- **4.6.3**: Data transfer + dual-bank flash programming
+- **4.6.1**: ✅ Debug protobuf decode/response generation chain (frame parsing fixed)
+- **4.6.2**: ✅ Complete handshake → achieve SGH response (working: "CockpitVM-4.6.3")
+- **4.6.3**: 🔄 Data transfer + dual-bank flash programming (DataPacket ACK working, flash programming pending)
 
 **Phase 4.7: Host Bootloader Tool**
 - **4.7.1**: Python client using Oracle's protocol patterns
@@ -95,9 +94,9 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 ### **Completed Foundation**
 - ✅ 6-Layer Architecture + Clean separation + STM32 HAL integration
 - ✅ Workspace-isolated testing + Platform test interface
-- ✅ Oracle communication (frame parsing working, protocol debugging in progress)
+- ✅ **Oracle Protocol (Phase 4.6.1-4.6.2)** - Frame parsing + DataPacket ACK cycle working
 - ✅ ANTLR compiler + 4-byte instruction format + Execution engine
-- ✅ **Modular Diagnostics Framework** - Surgical debugging via USART2 (spiritual successor to flow_log)
+- ✅ **Modular Diagnostics Framework** - USART2 surgical debugging operational
 
 ---
 
@@ -110,9 +109,9 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 - **Oracle**: `./tools/run_test bootloader_oracle_basic` → protobuf bootloader testing
 
 ### **Oracle Current State**
-- **Status**: SGACDF response (S=START, G=Got frame, ACDF=protocol errors)
-- **Test**: Git commit [a991c86] with protobuf integration + Oracle venv
-- **Next**: Debug protobuf decode/response chain → achieve SGH response
+- **Status**: SGH → Data ACK → Verify Issue (S=START, G=Got frame, H=Handshake success, DataPacket ACK received, Verify command decode failure)
+- **Root Cause Resolved**: 256-byte UART buffer limit → 512-byte buffer eliminates DataPacket hang
+- **Next**: Fix Oracle verify command protocol mismatch + implement flash programming per bootloader spec
 
 ### **Commit Guidelines**
 - Branch per chunk: `git checkout -b phase-4-6-1-oracle-debug`
@@ -138,15 +137,17 @@ Guest Application → VM Hypervisor → Host Interface → Platform Layer → ST
 - **Architecture**: `docs/architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md` - Layer specifications  
 - **Compiler**: `docs/technical/compiler/COMPILER_CODE_REVIEW.md` - ANTLR ArduinoC grammar
 - **Diagnostics Framework**: `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md` - Comprehensive logging system
+- **Phase 4.6 Progress**: `docs/development/PHASE_4_6_IMPLEMENTATION_LOG.md` - Detailed implementation history
+- **Bootloader Protocol**: `docs/bootloader/BOOTLOADER_PROTOCOL_SPECIFICATION.md` - Official protocol spec
 
 ---
 
 ## Critical Development Notes
 
-### **NEXT IMMEDIATE TASK: Phase 4.6.3 - Modular Diagnostics Implementation**
-**Current State**: USART2 validated, technical specification complete
-**Implementation**: 1) Global nanpb→nanopb fix, 2) Enable full DIAG framework, 3) Replace manual debug_uart with surgical DIAG system
-**Success Criteria**: Oracle protocol debugging via systematic USART2 diagnostics (see `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md`)
+### **CURRENT TASK: Phase 4.6.3 - Oracle Protocol Completion & Flash Programming**
+**Current State**: DataPacket frame processing RESOLVED (512-byte UART buffer), Oracle verify command issue identified
+**Implementation**: 1) UART buffer hardening (atomic operations + bounds validation), 2) Fix Oracle verify protocol mismatch, 3) Complete flash programming implementation per bootloader spec
+**Success Criteria**: Full Oracle protocol cycle (Handshake → Data → Flash Programming) with 256 bytes written to Page 63 (0x0801F800)
 
 ### **Important Technical Notes**
 - **GDB Behavior**: OpenOCD connection halts execution → requires `monitor reset` + `continue`
