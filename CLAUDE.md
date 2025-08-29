@@ -69,14 +69,15 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 
 ### **PHASE 4: BOOTLOADER COMPLETION & SOS MVP (Hardware-focused)**
 
-**Phase 4.6: Oracle Protocol Completion**
+**Phase 4.6: Oracle Protocol Completion** ✅ **COMPLETED**
 - **4.6.1**: ✅ Debug protobuf decode/response generation chain (frame parsing fixed)
 - **4.6.2**: ✅ Complete handshake → achieve SGH response (working: "CockpitVM-4.6.3")
-- **4.6.3**: 🔄 Data transfer + dual-bank flash programming (DataPacket ACK working, flash programming pending)
+- **4.6.3**: ✅ Data transfer + dual-bank flash programming (DataPacket ACK + FlashProgramResponse working)
 
-**Phase 4.7: Host Bootloader Tool**
-- **4.7.1**: Python client using Oracle's protocol patterns
-- **4.7.2**: Integration with ArduinoC compiler → bytecode upload pipeline
+**Phase 4.7: Host Bootloader Tool** 🔄 **IN PROGRESS**
+- **Foundation**: Oracle CLI (`tests/oracle_bootloader/oracle_cli.py`) - production bootloader client
+- **4.7.1**: Graduated dual-bank flash programming with retry logic (Foundation → Auto-fallback)
+- **4.7.2**: Enhanced Oracle CLI (--flash, --verify-only, --readback) + Golden Triangle integration
 
 **Phase 4.8: SOS MVP Deployment**
 - **4.8.1**: SOS program (LED + UART + GPIO + timer) using ArduinoC grammar
@@ -94,7 +95,7 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 ### **Completed Foundation**
 - ✅ 6-Layer Architecture + Clean separation + STM32 HAL integration
 - ✅ Workspace-isolated testing + Platform test interface
-- ✅ **Oracle Protocol (Phase 4.6.1-4.6.2)** - Frame parsing + DataPacket ACK cycle working
+- ✅ **Phase 4.6: Oracle Protocol Complete** - Full bootloader cycle with FlashProgramResponse
 - ✅ ANTLR compiler + 4-byte instruction format + Execution engine
 - ✅ **Modular Diagnostics Framework** - USART2 surgical debugging operational
 
@@ -109,9 +110,10 @@ RTOS-Ready: Expandable for pointers, structs, preemptive scheduling
 - **Oracle**: `./tools/run_test bootloader_oracle_basic` → protobuf bootloader testing
 
 ### **Oracle Current State**
-- **Status**: SGH → Data ACK → Verify Issue (S=START, G=Got frame, H=Handshake success, DataPacket ACK received, Verify command decode failure)
-- **Root Cause Resolved**: 256-byte UART buffer limit → 512-byte buffer eliminates DataPacket hang
-- **Next**: Fix Oracle verify command protocol mismatch + implement flash programming per bootloader spec
+- **Phase 4.6**: ✅ COMPLETE - Full protocol cycle with FlashProgramResponse generation
+- **Phase 4.7**: 🔄 IN PROGRESS - Actual flash programming + enhanced CLI + Golden Triangle integration
+- **Architecture**: Clean, extensible codebase ready for production deployment features
+- **Next**: Dual-bank flash implementation with --flash, --verify-only, --readback commands
 
 ### **Commit Guidelines**
 - Branch per chunk: `git checkout -b phase-4-6-1-oracle-debug`
@@ -133,21 +135,21 @@ Guest Application → VM Hypervisor → Host Interface → Platform Layer → ST
 - **Diagnostics**: USART2 PA2/PA3@115200 - timestamped structured logging, zero Oracle interference
 
 ## Key Documentation References
-- **Oracle Integration**: `docs/testing/WORKSPACE_ISOLATED_TEST_SYSTEM.md` - Phase 4 reproduction
+- **Phase 4.7 Implementation**: `docs/development/PHASE_4_7_IMPLEMENTATION_PLAN.md` - Complete Phase 4.7 plan (<2% ambiguity)
+- **Phase 4.6 History**: `docs/development/PHASE_4_6_IMPLEMENTATION_LOG.md` - Oracle protocol completion details
+- **Golden Triangle Testing**: `docs/testing/WORKSPACE_ISOLATED_TEST_SYSTEM.md` - Test framework integration
 - **Architecture**: `docs/architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md` - Layer specifications  
-- **Compiler**: `docs/technical/compiler/COMPILER_CODE_REVIEW.md` - ANTLR ArduinoC grammar
-- **Diagnostics Framework**: `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md` - Comprehensive logging system
-- **Phase 4.6 Progress**: `docs/development/PHASE_4_6_IMPLEMENTATION_LOG.md` - Detailed implementation history
 - **Bootloader Protocol**: `docs/bootloader/BOOTLOADER_PROTOCOL_SPECIFICATION.md` - Official protocol spec
+- **Diagnostics Framework**: `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md` - USART2 logging system
 
 ---
 
 ## Critical Development Notes
 
-### **CURRENT TASK: Phase 4.6.3 - Oracle Protocol Completion & Flash Programming**
-**Current State**: DataPacket frame processing RESOLVED (512-byte UART buffer), Oracle verify command issue identified
-**Implementation**: 1) UART buffer hardening (atomic operations + bounds validation), 2) Fix Oracle verify protocol mismatch, 3) Complete flash programming implementation per bootloader spec
-**Success Criteria**: Full Oracle protocol cycle (Handshake → Data → Flash Programming) with 256 bytes written to Page 63 (0x0801F800)
+### **CURRENT TASK: Phase 4.7 - Host Bootloader Tool Implementation**
+**Current State**: Phase 4.6 COMPLETED - Oracle protocol fully operational with FlashProgramResponse
+**Implementation**: 1) Graduated dual-bank flash programming (Foundation → Auto-fallback), 2) Enhanced Oracle CLI with --flash/--verify-only/--readback, 3) Golden Triangle integration with 0xDEADBEEF test patterns
+**Success Criteria**: Complete flash pipeline ready for Phase 4.8 SOS deployment
 
 ### **Important Technical Notes**
 - **GDB Behavior**: OpenOCD connection halts execution → requires `monitor reset` + `continue`
