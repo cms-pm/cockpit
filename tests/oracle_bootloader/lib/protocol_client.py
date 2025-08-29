@@ -106,6 +106,15 @@ class ProtocolClient:
     Supports both normal operation and error injection.
     """
     
+    # Centralized sequence ID mapping for maintainability
+    SEQUENCE_IDS = {
+        'handshake': 1,
+        'prepare': 2,
+        'data': 3,
+        'verify': 4,
+        'recovery': 5  # Future expansion
+    }
+    
     def __init__(self, device_path: str, baud_rate: int = 115200, timeout: float = 2.0):
         self.device_path = device_path
         self.baud_rate = baud_rate
@@ -408,7 +417,7 @@ class ProtocolClient:
         
         # Create bootloader request wrapper
         bootloader_req = bootloader_pb2.BootloaderRequest()
-        bootloader_req.sequence_id = 1
+        bootloader_req.sequence_id = self.SEQUENCE_IDS['handshake']
         bootloader_req.handshake.CopyFrom(handshake_req)
         
         # Serialize to protobuf bytes
@@ -548,7 +557,7 @@ class ProtocolClient:
         
         # Create bootloader request wrapper
         bootloader_req = bootloader_pb2.BootloaderRequest()
-        bootloader_req.sequence_id = 2  # Increment from handshake
+        bootloader_req.sequence_id = self.SEQUENCE_IDS['prepare']
         bootloader_req.flash_program.CopyFrom(flash_req)
         
         # Debug: Show what we're sending
@@ -646,7 +655,7 @@ class ProtocolClient:
         
         # Create bootloader request wrapper
         bootloader_req = bootloader_pb2.BootloaderRequest()
-        bootloader_req.sequence_id = 3  # Increment from prepare
+        bootloader_req.sequence_id = self.SEQUENCE_IDS['data']
         bootloader_req.data.CopyFrom(data_packet)
         
         # Debug: Show what we're sending
@@ -750,11 +759,13 @@ class ProtocolClient:
         """
         try:
             # SPEC-COMPLIANT: Send FlashProgramRequest with verify_after_program=true
+            import sys
+            import os
+            sys.path.append(os.path.dirname(__file__))
             import bootloader_pb2
-            from bootloader_pb2 import BootloaderRequest, FlashProgramRequest
             
-            flash_request = BootloaderRequest()
-            flash_request.sequence_id = self._get_next_sequence_id()
+            flash_request = bootloader_pb2.BootloaderRequest()
+            flash_request.sequence_id = self.SEQUENCE_IDS['verify']
             flash_request.flash_program.total_data_length = getattr(self, 'staged_data_length', 256)
             flash_request.flash_program.verify_after_program = True
             
