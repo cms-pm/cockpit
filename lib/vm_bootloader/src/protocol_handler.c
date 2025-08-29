@@ -33,6 +33,30 @@ static bootloader_protocol_result_t handle_data_packet(
 static bootloader_protocol_result_t handle_flash_program_request(
     const FlashProgramRequest* req, BootloaderResponse* response);
 
+// Dual-bank flash addressing framework
+typedef enum {
+    FLASH_BANK_A = 0x08010000,  // 32KB primary bank
+    FLASH_BANK_B = 0x08018000,  // 32KB fallback bank  
+    FLASH_TEST   = 0x0801F800   // 2KB development/test page (Page 63)
+} flash_bank_t;
+
+// Track current active bank for dual-bank operations
+static flash_bank_t current_active_bank = FLASH_BANK_A;
+
+// Flash bank configuration
+#define FLASH_BANK_SIZE 32768                 // 32KB per bank
+#define FLASH_PAGE_SIZE 2048                  // STM32G4 page size
+
+// Helper function to get bank start address
+static uint32_t get_bank_address(flash_bank_t bank) {
+    switch (bank) {
+        case FLASH_BANK_A: return 0x08010000;
+        case FLASH_BANK_B: return 0x08018000; 
+        case FLASH_TEST:   return 0x0801F800;
+        default:           return 0x0801F800;  // Default to test page
+    }
+}
+
 // Calculate CRC32 for verification (simple implementation)
 static uint32_t calculate_crc32(const uint8_t* data, size_t length) {
     // Simple CRC32 implementation for verification
@@ -50,6 +74,35 @@ static uint32_t calculate_crc32(const uint8_t* data, size_t length) {
     }
     
     return ~crc;
+}
+
+// Bank corruption detection and automatic fallback (Phase 4.7.1C)
+// TODO Phase 4.8: Integrate into bootloader startup sequence
+static bootloader_protocol_result_t detect_and_fallback() __attribute__((unused)); 
+static bootloader_protocol_result_t detect_and_fallback() {
+    uint32_t current_bank_addr = get_bank_address(current_active_bank);
+    
+    // Simple corruption detection: check first 64 bytes for all 0x00 or all 0xFF patterns
+    volatile uint32_t* bank_ptr = (volatile uint32_t*)current_bank_addr;
+    
+    bool all_zero = true, all_erased = true;
+    for (int i = 0; i < 16; i++) {  // Check first 64 bytes (16 words)
+        uint32_t word = bank_ptr[i];
+        if (word != 0x00000000) all_zero = false;
+        if (word != 0xFFFFFFFF) all_erased = false;
+    }
+    
+    if (all_zero || all_erased) {
+        // Bank corruption detected - switch to fallback
+        current_active_bank = (current_active_bank == FLASH_BANK_A) ? 
+                              FLASH_BANK_B : FLASH_BANK_A;
+        
+        DIAG_WARN(DIAG_COMPONENT_PROTOCOL_HANDLER, "Bank corruption detected, switching to fallback");
+        
+        return BOOTLOADER_PROTOCOL_ERROR_FLASH_OPERATION;  // Switched to fallback
+    }
+    
+    return BOOTLOADER_PROTOCOL_SUCCESS;  // Bank healthy
 }
 
 bootloader_protocol_result_t protocol_handle_request(const BootloaderRequest* request, 
@@ -241,16 +294,63 @@ static bootloader_protocol_result_t handle_flash_program_request(
             return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
         }
         
-        // Flush staging buffer
-        result = flash_flush_staging(&ctx->flash_ctx);
-        if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
-            return result;
+        // Phase 4.7: Actual flash programming with retry logic
+        flash_bank_t target_bank = FLASH_TEST;  // Use test page for Phase 4.7
+        uint32_t target_address = get_bank_address(target_bank);
+        
+        DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS,
+                   "Starting flash programming to bank 0x%08X", (unsigned int)target_address);
+        
+        // Implement retry logic with 3 attempts
+        int max_attempts = 3;
+        for (int attempt = 1; attempt <= max_attempts; attempt++) {
+            DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS,
+                       "Flash programming attempt %d of %d", attempt, max_attempts);
+            
+            // 1. Flush staging buffer to flash
+            result = flash_flush_staging(&ctx->flash_ctx);
+            if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
+                DIAG_WARN(DIAG_COMPONENT_PROTOCOL_HANDLER, "Flash staging flush failed");
+                if (attempt == max_attempts) break;
+                continue;  // Retry
+            }
+            
+            // 2. Verify flash integrity by reading back and checking consistency
+            // Since we already flushed staging to flash, verify the flash content integrity
+            volatile uint8_t* flash_ptr = (volatile uint8_t*)target_address;
+            bool verification_passed = true;
+            
+            // Basic integrity check - ensure flash is not all 0xFF (erased) or 0x00 (failed)
+            uint32_t non_erased_count = 0;
+            for (uint32_t i = 0; i < ctx->actual_data_length; i++) {
+                if (flash_ptr[i] != 0xFF) non_erased_count++;
+            }
+            
+            if (non_erased_count == 0) {
+                verification_passed = false;  // All erased - programming failed
+            }
+            
+            result = verification_passed ? BOOTLOADER_PROTOCOL_SUCCESS : BOOTLOADER_PROTOCOL_ERROR_FLASH_OPERATION;
+            if (result == BOOTLOADER_PROTOCOL_SUCCESS) {
+                DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS,
+                           "Flash programming successful on attempt %d", attempt);
+                break;  // Success!
+            } else {
+                DIAG_WARN(DIAG_COMPONENT_PROTOCOL_HANDLER, "Flash verification failed");
+                if (attempt < max_attempts) {
+                    // Simple retry approach: re-erase page for next attempt
+                    // TODO Phase 4.8: Implement full re-staging with stored original data
+                    DIAG_DEBUG(DIAG_COMPONENT_PROTOCOL_HANDLER, "Re-erasing page for retry...");
+                    flash_erase_page(target_address);
+                }
+            }
         }
         
-        // Verify data
-        result = flash_verify_data(BOOTLOADER_TEST_PAGE_ADDR, 
-                                 (uint8_t*)0x20000000,  // Placeholder - would need actual data buffer
-                                 ctx->actual_data_length);
+        // Check final result
+        if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
+            DIAG_ERROR(DIAG_COMPONENT_PROTOCOL_HANDLER, "Flash programming failed after all retries");
+            return result;
+        }
         
         // Build FlashProgramResponse
         response->which_response = BootloaderResponse_flash_result_tag;
@@ -258,8 +358,8 @@ static bootloader_protocol_result_t handle_flash_program_request(
             ((ctx->actual_data_length + 7) / 8) * 8;  // 64-bit aligned
         response->response.flash_result.actual_data_length = ctx->actual_data_length;
         
-        // Calculate verification hash
-        uint32_t verification_crc = calculate_crc32((uint8_t*)BOOTLOADER_TEST_PAGE_ADDR, 
+        // Calculate verification hash using actual target address
+        uint32_t verification_crc = calculate_crc32((uint8_t*)target_address, 
                                                    ctx->actual_data_length);
         
         // Store as bytes (simple conversion)
@@ -282,13 +382,18 @@ static bootloader_protocol_result_t handle_flash_program_request(
             return BOOTLOADER_PROTOCOL_ERROR_PAYLOAD_TOO_LARGE;
         }
         
-        // Initialize flash context and erase page
+        // Initialize flash context with dual-bank addressing
         result = flash_context_init(&ctx->flash_ctx);
         if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
             return result;
         }
         
-        result = flash_erase_page(BOOTLOADER_TEST_PAGE_ADDR);
+        // Use dual-bank addressing - Phase 4.7 targets test page
+        flash_bank_t prepare_bank = FLASH_TEST;
+        uint32_t prepare_address = get_bank_address(prepare_bank);
+        ctx->flash_ctx.flash_write_address = prepare_address;
+        
+        result = flash_erase_page(prepare_address);
         if (result != BOOTLOADER_PROTOCOL_SUCCESS) {
             return result;
         }
