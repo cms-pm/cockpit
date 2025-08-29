@@ -24,8 +24,8 @@ bool uart_circular_buffer_put(uart_rx_circular_buffer_t* buffer, uint8_t data)
 {
     if (!buffer) return false;
     
-    // Check for buffer overflow
-    if (buffer->count >= UART_RX_BUFFER_SIZE) {
+    // Check for buffer overflow (atomic load)
+    if (atomic_load(&buffer->count) >= UART_RX_BUFFER_SIZE) {
         buffer->overflow = true;
         return false;  // Buffer full
     }
@@ -33,11 +33,11 @@ bool uart_circular_buffer_put(uart_rx_circular_buffer_t* buffer, uint8_t data)
     // Store data at head position
     buffer->buffer[buffer->head] = data;
     
-    // Update head with wrap-around
-    buffer->head = (buffer->head + 1) % UART_RX_BUFFER_SIZE;
+    // Update head with wrap-around (bitwise AND for power-of-2 buffer)
+    buffer->head = (buffer->head + 1) & UART_RX_BUFFER_MASK;
     
-    // Increment count (atomic for single writer)
-    buffer->count++;
+    // Increment count (atomic operation for ISR safety)
+    atomic_fetch_add(&buffer->count, 1);
     
     return true;
 }
@@ -46,19 +46,19 @@ bool uart_circular_buffer_get(uart_rx_circular_buffer_t* buffer, uint8_t* data)
 {
     if (!buffer || !data) return false;
     
-    // Check if buffer is empty
-    if (buffer->count == 0) {
+    // Check if buffer is empty (atomic load)
+    if (atomic_load(&buffer->count) == 0) {
         return false;
     }
     
     // Retrieve data from tail position
     *data = buffer->buffer[buffer->tail];
     
-    // Update tail with wrap-around
-    buffer->tail = (buffer->tail + 1) % UART_RX_BUFFER_SIZE;
+    // Update tail with wrap-around (bitwise AND for power-of-2 buffer)
+    buffer->tail = (buffer->tail + 1) & UART_RX_BUFFER_MASK;
     
-    // Decrement count (atomic for single reader)
-    buffer->count--;
+    // Decrement count (atomic operation for ISR safety)
+    atomic_fetch_sub(&buffer->count, 1);
     
     return true;
 }
@@ -67,14 +67,14 @@ uint16_t uart_circular_buffer_available(const uart_rx_circular_buffer_t* buffer)
 {
     if (!buffer) return 0;
     
-    return buffer->count;
+    return atomic_load(&buffer->count);
 }
 
 bool uart_circular_buffer_is_empty(const uart_rx_circular_buffer_t* buffer)
 {
     if (!buffer) return true;
     
-    return (buffer->count == 0);
+    return (atomic_load(&buffer->count) == 0);
 }
 
 bool uart_circular_buffer_has_overflow(const uart_rx_circular_buffer_t* buffer)
@@ -98,6 +98,6 @@ void uart_circular_buffer_flush(uart_rx_circular_buffer_t* buffer)
     // Reset all pointers and counters
     buffer->head = 0;
     buffer->tail = 0;
-    buffer->count = 0;
+    atomic_store(&buffer->count, 0);
     buffer->overflow = false;
 }

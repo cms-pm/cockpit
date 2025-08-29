@@ -229,6 +229,9 @@ static bool vm_bootloader_protocol_process_uart_data(vm_bootloader_context_inter
             
             // Check if frame is complete
             if (frame_parser_is_complete(&g_frame_parser)) {
+                DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_ENGINE, STATUS_SUCCESS, 
+                           "FRAME COMPLETE: %u bytes, processing...", 
+                           (unsigned int)g_frame_parser.frame.payload_length);
                 DIAG_FLOW(DIAG_FLOW_C_FRAME_PAYLOAD, "Frame payload received");
                 DIAG_FLOW(DIAG_FLOW_D_FRAME_CRC_OK, "Frame CRC validated");
                 
@@ -291,6 +294,9 @@ static bootloader_protocol_result_t vm_bootloader_protocol_handle_frame(vm_bootl
     
     // E: Protobuf decode initiated
     DIAG_FLOW(DIAG_FLOW_E_PROTOBUF_DECODE_START, "Starting protobuf decode");
+    DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_ENGINE, STATUS_SUCCESS, 
+                "PROTOCOL HANDLER: Processing %u-byte payload", 
+                (unsigned int)frame->payload_length);
     pb_istream_t input_stream = pb_istream_from_buffer(frame->payload, frame->payload_length);
     
     if (!pb_decode(&input_stream, BootloaderRequest_fields, &g_current_request)) {
@@ -368,14 +374,17 @@ static bootloader_protocol_result_t vm_bootloader_protocol_send_response(const B
         return BOOTLOADER_PROTOCOL_ERROR_FRAME_INVALID;
     }
     
-    // Log outbound frame for debugging
-    DIAG_BUFFER(DIAG_LEVEL_DEBUG, DIAG_COMPONENT_PROTOCOL_ENGINE, "Outbound frame", g_outbound_buffer, frame_length);
+    // CRITICAL: Response transmission tracking
+    DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_ENGINE, STATUS_SUCCESS, 
+                "SENDING RESPONSE: %u bytes to Oracle", (unsigned int)frame_length);
     
     // Send framed response via UART - ATOMIC TRANSMISSION with dedicated buffer
     platform_uart_transmit((const uint8_t*)g_outbound_buffer, (uint16_t)frame_length);
     
     // J: Response transmitted
-    DIAG_FLOW(DIAG_FLOW_J_RESPONSE_TRANSMITTED, "Response transmitted successfully");
+    DIAG_FLOW(DIAG_FLOW_J_RESPONSE_TRANSMITTED, "Response TRANSMITTED to Oracle");
+    DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_ENGINE, STATUS_SUCCESS, 
+                "Oracle should now receive %u-byte response frame", (unsigned int)frame_length);
     
     return BOOTLOADER_PROTOCOL_SUCCESS;
 }

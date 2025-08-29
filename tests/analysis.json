@@ -1,0 +1,14 @@
+{
+  "oracle_version": "4.5.2D",
+  "test_type": "scenario",
+  "test_name": "normal",
+  "device": "/dev/ttyUSB1",
+  "timestamp": 1756466126.3418324,
+  "total_time": 19.729741096496582,
+  "result": {
+    "success": false,
+    "scenario_name": "normal",
+    "message": "Scenario failed: Verify failed: Failed to receive verify response",
+    "execution_time": 17.717
+  }
+}

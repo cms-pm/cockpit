@@ -10,7 +10,10 @@
 #include "pb_decode.h"
 #include "utilities/bootloader.pb.h"
 #include "host_interface/host_interface.h"
+#include "bootloader_diagnostics.h"
 #include <string.h>
+
+#define DIAG_COMPONENT_PROTOCOL_HANDLER MOD_PROTOCOL
 
 
 // External functions
@@ -84,6 +87,9 @@ bootloader_protocol_result_t protocol_handle_request(const BootloaderRequest* re
             break;
             
         case BootloaderRequest_data_tag:
+            DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS, 
+                        "Processing DataPacket: %u bytes", 
+                        (unsigned int)request->request.data.data.size);
             response->which_response = BootloaderResponse_ack_tag;
             result = handle_data_packet(&request->request.data, 
                                       &response->response.ack);
@@ -91,6 +97,11 @@ bootloader_protocol_result_t protocol_handle_request(const BootloaderRequest* re
             if (result == BOOTLOADER_PROTOCOL_SUCCESS) {
                 response->response.ack.success = true;
                 response->response.ack.message[0] = '\0';
+                DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS, 
+                            "DataPacket ACK generated: success=true");
+            } else {
+                DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_ERROR_GENERAL, 
+                            "DataPacket processing failed: result=%d", result);
             }
             break;
             
@@ -167,6 +178,11 @@ static bootloader_protocol_result_t handle_data_packet(
     
     protocol_context_t* ctx = protocol_get_context();
     
+    DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS, 
+                "DataPacket handler: offset=%u, size=%u, crc32=0x%08X", 
+                (unsigned int)packet->offset, (unsigned int)packet->data.size, 
+                (unsigned int)packet->data_crc32);
+    
     // Validate protocol state
     if (ctx->state != PROTOCOL_STATE_READY_FOR_DATA) {
         return BOOTLOADER_PROTOCOL_ERROR_STATE_INVALID;
@@ -185,6 +201,9 @@ static bootloader_protocol_result_t handle_data_packet(
     // Verify data CRC32 (double CRC protection)
     uint32_t calculated_crc = calculate_crc32(packet->data.bytes, packet->data.size);
     if (calculated_crc != packet->data_crc32) {
+        DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_ERROR_CRC, 
+                    "CRC mismatch: calc=0x%08X, recv=0x%08X", 
+                    (unsigned int)calculated_crc, (unsigned int)packet->data_crc32);
         return BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH;
     }
     
@@ -201,6 +220,10 @@ static bootloader_protocol_result_t handle_data_packet(
     ctx->data_received = true;
     ctx->actual_data_length = packet->data.size;
     ctx->state = PROTOCOL_STATE_DATA_RECEIVED;
+    
+    DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_HANDLER, STATUS_SUCCESS, 
+                "DataPacket complete: staged %u bytes, state->DATA_RECEIVED", 
+                (unsigned int)packet->data.size);
     
     // Acknowledgment will be set by main dispatch
     return BOOTLOADER_PROTOCOL_SUCCESS;

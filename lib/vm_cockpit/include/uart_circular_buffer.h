@@ -11,20 +11,27 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdatomic.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Buffer size configuration - sufficient for max protocol frame
-#define UART_RX_BUFFER_SIZE 256
+// Buffer size configuration - sufficient for max protocol frame (279 bytes + margin)
+// MUST be power of 2 for bitwise operations (enforced by static_assert)
+#define UART_RX_BUFFER_SIZE 512
+#define UART_RX_BUFFER_MASK (UART_RX_BUFFER_SIZE - 1)
+
+// Compile-time validation that buffer size is power of 2
+_Static_assert((UART_RX_BUFFER_SIZE & (UART_RX_BUFFER_SIZE - 1)) == 0, 
+               "UART_RX_BUFFER_SIZE must be power of 2 for safe bitwise operations");
 
 // Circular buffer structure for interrupt-safe UART RX
 typedef struct {
     uint8_t buffer[UART_RX_BUFFER_SIZE];  // Data storage
     volatile uint16_t head;               // Write index (ISR updates)
     volatile uint16_t tail;               // Read index (main thread updates)
-    volatile uint16_t count;              // Number of bytes available
+    volatile _Atomic uint16_t count;      // Number of bytes available (atomic)
     volatile bool overflow;               // Buffer overflow flag
 } uart_rx_circular_buffer_t;
 

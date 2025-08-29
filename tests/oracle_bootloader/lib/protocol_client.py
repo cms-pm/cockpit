@@ -112,6 +112,7 @@ class ProtocolClient:
         self.timeout = timeout
         self.serial_conn: Optional[serial.Serial] = None
         self.sequence_id = 1
+        self.transmission_log = []  # Track detailed frame transmission data
     
     def _calculate_crc32(self, data: bytes) -> int:
         """Calculate CRC32 EXACTLY matching bootloader implementation.
@@ -230,15 +231,75 @@ class ProtocolClient:
             
         # Clear buffers before sending critical frame
         self.flush_serial_buffers()
+        
+        # PHASE 1: Detailed frame construction and transmission logging
+        frame_type = "unknown"
+        payload_size = 0
+        
+        # Determine frame type based on size for better logging
+        if len(frame) > 40:
+            frame_type = "datapacket"
+            if len(frame) >= 3:
+                payload_size = (frame[1] << 8) | frame[2]  # Extract payload length
+        elif len(frame) > 20:
+            frame_type = "handshake"
+            if len(frame) >= 3:
+                payload_size = (frame[1] << 8) | frame[2]
+        elif len(frame) > 5:
+            frame_type = "prepare"
+            if len(frame) >= 3:
+                payload_size = (frame[1] << 8) | frame[2]
+        
+        transmission_start = time.time()
             
         try:
             bytes_written = self.serial_conn.write(frame)
             self.serial_conn.flush()
+            transmission_end = time.time()
+            
+            # Detailed transmission logging for JSON output
+            transmission_record = {
+                "timestamp": transmission_start,
+                "frame_type": frame_type,
+                "frame_length_total": len(frame),
+                "payload_length_expected": payload_size,
+                "bytes_written": bytes_written,
+                "transmission_time_ms": round((transmission_end - transmission_start) * 1000, 3),
+                "success": bytes_written == len(frame),
+                "frame_hex_preview": frame[:20].hex(),  # First 20 bytes for verification
+            }
+            
+            # Add to transmission log for JSON output
+            self.transmission_log.append(transmission_record)
+            
             logger.debug(f"Sent frame, first char: {hex(frame[0])}")
-            logger.debug(f"Sent frame: {len(frame)} bytes, wrote {bytes_written}")
+            logger.debug(f"Sent {frame_type} frame: {len(frame)} bytes, wrote {bytes_written}")
+            
+            # Critical diagnostic for large frames
+            if frame_type == "datapacket":
+                logger.info(f"🚀 DATAPACKET TRANSMISSION: {bytes_written}/{len(frame)} bytes sent in {transmission_record['transmission_time_ms']}ms")
+                if bytes_written != len(frame):
+                    logger.error(f"❌ DATAPACKET PARTIAL SEND: Expected {len(frame)}, sent {bytes_written}")
+            
             return bytes_written == len(frame)
             
         except Exception as e:
+            transmission_end = time.time()
+            
+            # Log failed transmission
+            transmission_record = {
+                "timestamp": transmission_start,
+                "frame_type": frame_type,
+                "frame_length_total": len(frame),
+                "payload_length_expected": payload_size,
+                "bytes_written": 0,
+                "transmission_time_ms": round((transmission_end - transmission_start) * 1000, 3),
+                "success": False,
+                "error": str(e),
+                "frame_hex_preview": frame[:20].hex(),
+            }
+            self.transmission_log.append(transmission_record)
+            
             logger.error(f"Failed to send frame: {e}")
             return False
     
@@ -630,7 +691,10 @@ class ProtocolClient:
             
             logger.debug(f"Sending data frame ({len(frame)} bytes) with {len(test_data)} bytes of data")
             if not self.send_raw_frame(frame):
-                return ProtocolResult(False, "Failed to send data frame")
+                return ProtocolResult(False, "Failed to send data frame", {
+                    "transmission_log": self.transmission_log,
+                    "failure_point": "datapacket_transmission"
+                })
             
             # Minimal diagnostic check for data processing - increased delay for large frames
             time.sleep(0.5)  # Longer processing time for data staging
@@ -643,7 +707,10 @@ class ProtocolClient:
             
             response_payload = self.receive_response()
             if response_payload is None:
-                return ProtocolResult(False, "Failed to receive data response")
+                return ProtocolResult(False, "Failed to receive data response", {
+                    "transmission_log": self.transmission_log,
+                    "failure_point": "datapacket_response_timeout"
+                })
             
             # Parse protobuf response
             try:
@@ -676,17 +743,27 @@ class ProtocolClient:
     
     def execute_verify_flash(self) -> ProtocolResult:
         """
-        Execute flash verification phase.
+        Execute flash verification phase using proper FlashProgramRequest.
         
         Returns:
             ProtocolResult with verification outcome
         """
-        verify_payload = b"VERIFY_FLASH"
-        
         try:
-            frame = FrameBuilder.build_frame(verify_payload)
+            # SPEC-COMPLIANT: Send FlashProgramRequest with verify_after_program=true
+            import bootloader_pb2
+            from bootloader_pb2 import BootloaderRequest, FlashProgramRequest
+            
+            flash_request = BootloaderRequest()
+            flash_request.sequence_id = self._get_next_sequence_id()
+            flash_request.flash_program.total_data_length = getattr(self, 'staged_data_length', 256)
+            flash_request.flash_program.verify_after_program = True
+            
+            # Serialize protobuf message
+            request_payload = flash_request.SerializeToString()
+            frame = FrameBuilder.build_frame(request_payload)
+            
             if not self.send_raw_frame(frame):
-                return ProtocolResult(False, "Failed to send verify frame")
+                return ProtocolResult(False, "Failed to send FlashProgramRequest")
             
             response_payload = self.receive_response()
             if response_payload is None:
@@ -736,7 +813,12 @@ class ProtocolClient:
         
         logger.info("Complete protocol sequence successful")
         return ProtocolResult(True, "Complete protocol sequence successful",
-                            {"test_data_size": len(test_data)})
+                            {
+                                "test_data_size": len(test_data),
+                                "transmission_log": self.transmission_log,
+                                "frame_count": len(self.transmission_log),
+                                "total_bytes_sent": sum(t["bytes_written"] for t in self.transmission_log)
+                            })
     
     def decode_leftover_data(self, number_of_bytes: int) -> ProtocolResult:
         """

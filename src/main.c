@@ -50,11 +50,11 @@
 #define VM_BOOTLOADER_LED_PIN               13      // PC6 status LED
 #define VM_BOOTLOADER_UART_BAUD            115200   // Standard baud rate
 
-// Test function for output
+// Test function for output - routed to diagnostics to prevent Oracle UART interference
 void test_print(const char* message)
 {
-    uart_write_string(message);
-    uart_write_string("\r\n");
+    // Route all startup messages to USART2 diagnostics channel
+    DIAG_INFO(MOD_GENERAL, "%s", message);
 }
 
 /**
@@ -92,8 +92,8 @@ int main(void)
         uart_read_char(); // Discard initialization noise
     }
     
-    // Send immediate synchronization signal - program is running
-    uart_write_string("BOOTLOADER_READY\r\n");
+    // Oracle protocol channel initialized - NO DEBUG MESSAGES ON USART1
+    // All diagnostics will use USART2 to prevent Oracle protocol interference
     
     // PHASE 2.5: MODULAR DIAGNOSTICS FRAMEWORK INITIALIZATION
     test_print("Initializing CockpitVM Modular Diagnostics Framework...");
@@ -175,23 +175,22 @@ int main(void)
     test_print("");
     
     // Enter VM bootloader main loop with surgical diagnostics
-    uart_write_string("ENTERING_VM_BOOTLOADER_MAIN_LOOP\r\n");
+    DIAG_INFO(MOD_GENERAL, "Entering VM bootloader main loop - Oracle protocol ready");
     vm_bootloader_run_result_t run_result = vm_bootloader_main_loop(&vm_ctx);
-    uart_write_string("EXITED_VM_BOOTLOADER_MAIN_LOOP\r\n");
     
-    // Report results
-    uart_write_string("\r\n=== VM BOOTLOADER SESSION RESULTS ===\r\n");
+    // Report results via diagnostics channel only
+    DIAG_INFO(MOD_GENERAL, "VM bootloader session complete");
     switch (run_result) {
         case VM_BOOTLOADER_RUN_COMPLETE:
-            uart_write_string("Result: PROTOCOL CYCLE COMPLETED SUCCESSFULLY ✓\r\n");
+            DIAG_INFO(MOD_GENERAL, "Protocol cycle completed successfully");
             test_print("✓ Complete protocol cycle validated with surgical diagnostics");
             break;
         case VM_BOOTLOADER_RUN_TIMEOUT:
-            uart_write_string("Result: SESSION TIMEOUT\r\n");
+            DIAG_WARN(MOD_GENERAL, "Session timeout - Oracle testing window closed");
             test_print("Session timeout - Oracle may not have connected");
             break;
         default:
-            uart_write_string("Result: SESSION ENDED\r\n");
+            DIAG_INFO(MOD_GENERAL, "VM bootloader session ended");
             test_print("VM bootloader session ended");
             break;
     }
