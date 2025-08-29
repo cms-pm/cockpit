@@ -23,6 +23,7 @@ lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lib')
 sys.path.insert(0, lib_path)
 
 from scenario_runner import OracleScenarioRunner, ScenarioResult, SequenceResult
+from protocol_client import ProtocolClient
 
 def setup_logging(verbose: bool = False, log_file: str = None):
     """Setup logging configuration."""
@@ -78,6 +79,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
+  # Flash programming (Phase 4.7)
+  %(prog)s --flash bytecode.bin --device /dev/ttyUSB1
+  %(prog)s --verify-only input.bin --device /dev/ttyUSB1 
+  %(prog)s --readback output.bin --device /dev/ttyUSB1
+  
   # Run single scenario
   %(prog)s --scenario normal --device /dev/ttyUSB0 --verbose
   
@@ -100,6 +106,14 @@ Examples:
                            help='Run scenario sequence by name')
     test_group.add_argument('--list-scenarios', action='store_true',
                            help='List available scenarios and sequences')
+    
+    # Phase 4.7: Flash programming commands
+    test_group.add_argument('--flash', metavar='BYTECODE_FILE',
+                           help='Upload, program, and verify bytecode file to flash')
+    test_group.add_argument('--verify-only', metavar='INPUT_FILE',
+                           help='Compare live flash content against provided file (no programming)')
+    test_group.add_argument('--readback', metavar='OUTPUT_FILE', 
+                           help='Download flash content to file')
     
     # Hardware configuration
     parser.add_argument('--device', default='/dev/ttyUSB0',
@@ -155,8 +169,8 @@ Examples:
         return 0
     
     # Require test selection if not listing
-    if not args.scenario and not args.sequence:
-        parser.error("Must specify --scenario, --sequence, or --list-scenarios")
+    if not args.scenario and not args.sequence and not args.flash and not args.verify_only and not args.readback:
+        parser.error("Must specify one of: --scenario, --sequence, --flash, --verify-only, --readback, or --list-scenarios")
     
     # Execute test
     start_time = time.time()
@@ -211,6 +225,70 @@ Examples:
                 
             finally:
                 runner.cleanup_connection()
+        
+        # Phase 4.7: Flash programming commands
+        elif args.flash:
+            logger.info(f"Flashing bytecode file: {args.flash}")
+            if not Path(args.flash).exists():
+                logger.error(f"File not found: {args.flash}")
+                return 1
+            
+            # Read bytecode file
+            try:
+                with open(args.flash, 'rb') as f:
+                    bytecode_data = f.read()
+            except Exception as e:
+                logger.error(f"Failed to read file {args.flash}: {e}")
+                return 1
+            
+            # Execute complete flash protocol
+            client = ProtocolClient(args.device)
+            if not client.connect():
+                logger.error("Failed to connect to bootloader")
+                return 1
+            
+            try:
+                result = client.execute_complete_protocol(bytecode_data)
+                success = result.success
+                
+                if not args.batch_mode:
+                    if success:
+                        print(f"✓ Flash programming SUCCESSFUL: {result.message}")
+                        if result.data:
+                            print(f"Bytes programmed: {result.data.get('test_data_size', 'unknown')}")
+                    else:
+                        print(f"✗ Flash programming FAILED: {result.message}")
+                
+                result_data = {
+                    'success': success,
+                    'message': result.message,
+                    'file': args.flash,
+                    'bytes_programmed': len(bytecode_data) if success else 0
+                }
+                
+            finally:
+                client.disconnect()
+                
+        elif args.verify_only:
+            logger.info(f"Verifying flash against file: {args.verify_only}")
+            if not Path(args.verify_only).exists():
+                logger.error(f"File not found: {args.verify_only}")
+                return 1
+            
+            if not args.batch_mode:
+                print("TODO Phase 4.8: --verify-only not yet implemented")
+                print("This command will compare live flash content against the provided file")
+            
+            result_data = {'success': False, 'message': 'Not implemented in Phase 4.7'}
+            
+        elif args.readback:
+            logger.info(f"Reading back flash content to: {args.readback}")
+            
+            if not args.batch_mode:
+                print("TODO Phase 4.8: --readback not yet implemented") 
+                print("This command will download flash content to the specified file")
+            
+            result_data = {'success': False, 'message': 'Not implemented in Phase 4.7'}
     
     except KeyboardInterrupt:
         logger.info("Test interrupted by user")
@@ -227,10 +305,24 @@ Examples:
     # Write JSON output if requested
     if args.json_output and result_data:
         try:
+            # Determine test type and name
+            if args.scenario:
+                test_type, test_name = 'scenario', args.scenario
+            elif args.sequence:
+                test_type, test_name = 'sequence', args.sequence
+            elif args.flash:
+                test_type, test_name = 'flash', args.flash
+            elif args.verify_only:
+                test_type, test_name = 'verify_only', args.verify_only
+            elif args.readback:
+                test_type, test_name = 'readback', args.readback
+            else:
+                test_type, test_name = 'unknown', 'unknown'
+            
             output_data = {
-                'oracle_version': '4.5.2D',
-                'test_type': 'scenario' if args.scenario else 'sequence',
-                'test_name': args.scenario or args.sequence,
+                'oracle_version': '4.7.2A',
+                'test_type': test_type,
+                'test_name': test_name,
                 'device': args.device,
                 'timestamp': time.time(),
                 'total_time': time.time() - start_time,
