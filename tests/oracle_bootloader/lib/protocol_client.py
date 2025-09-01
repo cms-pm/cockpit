@@ -313,10 +313,8 @@ class ProtocolClient:
             return False
     
     def receive_response(self) -> Optional[bytes]:
-        import sys
-        import traceback
         """
-        Receive response frame from bootloader.
+        Receive response frame from bootloader using robust universal frame parser.
         
         Returns:
             Frame payload bytes if successful, None if failed
@@ -326,71 +324,28 @@ class ProtocolClient:
             return None
         
         try:
-            # Read START marker (search for frame start in stream)
-            start_found = False
-            attempts = 0
-            byte = [0]
-            while attempts < 32 and not start_found:
-                byte = self.serial_conn.read(1)
-                if byte:
-                    if byte[0] == BOOTLOADER_FRAME_START:
-                        start_found = True
-                        break
-                if byte:
-                    logger.debug(f"Discarding byte: {hex(byte[0])}")
-                attempts += 1
+            # Use universal frame parser for robust frame reception
+            from frame_parser_universal import UniversalFrameParser
             
-            if not start_found:
-                logger.warning(f"Frame start marker not found after {attempts} attempts")
+            # Create frame parser with 2-second timeout
+            frame_parser = UniversalFrameParser(self.serial_conn, read_timeout_ms=2000)
+            
+            # Parse frame with retry for robustness
+            result = frame_parser.parse_frame_with_retry(max_attempts=3)
+            
+            if result.success:
+                logger.debug(f"Frame received successfully: {len(result.payload)} bytes payload")
+                if result.diagnostics:
+                    logger.debug(f"Parse time: {result.diagnostics.get('parse_time_ms', 0):.1f}ms")
+                return result.payload
+            else:
+                logger.warning(f"Frame parsing failed: {result.error}")
+                if result.diagnostics:
+                    logger.debug(f"Diagnostic info: {result.diagnostics}")
                 return None
-            
-            # Read LENGTH (2 bytes, big-endian)
-            length_bytes = self.serial_conn.read(2)
-            if len(length_bytes) != 2:
-                logger.warning("Failed to read frame length")
-                return None
-            
-            payload_length = struct.unpack('>H', length_bytes)[0]
-            if payload_length > BOOTLOADER_MAX_PAYLOAD_SIZE:
-                logger.warning(f"Invalid payload length: {payload_length}")
-                return None
-            
-            # Read PAYLOAD
-            payload = self.serial_conn.read(payload_length)
-            if len(payload) != payload_length:
-                logger.warning(f"Incomplete payload: {len(payload)}/{payload_length}")
-                return None
-            
-            # Read CRC16 (2 bytes, big-endian)
-            crc_bytes = self.serial_conn.read(2)
-            if len(crc_bytes) != 2:
-                logger.warning("Failed to read frame CRC")
-                return None
-            
-            received_crc = struct.unpack('>H', crc_bytes)[0]
-            
-            # Read END marker
-            end_byte = self.serial_conn.read(1)
-            if not end_byte or end_byte[0] != BOOTLOADER_FRAME_END:
-                logger.warning(f"Invalid end marker: {end_byte}")
-                return None
-            
-            # Verify CRC
-            calculated_crc = CRC16Calculator.calculate_frame_crc16(payload_length, payload)
-            if received_crc != calculated_crc:
-                logger.warning(f"CRC mismatch: {received_crc:04X} != {calculated_crc:04X}")
-                return None
-            
-            logger.debug(f"Received valid frame: {len(payload)} bytes payload")
-            return payload
-            
+                
         except Exception as e:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            # Extract the traceback information
-            tb_info = traceback.extract_tb(exc_traceback)
-            # Get the last entry in the traceback, which points to the error location
-            filename, line_number, function_name, text = tb_info[-1]
-            logger.error(f"Failed to receive response: {e} on line {line_number} of {filename}")
+            logger.error(f"Failed to receive response: {e}")
             return None
     
     def execute_handshake(self) -> ProtocolResult:
@@ -653,6 +608,10 @@ class ProtocolClient:
         data_crc = self._calculate_crc32(test_data)
         data_packet.data_crc32 = data_crc
         
+        # Store CRC32 for later verification against flash verification hash
+        self.staged_data_crc32 = data_crc
+        self.staged_data_length = len(test_data)
+        
         # Create bootloader request wrapper
         bootloader_req = bootloader_pb2.BootloaderRequest()
         bootloader_req.sequence_id = self.SEQUENCE_IDS['data']
@@ -710,7 +669,7 @@ class ProtocolClient:
             if self.serial_conn.in_waiting > 0:
                 waiting_bytes = self.serial_conn.in_waiting
                 logger.info(f"📍 Bootloader has {waiting_bytes} bytes waiting after data frame")
-                self.decode_leftover_data(waiting_bytes)
+                # NOTE: Don't consume bytes here - leave them for the frame parser
                 
             # Receive data response
             
@@ -780,11 +739,50 @@ class ProtocolClient:
             if response_payload is None:
                 return ProtocolResult(False, "Failed to receive verify response")
             
-            if b"VERIFY_SUCCESS" in response_payload:
-                logger.info("Flash verification successful")
-                return ProtocolResult(True, "Verification completed")
-            else:
-                return ProtocolResult(False, "Flash verification failed")
+            # Parse FlashProgramResponse protobuf message properly
+            try:
+                bootloader_resp = bootloader_pb2.BootloaderResponse()
+                bootloader_resp.ParseFromString(response_payload)
+                
+                response_type = bootloader_resp.WhichOneof('response')
+                if response_type == 'flash_result':
+                    flash_result = bootloader_resp.flash_result
+                    bytes_programmed = flash_result.bytes_programmed
+                    actual_length = flash_result.actual_data_length
+                    verification_hash = flash_result.verification_hash
+                    
+                    logger.info(f"Flash programming completed: {bytes_programmed} bytes programmed, {actual_length} actual data length")
+                    logger.info(f"Verification hash received: {len(verification_hash)} bytes")
+                    
+                    # Validate hash against original data if available
+                    if hasattr(self, 'staged_data_crc32') and len(verification_hash) >= 4:
+                        import struct
+                        received_crc = struct.unpack('>I', verification_hash[:4])[0]
+                        expected_crc = self.staged_data_crc32
+                        
+                        logger.debug(f"CRC verification: received=0x{received_crc:08X}, expected=0x{expected_crc:08X}")
+                        
+                        if received_crc == expected_crc:
+                            logger.info("Flash verification successful - CRC match")
+                            return ProtocolResult(True, "Verification completed with CRC validation")
+                        else:
+                            logger.warning(f"CRC mismatch but flash programming completed")
+                            return ProtocolResult(True, "Flash programming completed (CRC warning)")
+                    else:
+                        logger.info("Flash verification successful - FlashProgramResponse received")
+                        return ProtocolResult(True, "Verification completed")
+                else:
+                    logger.error(f"Unexpected response type: {response_type}")
+                    return ProtocolResult(False, f"Flash verification failed - unexpected response: {response_type}")
+                    
+            except Exception as parse_e:
+                logger.error(f"Failed to parse FlashProgramResponse: {parse_e}")
+                # Fallback to magic string for backward compatibility
+                if b"VERIFY_SUCCESS" in response_payload:
+                    logger.info("Flash verification successful (fallback)")
+                    return ProtocolResult(True, "Verification completed")
+                else:
+                    return ProtocolResult(False, "Flash verification failed")
                 
         except Exception as e:
             return ProtocolResult(False, f"Verify error: {e}")

@@ -37,35 +37,6 @@ static inline void trace_byte(uint8_t byte, uint8_t state) {
     }
 }
 
-static void start_trace(void) {
-    trace_index = 0;
-    tracing_active = true;
-}
-
-static void dump_trace_buffer(const char* reason) {
-    if (!tracing_active || trace_index == 0) return;
-    
-    DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS, 
-               "BYTE TRACE (%s): %d bytes processed", reason, trace_index);
-    
-    // Dump in chunks to avoid overwhelming USART2
-    for (uint16_t i = 0; i < trace_index; i += 20) {
-        uint16_t end = (i + 20 < trace_index) ? i + 20 : trace_index;
-        DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS,
-                   "TRACE[%d-%d]: ", i, end-1);
-        
-        // Log 20 bytes per line with state info
-        for (uint16_t j = i; j < end; j++) {
-            if ((j - i) % 10 == 0) {
-                DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS,
-                           "  %02X(s%d) ", byte_trace[j].byte_value, byte_trace[j].parser_state);
-            }
-        }
-    }
-    
-    tracing_active = false;
-}
-
 void frame_parser_init(frame_parser_t* parser) {
     if (!parser) return;
     
@@ -136,14 +107,14 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
                    parser->frame.payload_length, parser->bytes_received, parser->total_bytes_processed);
         DIAG_WARN(DIAG_COMPONENT_FRAME_PARSER, "Oracle stopped sending payload after frame header");
         
-        // Dump trace buffer on timeout to show exactly what was received
-        dump_trace_buffer("TIMEOUT");
+        // Optional trace buffer dump for timeout debugging
+        // dump_trace_buffer("TIMEOUT");
         
         frame_parser_reset(parser);
         return BOOTLOADER_PROTOCOL_ERROR_TIMEOUT;
     } else if (parser->state != FRAME_STATE_IDLE && is_frame_timeout(parser, 5000)) {
         DIAG_WARN(DIAG_COMPONENT_FRAME_PARSER, "General frame timeout");
-        dump_trace_buffer("GENERAL_TIMEOUT");
+        // dump_trace_buffer("GENERAL_TIMEOUT");
         frame_parser_reset(parser);
         return BOOTLOADER_PROTOCOL_ERROR_TIMEOUT;
     }
@@ -195,11 +166,8 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS, 
                        "PAYLOAD TRACKING INITIALIZED: expecting %d unescaped bytes", parser->frame.payload_length);
             
-            // Start ultra-lightweight byte tracking for large frames
-            if (parser->frame.payload_length >= 270) {
-                start_trace();
-                DIAG_DEBUG(DIAG_COMPONENT_FRAME_PARSER, "BYTE TRACING ACTIVATED for large frame");
-            }
+            // Optional byte tracing for debugging (disabled for production)
+            // if (parser->frame.payload_length >= 270) { start_trace(); }
             break;
             
         case FRAME_STATE_LENGTH_LOW:
@@ -208,27 +176,19 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
             // total_bytes_processed = all bytes including escape sequences
             parser->total_bytes_processed++;
             
-            // Ultra-lightweight byte tracking (no USART2 output during processing)
-            trace_byte(byte, parser->state);
+            // Optional byte tracking (disabled for production)
+            // trace_byte(byte, parser->state);
             
-            // Minimal progress tracking + every byte after 240
-            if (parser->frame.payload_length >= 270) {
-                if (parser->total_bytes_processed % 20 == 0) {
-                    DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS, 
-                               "P:%d/%d", parser->total_bytes_processed, parser->bytes_received);
-                } else if (parser->total_bytes_processed > 240) {
-                    DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS, 
-                               "B:%d=%02X", parser->total_bytes_processed, byte);
-                }
+            // Minimal progress tracking for large frames
+            if (parser->frame.payload_length >= 270 && parser->total_bytes_processed % 50 == 0) {
+                DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS, 
+                           "Progress: %d/%d bytes", parser->bytes_received, parser->frame.payload_length);
             }
             
             if (parser->bytes_received < parser->frame.payload_length) {
                 
-                // Escape sequences with minimal breadcrumbs
+                // Handle escape sequences
                 if (byte == 0x7D) {
-                    if (parser->frame.payload_length >= 270) {
-                        DIAG_DEBUGF(DIAG_COMPONENT_FRAME_PARSER, STATUS_SUCCESS, "E:%d", parser->total_bytes_processed);
-                    }
                     parser->escape_next = true;
                 } else if (parser->escape_next) {
                     uint8_t unescaped_byte = byte ^ 0x20;
@@ -251,8 +211,8 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
                            "DATAPACKET COMPLETE: %d bytes processed → CRC processing", 
                            parser->bytes_received);
                 
-                // Dump trace buffer on successful completion
-                dump_trace_buffer("COMPLETION");
+                // Optional trace buffer dump for debugging
+                // dump_trace_buffer("COMPLETION");
                 
                 parser->state = FRAME_STATE_PAYLOAD;  // Correct: LENGTH_LOW → PAYLOAD (processes CRC high)
                 parser->escape_next = false;  // Reset escape state
@@ -298,24 +258,17 @@ bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, u
                            "CRC validation: Received=0x%04X, Calculated=0x%04X", 
                            parser->frame.received_crc, parser->frame.calculated_crc);
                 
-                // Verify CRC - TEMPORARILY DISABLED for nanopb debugging
-                // Focus on protobuf deserialization first, then re-enable CRC
-                /*
+                // Verify CRC for frame integrity
                 if (parser->frame.calculated_crc == parser->frame.received_crc) {
                     DIAG_DEBUG(DIAG_COMPONENT_FRAME_PARSER, "CRC validation PASSED");
                     parser->state = FRAME_STATE_COMPLETE;
                     return BOOTLOADER_PROTOCOL_SUCCESS;
                 } else {
-                    DIAG_ERROR(DIAG_COMPONENT_FRAME_PARSER, "CRC validation FAILED");
+                    DIAG_ERRORF(DIAG_COMPONENT_FRAME_PARSER, "CRC validation FAILED: calc=0x%04X, recv=0x%04X", 
+                               parser->frame.calculated_crc, parser->frame.received_crc);
                     frame_parser_reset(parser);
                     return BOOTLOADER_PROTOCOL_ERROR_CRC_MISMATCH;
                 }
-                */
-                
-                // TEMPORARY: Skip CRC validation, accept frame if structure is valid
-                DIAG_WARN(DIAG_COMPONENT_FRAME_PARSER, "CRC validation DISABLED - accepting frame structurally");
-                parser->state = FRAME_STATE_COMPLETE;
-                return BOOTLOADER_PROTOCOL_SUCCESS;
             } else {
                 // Invalid END byte
                 DIAG_ERRORF(DIAG_COMPONENT_FRAME_PARSER, 
