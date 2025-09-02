@@ -140,7 +140,7 @@ typedef struct {
 
 ## 🏆 **Development Milestone**
 
-CockpitVM fresh architecture complete with 6-layer design. CockpitVM Bootloader Framework implemented with Oracle bootloader test client, copying and verifying bytecode to flash memory. By providing an adapter to vendor provided interfaces, such as STM32 HAL, the Host Interface layer (#3) provides a single source of truth to run programs. Switching processor vendors 
+CockpitVM fresh architecture complete with 6-layer design. CockpitVM Bootloader Framework implemented with Oracle bootloader test client, copying and verifying bytecode to flash memory. By providing an adapter to vendor provided interfaces, such as STM32 HAL, the Host Interface layer (#3) provides a single source of truth to run programs and switch processor vendors/types with minimal refactoring.
 
 ---
 
