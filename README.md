@@ -1,121 +1,97 @@
-# 🚁 Cockpit Project
+# 🚁 CockpitVM Project
 
-[![Platform](https://img.shields.io/badge/Platform-STM32G431-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]()
+[![Platform](https://img.shields.io/badge/Platform-STM32G474-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]()
 
-> **Currently under heavy development - things will break - not for production use**
+**Embedded Hypervisor for ARM Cortex-M4** - Multi-peripheral coordination with static task scheduling, memory-to-peripheral DMA, and comprehensive bootloader system.
 
-Embedded hypervisor project featuring CockpitVM - enabling C bytecode execution on ARM Cortex-M4 microcontrollers with fresh embedded native architecture and cross-platform testing.
+> **Phase 4.8 SOS MVP** - Multi-peripheral emergency signaling system research implementation
 
-## 📋 Documentation
+## 🎯 Project Vision & Mission
 
-**Complete technical documentation: [docs/](docs/)**
+**CockpitVM** is a research-grade embedded hypervisor enabling safe C bytecode execution on ARM Cortex-M4 microcontrollers with hardware-level safety, predictable performance, and multi-peripheral coordination.
 
-- **[Getting Started](docs/GETTING_STARTED.md)** - Quick overview
-- **[Architecture](docs/architecture/)** - System design (2000+ lines)  
-- **[API Reference](docs/API_REFERENCE_COMPLETE.md)** - Function reference
-- **[Hardware Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)** - STM32G431CB integration
+### **Core Achievements**
+- **32-bit Virtual Instruction Set** - Pre-compiled bytecode runs within a VM with peripheral pass-thru to host
+- **6-Layer Fresh Architecture** - Clean separation from Guest Application → Hardware  
+- **Static Memory Allocation** - Compile-time task partitioning eliminates non-determinism
+- **Multi-Peripheral Coordination** - DAC audio, I2S microphone, OLED display, IR, GPIO coordination
+- **Serial Bootloader** - Using Oracle bootloader client → vm_bootloader dual-bank flash programming and CRC validation
+- **ARM Cortex-M Context Switching** - Full processor state preservation to support preemptive scheduling
 
----
+## 📊 Current Status
 
-## 🚀 Current Development Status
+### **Phase 4.8: SOS MVP Deployment** 🎯 **ACTIVE**
+**Multi-Peripheral Emergency Signaling System**
+- **7 Coordinated Peripherals**: DAC audio, I2S microphone, OLED display, IR home theater, 5-button GPIO
+- **Static Task Memory**: 24KB compile-time allocation (SOS 2.5KB, Audio 1.75KB, Display/Button/Status 1.25KB each)
+- **Memory-to-Peripheral DMA**: 1KB DAC queue with hardware timer coordination
+- **Resource Management**: Mutex-based with emergency override capability
 
-### **Fresh Architecture Complete (Phase 4.5.4)**
-- **6-Layer Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware
-- **Platform Test Interface**: Cross-platform hardware validation with STM32 HAL structures as single source of truth
-- **Workspace-Isolated Testing**: Sophisticated test system with comprehensive hardware validation
-- **STM32G431CB Implementation**: Clean layer boundaries, reliable hardware operation
-- **Embedded Native API**: Professional gpio_pin_write, uart_begin interface (Arduino compatibility removed)
+### **Completed Milestones** ✅
+- **Phase 4.6**: Oracle Bootloader Client Complete - Full protobuf bootloader cycle
+- **Phase 4.7**: Host Bootloader Tool - Dual-bank flash programming implementation complete  
+- **Phase 4.7.4**: Protocol Hardening - CRC16 validation + Universal Frame Parser
 
-### **CockpitVM Core Features (Research Implementation)**
-- **32-bit VM Architecture**: ARM Cortex-M4 implementation with explicit PC management
-- **Host Interface API**: gpio_pin_write, uart_begin, delay_ms - embedded native naming
-- **C Compiler**: ANTLR4-based compiler with functions, control flow, expressions
-- **Testing**: 100% pass rate on hardware with platform test interface validation
-- **Memory Protection**: Stack canaries, bounds checking, comprehensive corruption detection
+### **Upcoming Milestones**
+- **Phase 4.9**: Cooperative Task Scheduler - Multi-program switching with static memory allocation
+- **Phase 5.0**: Preemptive RTOS Architecture - FreeRTOS integration with hardware timer coordination
 
-### **Hardware Configuration (STM32G431CB)**
+## 🏗️ Technical Architecture
+
+### **Hardware Platform**
 ```yaml
-Platform: STM32G431CB WeAct Studio CoreBoard
-CPU: ARM Cortex-M4F @ 168MHz system, 48MHz USB
-Memory: 128KB Flash, 32KB RAM
-Peripherals: GPIO (PC6 LED), USART1 (PA9/PA10), SWD debug
-VM Execution: Full bytecode programs with host interface API
-Testing: Platform test interface with cross-platform validation
-Architecture: 6-layer fresh architecture with clean boundaries
-Hardware Status: Research implementation with comprehensive validation
+Target: STM32G474 WeAct Studio CoreBoard  
+CPU: ARM Cortex-M4F @ 168MHz
+Memory: 128KB Flash (dual-bank), 32KB RAM (static allocation)
+Peripherals: DAC (PA4), I2S (PB12/13/15), OLED I2C (PB8/9), IR PWM (PA0), GPIO (PC0-4)
+Communication: USART1 Oracle bootloader client, USART2 Diagnostic Console
 ```
 
----
-
-## 🎯 Phase 4 Progress: Hardware Transition
-
-**Target**: STM32G431CB WeAct Studio CoreBoard
-
-### **Completed Phases**
-- ✅ **4.1 Hardware Foundation**: PlatformIO board, HAL adaptation, embedded native API
-- ✅ **4.2 VM Integration**: Fresh architecture implementation, clean layer boundaries
-- ✅ **4.3 Automated Testing**: Workspace-isolated testing with OpenOCD/GDB integration
-- ✅ **4.5.4 Fresh Architecture**: Complete 6-layer architecture with platform test interface
-  - **Platform Test Interface**: STM32 HAL structures as single source of truth
-  - **Cross-Platform Testing**: Same test logic, platform-specific validation
-  - **Workspace Template Enhancement**: Platform-aware workspace generation
-  - **Hardware Validation**: Comprehensive testing on real STM32G431CB hardware
-
-### **Current Phase**
-- 🎯 **4.5.2 Bootloader System**: Research bootloader with dual-bank strategy
-  - **Transport Abstraction**: UART first, USB CDC drop-in capability
-  - **Dual-Bank Architecture**: Atomic bytecode updates with rollback capability
-  - **Research Implementation**: Hierarchical error states, overflow-safe timeouts, resource cleanup
-  - **Complements STM32 Bootloader**: Bytecode updates vs firmware updates
-  - **Documentation**: [Bootloader Design](docs/hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)
-
-### **Remaining Phases**
-- ⏳ **4.5.3 Development Tools**: Host upload utility, deployment automation, end-to-end integration
-
----
+### **Memory Architecture (Static Allocation)**
+```yaml
+Flash: Bootloader (16KB) + Hypervisor (48KB) + Dual-Bank Bytecode (32KB each)
+RAM (24KB VM): SOS Task (2.5KB) + Audio (1.75KB) + Display/Button/Status (1.25KB each) + Shared (512B)
+Platform Controllers: DAC (1KB queue) + GPIO + I2C + Timer coordination
+Resource Management: Mutex + reference counting + emergency override
+```
 
 ## 🛠️ Quick Start
 
 ### **Prerequisites**
-- PlatformIO CLI
-- STM32G431CB board + ST-Link V2 debugger
+- PlatformIO CLI + STM32G474 WeAct Studio CoreBoard + ST-Link V2
+- Oracle python-based bootloader client: `/dev/ttyUSB2` + `tests/oracle_bootloader/oracle_venv`
 
-### **Build & Test**
+### **Build & Deploy**
 ```bash
 git clone <repository> && cd cockpit
 
-# QEMU development (proven)
-make build && make test
+# Hardware build and upload
+~/.platformio/penv/bin/pio run --environment weact_g474_hardware --target upload
 
-# Hardware execution (research implementation)
-python scripts/switch_target.py hardware
-~/.platformio/penv/bin/pio run --target upload
+# Bootloader flash programming  
+cd tests/oracle_bootloader && source oracle_venv/bin/activate
+python oracle_cli.py --flash <bytecode_file>
 
-# Workspace-isolated testing with platform test interface
-cd tests/
-./setup_test_environment.sh
-./tools/run_test pc6_led_focused           # GPIO with sophisticated debugging
-./tools/run_test usart1_comprehensive      # UART with platform interface validation
-./tools/run_test vm_arithmetic_comprehensive # VM operations validation
+# Multi-peripheral testing
+cd tests && ./tools/run_test smp_sos_multimodal_coordination
 ```
 
-### **CockpitVM Example (Basic Hardware Execution)**
+### **SOS Emergency Program Example**
 ```c
-// This C code compiles to bytecode and executes on STM32G431CB
-void setup() {
-    pinMode(13, OUTPUT);
-    printf("CockpitVM on Hardware!\n");
+// Multi-peripheral coordination bytecode program
+void emergency_sos() {
+    // LED + Audio + IR emergency signaling
+    dac_queue_morse_pattern("...---...", 15);  // SOS at 15 WPM
+    gpio_set_led_pattern(MORSE_SOS_PATTERN);   // LED coordination
+    ir_send_command(IR_PROTOCOL_NEC, TV_POWER_ON); // Home theater alert
 }
 
-void loop() {
-    digitalWrite(13, HIGH);  // LED on
-    delay(1000);             // Basic timing
-    digitalWrite(13, LOW);   // LED off  
-    delay(1000);             // Basic VM execution
+void button_handler() {
+    if (button_is_pressed(BUTTON_EMERGENCY)) {
+        emergency_sos();  // <500ms response time guaranteed
+    }
 }
 ```
-
-**Hardware Testing**: VM programs execute with LED feedback + basic validation system
 
 ---
 
@@ -133,7 +109,7 @@ Layer 3: Platform Layer (STM32G4 adapter)
          ↓
 Layer 2: STM32 HAL (Vendor library)
          ↓
-Layer 1: Hardware (STM32G431CB)
+Layer 1: Hardware (STM32G4)
 ```
 
 ### **Memory Layout (Research Implementation)**
@@ -164,7 +140,7 @@ typedef struct {
 
 ## 🏆 **Development Milestone**
 
-CockpitVM fresh architecture complete with production-ready 6-layer design. CockpitVM Bootloader Framework implemented with Oracle testing integration. Platform test interface enables cross-platform testing with STM32 HAL structures as single source of truth.
+CockpitVM fresh architecture complete with 6-layer design. CockpitVM Bootloader Framework implemented with Oracle bootloader test client, copying and verifying bytecode to flash memory. By providing an adapter to vendor provided interfaces, such as STM32 HAL, the Host Interface layer (#3) provides a single source of truth to run programs. Switching processor vendors 
 
 ---
 

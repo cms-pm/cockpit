@@ -1,11 +1,11 @@
-# CockpitVM Modular Diagnostics Framework
+# CockpitVM Runtime Diagnostic Console
 ## Technical Specification v1.0 - Phase 4.6.3
 
 ### Executive Summary
 
-The CockpitVM Modular Diagnostics Framework represents the **spiritual successor to flow_log**, transforming Oracle protocol debugging from tactical guesswork to strategic precision instrumentation. This system provides comprehensive, timestamped, structured logging via USART2 while maintaining sacred separation from Oracle protocol communication on USART1.
+The CockpitVM Runtime Diagnostic Console represents the **spiritual successor to flow_log**, transforming debugging from guesswork to targeted using the execution visibility of precision tooling. This system provides comprehensive, timestamped, structured logging via USART2 while maintaining sacred separation from Oracle protocol communication on USART1.
 
-**Core Philosophy**: Hardware-first reliability with surgical debugging precision, designed for immediate utility and future RTOS expansion.
+**Core Philosophy**: Hardware-first reliability with minimally intrusive debugging precision, designed for immediate utility and future RTOS expansion.
 
 ---
 
@@ -17,7 +17,7 @@ The CockpitVM Modular Diagnostics Framework represents the **spiritual successor
 ┌─────────────────────────────────────────────────────┐
 │                  CockpitVM System                   │
 ├─────────────────────┬───────────────────────────────┤
-│   Oracle Protocol  │      Diagnostics System      │
+│   Oracle Client    │  Runtime Diagnostic Console  │
 │     (USART1)       │        (USART2)              │
 │   PA9/PA10@115200  │      PA2/PA3@115200          │
 │                    │                              │

@@ -1,6 +1,6 @@
-# Oracle Bootloader Testing Tool
+# Oracle Python-Based Bootloader Client
 
-ComponentVM bootloader reliability testing with error injection and recovery validation.
+Python-based bootloader client for automated bootloader protocol testing with the Golden Triangle Test Framework and manual CLI operations. CockpitVM bootloader reliability testing with error injection and recovery validation.
 
 ## Features
 
