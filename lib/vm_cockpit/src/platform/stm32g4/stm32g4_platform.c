@@ -119,6 +119,18 @@ platform_result_t platform_uart_receive(uint8_t* data) {
     }
 }
 
+platform_result_t platform_debug_uart_init(uint32_t baud_rate) {
+    HAL_StatusTypeDef result = stm32g4_debug_uart_init(baud_rate);
+    return (result == HAL_OK) ? PLATFORM_OK : PLATFORM_ERROR;
+}
+
+platform_result_t platform_debug_uart_transmit(const uint8_t* data, uint16_t size) {
+    if (data == NULL || size == 0) return PLATFORM_INVALID_PARAM;
+    
+    HAL_StatusTypeDef result = stm32g4_debug_uart_transmit((uint8_t*)data, size);
+    return (result == HAL_OK) ? PLATFORM_OK : PLATFORM_ERROR;
+}
+
 // =================================================================
 // Error Handler - Declared extern, defined in main.c
 // =================================================================

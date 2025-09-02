@@ -8,8 +8,9 @@
 
 #if defined(PLATFORM_STM32G4) && !defined(QEMU_PLATFORM)
 
-// Global UART handle for USART1
-static UART_HandleTypeDef huart1;
+// Global UART handles
+static UART_HandleTypeDef huart1;  // USART1 - Oracle protocol
+static UART_HandleTypeDef huart2;  // USART2 - Debug output
 
 // Interrupt-driven RX circular buffer
 static uart_rx_circular_buffer_t rx_buffer;
@@ -39,7 +40,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart) {
         __HAL_RCC_USART1_CLK_ENABLE();
         __HAL_RCC_GPIOA_CLK_ENABLE();
         
-        /**USART1 GPIO Configuration
+        /**USART1 GPIO Configuration (Oracle protocol)
         PA9     ------> USART1_TX
         PA10    ------> USART1_RX
         */
@@ -53,6 +54,31 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart) {
         // Configure UART interrupt for interrupt-driven RX
         HAL_NVIC_SetPriority(USART1_IRQn, 1, 0);  // Priority 1 as requested
         HAL_NVIC_EnableIRQ(USART1_IRQn);
+    }
+    else if(huart->Instance==USART2) {
+        // Configure peripheral clock for USART2
+        PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
+        PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+        if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
+            Error_Handler();
+        }
+        
+        // Peripheral clock enable
+        __HAL_RCC_USART2_CLK_ENABLE();
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+        
+        /**USART2 GPIO Configuration (Debug output)
+        PA2     ------> USART2_TX
+        PA3     ------> USART2_RX (not used, but configured for completeness)
+        */
+        GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3;
+        GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull = GPIO_NOPULL;
+        GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+        GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
+        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+        
+        // No interrupt needed for debug output (TX only)
     }
 }
 
@@ -158,6 +184,32 @@ void USART1_IRQHandler(void) {
         // Parity error - clear flag and continue
         __HAL_UART_CLEAR_FLAG(&huart1, UART_FLAG_PE);
     }
+}
+
+// =================================================================
+// Debug UART (USART2) Platform Interface Implementation
+// =================================================================
+
+HAL_StatusTypeDef stm32g4_debug_uart_init(uint32_t baud_rate) {
+    // Configure UART2 handle for debug output
+    huart2.Instance = USART2;
+    huart2.Init.BaudRate = baud_rate;
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;  // TX/RX for completeness
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+    huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+    huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+    huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+    
+    // HAL_UART_Init will call HAL_UART_MspInit automatically
+    return HAL_UART_Init(&huart2);
+}
+
+HAL_StatusTypeDef stm32g4_debug_uart_transmit(uint8_t* data, uint16_t size) {
+    return HAL_UART_Transmit(&huart2, data, size, HAL_MAX_DELAY);
 }
 
 #endif // PLATFORM_STM32G4

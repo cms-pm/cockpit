@@ -1,4 +1,4 @@
-# VM Cockpit Fresh Architecture Documentation
+# CockpitVM Fresh Architecture Documentation
 
 ## Executive Summary
 
@@ -25,14 +25,14 @@ Complete architectural redesign following embedded systems best practices:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Layer 7: Guest Application               │
+│                    Layer 6: Guest Application               │
 │                      (Bytecode Programs)                    │
 │  Authority: Application logic, VM instruction execution     │
 │  Interface: ComponentVM instruction set (digitalWrite, etc) │
 └─────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                Layer 6: VM Hypervisor/Runtime               │
+│                Layer 5: VM Hypervisor/Runtime               │
 │                    (ComponentVM Core)                       │
 │  Authority: Bytecode execution, resource management,        │
 │             guest ↔ host translation                        │
@@ -40,28 +40,28 @@ Complete architectural redesign following embedded systems best practices:
 └─────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Layer 5: Host Interface (Embedded Native)      │
+│              Layer 4: Host Interface (Embedded Native)      │
 │                    (gpio_pin_write, uart_begin)             │
 │  Authority: VM-to-hardware API translation                  │
 │  Interface: Embedded native API (gpio_pin_write, etc)       │
 └─────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────┐
-│               Layer 4: Platform Layer (STM32G4)             │
+│               Layer 3: Platform Layer (STM32G4)             │
 │                  (stm32g4_gpio_write, etc)                  │
 │  Authority: Hardware abstraction, STM32 HAL adapter         │
 │  Interface: Platform-specific functions                     │
 └─────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────┐
-│             Layer 3: STM32 HAL (Vendor Library)             │
+│             Layer 2: STM32 HAL (Vendor Library)             │
 │               (HAL_GPIO_WritePin, HAL_UART_Transmit)        │
 │  Authority: Chip-specific register abstractions             │
 │  Interface: STM32 HAL API                                   │
 └─────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                Layer 2: Hardware (STM32G431CB)              │
+│                Layer 1: Hardware (STM32G431CB)              │
 │             (Physical GPIO, UART, Timers, Clocks)           │
 │  Authority: Electrical signals and protocols                │
 │  Interface: Memory-mapped registers                         │
@@ -70,7 +70,7 @@ Complete architectural redesign following embedded systems best practices:
 
 ## Layer Responsibilities & Authority
 
-### Layer 7: Guest Application (Bytecode)
+### Layer 6: Guest Application (Bytecode)
 **Authority**: Application logic execution within VM sandbox
 **Responsibilities**:
 - User application logic written in C, compiled to ComponentVM bytecode
@@ -84,7 +84,7 @@ PUSH 13, PUSH 1, CALL digitalWrite  // digitalWrite(13, HIGH)
 PUSH 1000, CALL delay               // delay(1000)
 ```
 
-### Layer 6: VM Hypervisor/Runtime (ComponentVM Core)
+### Layer 5: VM Hypervisor/Runtime (ComponentVM Core)
 **Authority**: Bytecode execution, resource management, security enforcement
 **Responsibilities**:
 - Bytecode interpretation and instruction dispatch
@@ -100,7 +100,7 @@ void handle_digitalWrite(uint8_t pin, bool state) {
 }
 ```
 
-### Layer 5: Host Interface (Embedded Native API)
+### Layer 4: Host Interface (Embedded Native API)
 **Authority**: Hardware abstraction for VM, embedded native API design
 **Responsibilities**:
 - Translate hypervisor requests to platform hardware operations
@@ -116,7 +116,7 @@ void uart_begin(uint32_t baud_rate);
 void delay_ms(uint32_t milliseconds);
 ```
 
-### Layer 4: Platform Layer (STM32G4 Adapter)
+### Layer 3: Platform Layer (STM32G4 Adapter)
 **Authority**: All hardware initialization, register access, system configuration
 **Responsibilities**:
 - Complete system initialization (clocks, HAL, peripherals)
@@ -131,7 +131,7 @@ void stm32g4_gpio_write(GPIO_TypeDef* port, uint16_t pin, GPIO_PinState state);
 HAL_StatusTypeDef stm32g4_uart_transmit(uint8_t* data, uint16_t size);
 ```
 
-### Layer 3: STM32 HAL (Vendor Library)
+### Layer 2: STM32 HAL (Vendor Library)
 **Authority**: Chip-specific register abstractions, proven hardware drivers
 **Responsibilities**:
 - Register-level hardware abstraction
@@ -145,7 +145,7 @@ HAL_StatusTypeDef HAL_GPIO_WritePin(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, GPIO
 HAL_StatusTypeDef HAL_UART_Transmit(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint32_t Timeout);
 ```
 
-### Layer 2: Hardware (STM32G431CB)
+### Layer 1: Hardware (STM32G474)
 **Authority**: Physical hardware behavior, electrical characteristics
 **Responsibilities**:
 - Electrical signal generation and detection

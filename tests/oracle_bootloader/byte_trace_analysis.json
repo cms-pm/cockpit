@@ -1,0 +1,14 @@
+{
+  "oracle_version": "4.5.2D",
+  "test_type": "scenario",
+  "test_name": "normal",
+  "device": "/dev/ttyUSB1",
+  "timestamp": 1756367952.213119,
+  "total_time": 19.230432748794556,
+  "result": {
+    "success": false,
+    "scenario_name": "normal",
+    "message": "Scenario failed: Data transfer failed: Failed to receive data response",
+    "execution_time": 17.217
+  }
+}

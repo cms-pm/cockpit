@@ -3,6 +3,7 @@
   "test_type": "scenario",
   "test_name": "normal",
   "device": "/dev/ttyUSB1",
+<<<<<<< HEAD
   "timestamp": 1756630059.647256,
   "total_time": 3.952650308609009,
   "result": {
@@ -10,5 +11,14 @@
     "scenario_name": "normal",
     "message": "Scenario failed: Verify failed: Flash verification failed",
     "execution_time": 1.941
+=======
+  "timestamp": 1756466126.3418324,
+  "total_time": 19.729741096496582,
+  "result": {
+    "success": false,
+    "scenario_name": "normal",
+    "message": "Scenario failed: Verify failed: Failed to receive verify response",
+    "execution_time": 17.717
+>>>>>>> phase-4-8-documentation-update
   }
 }

@@ -76,14 +76,14 @@ GPIO_PinState stm32g4_gpio_read(GPIO_TypeDef* port, uint16_t pin);
 // =================================================================
 
 /**
- * @brief Initialize UART1 with specified baud rate
+ * @brief Initialize UART1 with specified baud rate (USART1 - Oracle protocol)
  * @param baud_rate Baud rate for UART communication
  * @return HAL_OK on success, HAL_ERROR on failure
  */
 HAL_StatusTypeDef stm32g4_uart_init(uint32_t baud_rate);
 
 /**
- * @brief Transmit data via UART
+ * @brief Transmit data via UART1 (USART1 - Oracle protocol)
  * @param data Pointer to data buffer
  * @param size Number of bytes to transmit
  * @return HAL_OK on success, HAL_ERROR on failure
@@ -91,17 +91,32 @@ HAL_StatusTypeDef stm32g4_uart_init(uint32_t baud_rate);
 HAL_StatusTypeDef stm32g4_uart_transmit(uint8_t* data, uint16_t size);
 
 /**
- * @brief Check if UART data is available
+ * @brief Check if UART1 data is available (USART1 - Oracle protocol)
  * @return true if data available, false otherwise
  */
 bool stm32g4_uart_data_available(void);
 
 /**
- * @brief Receive single byte from UART
+ * @brief Receive single byte from UART1 (USART1 - Oracle protocol)
  * @param data Pointer to store received byte
  * @return HAL_OK on success, HAL_ERROR/HAL_TIMEOUT on failure
  */
 HAL_StatusTypeDef stm32g4_uart_receive(uint8_t* data);
+
+/**
+ * @brief Initialize debug UART2 with specified baud rate (USART2 - Debug output)
+ * @param baud_rate Baud rate for debug UART communication
+ * @return HAL_OK on success, HAL_ERROR on failure
+ */
+HAL_StatusTypeDef stm32g4_debug_uart_init(uint32_t baud_rate);
+
+/**
+ * @brief Transmit data via debug UART2 (USART2 - Debug output)
+ * @param data Pointer to data buffer
+ * @param size Number of bytes to transmit
+ * @return HAL_OK on success, HAL_ERROR on failure
+ */
+HAL_StatusTypeDef stm32g4_debug_uart_transmit(uint8_t* data, uint16_t size);
 
 #endif // PLATFORM_STM32G4 && !QEMU_PLATFORM
 

@@ -65,8 +65,11 @@ static bootloader_protocol_result_t flash_erase_page_internal(uint32_t page_addr
 }
 
 bootloader_protocol_result_t flash_erase_page(uint32_t page_address) {
-    // Validate page address bounds (safety check)
-    if (page_address != BOOTLOADER_TEST_PAGE_ADDR) {
+    // Validate page address bounds for dual-bank addressing
+    if (page_address != BOOTLOADER_TEST_PAGE_ADDR && 
+        page_address != 0x08010000 &&  // FLASH_BANK_A
+        page_address != 0x08018000 &&  // FLASH_BANK_B  
+        page_address != 0x0801F800) {  // FLASH_TEST
         return BOOTLOADER_PROTOCOL_ERROR_FLASH_OPERATION;
     }
     

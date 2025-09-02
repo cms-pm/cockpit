@@ -1,17 +1,17 @@
-# ComponentVM Documentation Hub
+# CockpitVM Documentation Hub
 
-**Development Documentation | Navigation & Reference Guide**  
-**Version**: 4.5.4 | **Date**: July 20, 2025 | **Status**: Fresh Architecture Complete
+**Embedded Hypervisor Documentation | Navigation & Reference Guide**  
+**Version**: 4.8.0 | **Date**: September 2, 2025 | **Status**: Phase 4.8 SOS MVP Implementation Ready
 
 ---
 
 ## 📋 Quick Navigation
 
-### **🚀 New to ComponentVM?**
-Start here for the development overview:
-- **[Project Vision & Goals](VISION.md)** - Research vision and development direction
-- **[Getting Started Guide](GETTING_STARTED.md)** - Quick start for development
-- **[API Reference](API_REFERENCE_COMPLETE.md)** - Function reference and examples
+### **🚀 New to CockpitVM?**
+Start here for the embedded hypervisor overview:
+- **[Project Vision & Goals](VISION.md)** - Production embedded hypervisor vision and Phase 4.8+ roadmap
+- **[Getting Started Guide](GETTING_STARTED.md)** - Quick start for multi-peripheral development
+- **[API Reference](API_REFERENCE_COMPLETE.md)** - Host interface and bytecode execution reference
 
 ### **🏗️ Architecture & Design**
 Fresh architecture documentation:
@@ -55,15 +55,16 @@ Research implementation hardware documentation:
 **Location**: `hardware/` | **Purpose**: Hardware integration and platform support
 
 #### **Integration Guides**
-- **[Hardware Integration Guide](hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)** - STM32G431CB comprehensive guide
+- **[Hardware Integration Guide](hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)** - STM32G474 comprehensive guide
 - **[Hardware Integration Summary](hardware/integration/HARDWARE_INTEGRATION_SUMMARY.md)** - Quick reference
 - **[Memory Protection Reference](hardware/integration/MEMORY_PROTECTION_TECHNICAL_REFERENCE.md)** - Technical details
 
 #### **Phase 4 Implementation (Complete)**
-- **[Bootloader Design](hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)** - ComponentVM bootloader system architecture
+- **[Phase 4.8 SOS MVP Implementation Plan](development/PHASE_4_8_SOS_MVP_IMPLEMENTATION_PLAN.md)** - Complete Phase 4.8-5.0 progression plan
+- **[Bootloader Design](hardware/phase-4/PHASE_4_5_2_BOOTLOADER_DESIGN.md)** - CockpitVM Oracle bootloader client architecture
 - **[Platform Test Interface Implementation](hardware/phase-4/PLATFORM_TEST_INTERFACE_IMPLEMENTATION_PLAN.md)** - Cross-platform testing plan
 - **[Platform Test Interface Validation](hardware/phase-4/PLATFORM_TEST_INTERFACE_VALIDATION_RESULTS.md)** - Hardware validation results
-- **[High Level Plan](hardware/phase-4/PHASE_4_HIGH_LEVEL_PLAN.md)** - Strategic hardware transition
+- **[Phase 4.7 Implementation Plan](development/PHASE_4_7_IMPLEMENTATION_PLAN.md)** - Host bootloader tool completion
 - **[Tooling Opportunities](hardware/phase-4/PHASE_4_TOOLING_OPPORTUNITIES.md)** - Development tools
 
 #### **Feasibility Studies**
@@ -176,9 +177,9 @@ Research implementation hardware documentation:
 ### **Scale & Coverage**
 - **Total Documentation**: ~60 files, ~20,000 lines
 - **Fresh Architecture**: Complete 6-layer specification with platform test interface
-- **Hardware Integration**: Research implementation STM32G431CB integration
+- **Hardware Integration**: STM32G474 WeAct Studio CoreBoard research implementation
 - **Testing Framework**: Cross-platform testing with workspace isolation
-- **Bootloader System**: Complete dual-bank bootloader design
+- **Oracle Bootloader Client**: Dual-bank flash programming with CRC16/CRC32 validation
 
 ### **Organization Benefits**
 - **Logical Grouping**: Documents organized by purpose and audience
@@ -194,4 +195,4 @@ Research implementation hardware documentation:
 
 ---
 
-*This documentation hub provides navigation to all ComponentVM documentation, featuring the complete fresh architecture implementation with research-grade platform test interface and cross-platform testing capabilities.*
+*This documentation hub provides navigation to all CockpitVM documentation, featuring the 6-layer fresh architecture with Phase 4.8 SOS MVP multi-peripheral coordination and Oracle bootloader client system.*

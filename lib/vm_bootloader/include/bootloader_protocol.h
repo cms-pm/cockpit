@@ -15,6 +15,9 @@
 // Generated nanopb headers - FULL POWER ACTIVATED!
 #include "../src/utilities/bootloader.pb.h"
 
+// Bootloader diagnostics for Oracle-style debugging - FULL FRAMEWORK ACTIVATED!
+#include "bootloader_diagnostics.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,6 +39,13 @@ extern "C" {
 
 #define BOOTLOADER_FLASH_PAGE_SIZE    2048    // STM32G431CB page size
 #define BOOTLOADER_FLASH_WRITE_ALIGN  8       // 64-bit alignment required
+
+// Byte stuffing constants
+#define STUFFING_ESC_BYTE         0x7D
+#define STUFFING_REPLACEMENT_7E   0x5E // Escaped START byte (0x7E)
+#define STUFFING_REPLACEMENT_7F   0x5F // Escaped END byte (0x7F)
+#define STUFFING_REPLACEMENT_7D   0x5D // Escaped ESCAPE byte (0x7D)
+
 
 // Protocol result codes
 typedef enum {
@@ -71,12 +81,40 @@ typedef struct {
     uint16_t received_crc;
 } bootloader_frame_t;
 
+// Frame parser debug buffer
+#define FRAME_DEBUG_BUFFER_SIZE 10
+typedef struct {
+    uint8_t bytes[FRAME_DEBUG_BUFFER_SIZE];
+    uint8_t states[FRAME_DEBUG_BUFFER_SIZE]; 
+    uint8_t count;
+    bool buffer_complete;
+} frame_debug_buffer_t;
+
+// Protocol flow debug buffer for A-J flow tracking
+#define PROTOCOL_FLOW_BUFFER_SIZE 16
+#define RESPONSE_HEX_BUFFER_SIZE 8
+typedef struct {
+    char flow_steps[PROTOCOL_FLOW_BUFFER_SIZE];
+    uint32_t step_timestamps[PROTOCOL_FLOW_BUFFER_SIZE];  // Microsecond timestamps
+    uint8_t step_count;
+    bool flow_complete;
+    uint32_t flow_start_time;  // Reference time for deltas
+    
+    // Response hex logging for bit stuffing verification
+    uint8_t response_hex[RESPONSE_HEX_BUFFER_SIZE];
+    uint8_t response_length;
+    bool response_logged;
+} protocol_flow_debug_t;
+
 // Frame parser context  
 typedef struct {
     frame_parse_state_t state;
     bootloader_frame_t frame;
-    uint16_t bytes_received;
+    uint16_t bytes_received;      // Unescaped payload bytes received
     uint32_t last_activity_time;  // For timeout detection
+    bool escape_next;             // For bit stuffing/escape sequence handling
+    uint16_t total_bytes_processed; // Total bytes including escapes (for debugging)
+    // debug_buffer removed to reduce memory overhead and eliminate stack overflow risk
 } frame_parser_t;
 
 // Flash write context for 64-bit alignment
@@ -105,6 +143,13 @@ void frame_parser_init(frame_parser_t* parser);
 bootloader_protocol_result_t frame_parser_process_byte(frame_parser_t* parser, uint8_t byte);
 bool frame_parser_is_complete(const frame_parser_t* parser);
 void frame_parser_reset(frame_parser_t* parser);
+void frame_parser_debug_dump(const frame_parser_t* parser); // Output buffered debug data
+frame_parser_t* protocol_get_frame_parser(void); // Get global frame parser for debug access
+
+// Protocol flow debug functions
+void protocol_flow_log_step(char step); // Log A-J flow step
+void protocol_flow_debug_dump(void);    // Output protocol flow debug data
+void protocol_flow_reset(void);         // Reset flow debug buffer
 
 // Frame encoding/decoding
 bootloader_protocol_result_t frame_encode(const uint8_t* payload, uint16_t length, uint8_t* frame_buffer, size_t* frame_length);
@@ -143,6 +188,9 @@ typedef struct {
     bool data_received;                 // DataPacket received flag
     uint32_t expected_data_length;      // From prepare request
     uint32_t actual_data_length;        // From DataPacket
+    
+    // Protocol flow debug tracking
+    protocol_flow_debug_t flow_debug;   // A-J flow diagnostics buffer
 } protocol_context_t;
 
 // Protocol context management
@@ -152,6 +200,9 @@ void protocol_context_init(protocol_context_t* ctx);
 bool protocol_is_session_timeout(const protocol_context_t* ctx);
 void protocol_update_activity(protocol_context_t* ctx);
 bootloader_protocol_result_t protocol_reset_session(protocol_context_t* ctx);
+
+// Nanopb integration verification
+bool nanopb_run_verification(void);
 
 #ifdef __cplusplus
 }

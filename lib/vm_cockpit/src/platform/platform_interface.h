@@ -89,14 +89,14 @@ platform_result_t platform_gpio_write(uint8_t logical_pin, platform_gpio_state_t
 platform_result_t platform_gpio_read(uint8_t logical_pin, platform_gpio_state_t* state);
 
 /**
- * @brief Initialize UART with specified baud rate
+ * @brief Initialize UART with specified baud rate (USART1 - Oracle protocol)
  * @param baud_rate UART baud rate
  * @return Platform result code
  */
 platform_result_t platform_uart_init(uint32_t baud_rate);
 
 /**
- * @brief Transmit data via UART
+ * @brief Transmit data via UART (USART1 - Oracle protocol)
  * @param data Pointer to data buffer
  * @param size Number of bytes to transmit
  * @return Platform result code
@@ -104,17 +104,32 @@ platform_result_t platform_uart_init(uint32_t baud_rate);
 platform_result_t platform_uart_transmit(const uint8_t* data, uint16_t size);
 
 /**
- * @brief Check if UART data is available
+ * @brief Check if UART data is available (USART1 - Oracle protocol)
  * @return true if data available, false otherwise
  */
 bool platform_uart_data_available(void);
 
 /**
- * @brief Receive single byte from UART
+ * @brief Receive single byte from UART (USART1 - Oracle protocol)
  * @param data Pointer to store received byte
  * @return Platform result code
  */
 platform_result_t platform_uart_receive(uint8_t* data);
+
+/**
+ * @brief Initialize debug UART (USART2 - Debug output)
+ * @param baud_rate Debug UART baud rate
+ * @return Platform result code
+ */
+platform_result_t platform_debug_uart_init(uint32_t baud_rate);
+
+/**
+ * @brief Transmit data via debug UART (USART2 - Debug output)
+ * @param data Pointer to data buffer
+ * @param size Number of bytes to transmit
+ * @return Platform result code
+ */
+platform_result_t platform_debug_uart_transmit(const uint8_t* data, uint16_t size);
 
 #ifdef __cplusplus
 }

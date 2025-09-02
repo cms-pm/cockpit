@@ -165,17 +165,8 @@ vm_bootloader_run_result_t vm_bootloader_main_loop(vm_bootloader_context_t* ctx)
     internal_ctx->session_start_ms = get_tick_ms();
     internal_ctx->current_state = VM_BOOTLOADER_STATE_IDLE;
     
-    // Debug output for Oracle integration
-    if (internal_ctx->mode == VM_BOOTLOADER_MODE_DEBUG || internal_ctx->mode == VM_BOOTLOADER_MODE_LISTEN_ONLY) {
-        uart_write_string("CockpitVM Bootloader entering main loop\r\n");
-        uart_write_string("Session timeout: ");
-        // Simple integer to string for timeout display
-        uint32_t timeout_sec = internal_ctx->session_timeout_ms / 1000;
-        char timeout_str[16];
-        snprintf(timeout_str, sizeof(timeout_str), "%lu", timeout_sec);
-        uart_write_string(timeout_str);
-        uart_write_string(" seconds\r\n");
-    }
+    // Oracle protocol ready - NO DEBUG OUTPUT TO USART1
+    // All debug messages routed to USART2 diagnostics to prevent Oracle interference
     
     vm_bootloader_run_result_t result;
     
@@ -189,17 +180,11 @@ vm_bootloader_run_result_t vm_bootloader_main_loop(vm_bootloader_context_t* ctx)
                 break;
                 
             case VM_BOOTLOADER_RUN_COMPLETE:
-                // Session completed successfully
-                if (internal_ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
-                    uart_write_string("CockpitVM Bootloader session complete - success\r\n");
-                }
+                // Session completed successfully - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
                 return VM_BOOTLOADER_RUN_COMPLETE;
                 
             case VM_BOOTLOADER_RUN_TIMEOUT:
-                // Session timeout occurred  
-                if (internal_ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
-                    uart_write_string("CockpitVM Bootloader session timeout\r\n");
-                }
+                // Session timeout occurred - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
                 return VM_BOOTLOADER_RUN_TIMEOUT;
                 
             case VM_BOOTLOADER_RUN_ERROR_RECOVERABLE:
@@ -212,17 +197,11 @@ vm_bootloader_run_result_t vm_bootloader_main_loop(vm_bootloader_context_t* ctx)
                 break;
                 
             case VM_BOOTLOADER_RUN_ERROR_CRITICAL:
-                // Critical error - emergency shutdown
-                if (internal_ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
-                    uart_write_string("CockpitVM Bootloader critical error - emergency shutdown\r\n");
-                }
+                // Critical error - emergency shutdown - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
                 return VM_BOOTLOADER_RUN_ERROR_CRITICAL;
                 
             case VM_BOOTLOADER_RUN_EMERGENCY_SHUTDOWN:
-                // Emergency shutdown initiated
-                if (internal_ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
-                    uart_write_string("CockpitVM Bootloader emergency shutdown\r\n");
-                }
+                // Emergency shutdown initiated - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
                 vm_bootloader_emergency_shutdown(ctx);
                 return VM_BOOTLOADER_RUN_EMERGENCY_SHUTDOWN;
                 
@@ -258,8 +237,7 @@ void vm_bootloader_emergency_shutdown(vm_bootloader_context_t* ctx)
     // Clean up critical resources first
     // TODO: Resource manager integration in Chunk 3
     
-    // Put hardware in safe state
-    uart_write_string("EMERGENCY: CockpitVM Bootloader entering safe state\r\n");
+    // Put hardware in safe state - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
     
     // Reset UART to known state
     uart_begin(115200);
@@ -280,15 +258,7 @@ void vm_bootloader_cleanup(vm_bootloader_context_t* ctx)
         return;
     }
     
-    // Clean session statistics
-    if (internal_ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
-        uart_write_string("CockpitVM Bootloader cleanup - statistics:\r\n");
-        // Output basic statistics
-        char stats_msg[64];
-        snprintf(stats_msg, sizeof(stats_msg), "Cycles: %lu, Frames: %lu, Errors: %lu\r\n",
-                internal_ctx->execution_cycles, internal_ctx->total_frames_received, internal_ctx->total_errors);
-        uart_write_string(stats_msg);
-    }
+    // Clean session statistics - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
     
     // TODO: Resource manager cleanup in Chunk 3
     
@@ -580,7 +550,6 @@ static void vm_bootloader_handle_timeout(vm_bootloader_context_internal_t* ctx)
     ctx->session_active = false;
     ctx->current_state = VM_BOOTLOADER_STATE_IDLE;
     
-    if (ctx->mode == VM_BOOTLOADER_MODE_DEBUG) {
-        uart_write_string("CockpitVM Bootloader session timeout handled\r\n");
-    }
+    // Session timeout handled - NO UART OUTPUT TO PREVENT ORACLE INTERFERENCE
+    // All debug output routed to USART2 diagnostics system
 }

@@ -1,14 +1,14 @@
-# ComponentVM System Overview & Philosophy
+# CockpitVM System Overview & Philosophy
 
-**Architectural Foundation | Systems Architecture Perspective**  
-**Version**: 3.10.0 | **Target**: Embedded Hypervisor for ARM Cortex-M4
+**Architectural Foundation | Production Embedded Hypervisor**  
+**Version**: 4.8.0 | **Target**: Multi-Peripheral Coordination for ARM Cortex-M4
 
 ---
 
 ## 🎯 Mission & Vision
 
-### **ComponentVM Mission Statement**
-ComponentVM is a **research-grade embedded hypervisor** that enables running C bytecode programs on ARM Cortex-M4 microcontrollers with **hardware-level safety**, **predictable performance**, and **Arduino-compatible development experience**.
+### **CockpitVM Mission Statement**
+CockpitVM is a **research-grade embedded hypervisor** enabling safe C bytecode execution on ARM Cortex-M4 microcontrollers with **multi-peripheral coordination**, **static task scheduling**, **memory-to-peripheral DMA**, and **Oracle bootloader client system**.
 
 ### **Core Value Proposition**
 ```yaml
@@ -39,13 +39,13 @@ Solution Delivered:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    STM32G431CB System Stack                     │
+│                    STM32G474 System Stack                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │  STM32 System   │  │  ComponentVM    │  │  User Bytecode  │ │
-│  │  Bootloader     │  │  Bootloader     │  │  Applications   │ │
-│  │  (ROM)          │  │  (Flash)        │  │  (Flash Banks)  │ │
+│  │  STM32 System   │  │  CockpitVM      │  │  User Bytecode  │ │
+│  │  Bootloader     │  │  Oracle         │  │  Applications   │ │
+│  │  (ROM)          │  │  Bootloader     │  │  (Dual Banks)   │ │
 │  │                 │  │                 │  │                 │ │
 │  │ • DFU Mode      │  │ • Bytecode      │  │ • LED Control   │ │
 │  │ • UART Upload   │  │   Transfer      │  │ • Sensor Read   │ │

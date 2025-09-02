@@ -529,6 +529,103 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # CockpitVM Bootloader Flash Programming Test (Phase 4.7.3 Golden Triangle Flash Validation)
+  bootloader_flash_basic:
+    source: test_bootloader_flash_basic.c
+    dependencies: []
+    description: "Phase 4.7.3 flash programming validation with Oracle CLI --flash command and memory verification"
+    timeout: 90s
+    semihosting: false  # Disable semihosting for UART communication with Oracle CLI --flash
+    expected_patterns:
+      - "=== CockpitVM Bootloader Flash Programming Test ==="
+      - "Phase 4.7.3: Golden Triangle Flash Validation"
+      - "Test Objective:"
+      - "• Validate Oracle CLI --flash command with 0xDEADBEEF pattern"
+      - "• Execute complete flash programming pipeline"
+      - "• Verify dual-bank addressing and retry logic"
+      - "✓ CockpitVM Flash Programming Bootloader initialized"
+      - "✓ Flash-specific configuration applied"
+      - "✓ Dual-bank addressing ready"
+      - "=== ORACLE FLASH PROGRAMMING READY ==="
+      - "Expected Oracle command:"
+      - "Flash Target Configuration:"
+      - "• Target: FLASH_TEST page (0x0801F800-0x0801FFFF)"
+      - "=== ENTERING FLASH PROGRAMMING MODE ==="
+      - "=== FLASH PROGRAMMING RESULTS ==="
+      - "=== POST-FLASH MEMORY VALIDATION ==="
+      - "=== COCKPITVM BOOTLOADER FLASH PROGRAMMING TEST: COMPLETE ==="
+    hardware_requirements:
+      - basic_mcu
+      - flash_memory
+      - usart1_pa9_pa10
+      - led_pc6
+    category: flash_programming
+    priority: high
+    stability: phase_4_7_3
+    notes: "Oracle CLI --flash command integration test with 0xDEADBEEF pattern and post-flash memory verification"
+    oracle_flash_command:
+      command: "python oracle_cli.py --flash test_data/dummy_256_deadbeef.bin --device /dev/ttyUSB1"
+      expected_data: "0xDEADBEEF pattern, 256 bytes"
+      target_address: "0x0801F800"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: optional  # Semihosting validation optional - focus on memory validation
+        memory: required       # Memory validation after Oracle --flash execution
+        timeout_strategy: fail_graceful
+      timeout: 120s
+      
+      semihosting_checks:
+        - contains: "=== CockpitVM Bootloader Flash Programming Test ==="
+        - contains: "Phase 4.7.3: Golden Triangle Flash Validation"
+        - contains: "✓ CockpitVM Flash Programming Bootloader initialized"
+        - contains: "✓ Flash-specific configuration applied"
+        - contains: "✓ Dual-bank addressing ready"
+        - contains: "=== ORACLE FLASH PROGRAMMING READY ==="
+        - contains: "=== ENTERING FLASH PROGRAMMING MODE ==="
+        - contains: "=== FLASH PROGRAMMING RESULTS ==="
+        - contains: "=== POST-FLASH MEMORY VALIDATION ==="
+        - contains: "=== COCKPITVM BOOTLOADER FLASH PROGRAMMING TEST: COMPLETE ==="
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 60s
+      
+      # Memory validation focuses on post-flash programming verification
+      memory_checks:
+        flash_test_page_programmed:
+          address: 0x0801F800        # FLASH_TEST page start
+          mask: 0xFFFFFFFF
+          expected: 0xDEADBEEF       # First 32-bit word should be 0xDEADBEEF
+          description: "Flash test page programmed with 0xDEADBEEF pattern"
+        flash_test_page_not_erased:
+          address: 0x0801F804        # Second word
+          mask: 0xFFFFFFFF
+          expected: 0xDEADBEEF       # Second 32-bit word should also be 0xDEADBEEF
+          description: "Flash test page contains pattern (not erased)"
+        flash_programming_integrity:
+          address: 0x0801F810        # 16 bytes in
+          mask: 0xFFFFFFFF
+          expected: 0xDEADBEEF       # Pattern continues
+          description: "Flash programming integrity throughout page"
+        usart1_post_flash_state:
+          address: 0x40013800        # USART1 base
+          offset: 0x00               # CR1 register
+          mask: 0x01                 # UE bit
+          expected: 0x01             # USART enabled after Oracle --flash communication
+          description: "USART1 enabled after Oracle --flash communication"
+        flash_bootloader_cleanup:
+          address: 0x20000000        # RAM start - check for clean bootloader state
+          mask: 0xFFFFFFFF
+          description: "Flash bootloader clean shutdown"
+      
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x40
+        include_peripheral_summary: true
+        include_both_passes: true
+
   # CockpitVM Bootloader Oracle Basic Test (Focused Protocol Cycle Testing)
   bootloader_oracle_basic:
     source: test_bootloader_oracle_basic.c
@@ -1012,6 +1109,12 @@ test_suites:
     description: "CockpitVM Bootloader Oracle validation testing"
     tests:
       - bootloader_oracle_basic
+    timeout: 120s
+  
+  flash_programming:
+    description: "Phase 4.7.3 Flash Programming validation with Oracle CLI --flash"
+    tests:
+      - bootloader_flash_basic
     timeout: 120s
     
   golden_triangle_integration:
