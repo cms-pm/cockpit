@@ -15,6 +15,7 @@ Start here for the embedded hypervisor overview:
 
 ### **🏗️ Architecture & Design**
 Fresh architecture documentation:
+- **[Integration Architecture Whitepaper](COCKPITVM_INTEGRATION_ARCHITECTURE.md)** - Comprehensive technical whitepaper with ERD diagrams
 - **[Architecture Suite](architecture/)** - Complete 6-layer architecture documentation
   - [VM Cockpit Fresh Architecture](architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md) - Complete 6-layer specification
   - [System Overview](architecture/01-system-overview.md) - Mission, philosophy, design principles
@@ -37,6 +38,7 @@ Research implementation hardware documentation:
 ### **📖 Root Level (Essential Reading)**
 | Document | Purpose | Audience |
 |----------|---------|----------|
+| [COCKPITVM_INTEGRATION_ARCHITECTURE.md](COCKPITVM_INTEGRATION_ARCHITECTURE.md) | Technical whitepaper: separation of concerns, compilation workflows, ERD diagrams | System architects, senior engineers |
 | [VISION.md](VISION.md) | Project vision and strategic direction | All stakeholders |
 | [GETTING_STARTED.md](GETTING_STARTED.md) | Quick start guide for developers | New developers |
 | [API_REFERENCE_COMPLETE.md](API_REFERENCE_COMPLETE.md) | Complete function reference | Developers, integrators |

@@ -53,6 +53,7 @@ Start with: **[04-build-system-workflow.md](04-build-system-workflow.md)**
 ## 🔗 Integration with Complete Documentation Suite
 
 ### **Implementation Details**
+- **[Integration Architecture Whitepaper](../COCKPITVM_INTEGRATION_ARCHITECTURE.md)**: Complete technical whitepaper with ERD diagrams and compilation workflows
 - **[API Reference](../API_REFERENCE_COMPLETE.md)**: Complete function documentation (1000+ lines)
 - **[Hardware Integration](../HARDWARE_INTEGRATION_GUIDE.md)**: STM32G431CB bringup guide (2400+ lines)
 - **[Hardware Summary](../HARDWARE_INTEGRATION_SUMMARY.md)**: Claude Code optimized context (365 lines)
