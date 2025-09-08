@@ -31,6 +31,8 @@
 - **Phase 4.7.4**: Protocol Hardening - CRC16 validation + Universal Frame Parser divined by the Oracle
 
 ### **Upcoming Milestones**
+- **CanopyUI**: Stand-alone repo to increase development momentum and focus
+- **vm_bootloader**: Version 2 of the CockpitVM bootloader protocol: larger guest app size, better visibility for validation, improved clarity
 - **Phase 4.9**: Update execution_engine - Instruction handler pattern optimized to memory bounds, fix compiler tests
 - **Phase 5.0**: Preemptive RTOS Architecture - Multiple tasks with hardware timer coordination
 
