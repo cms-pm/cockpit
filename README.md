@@ -2,7 +2,7 @@
 
 [![Platform](https://img.shields.io/badge/Platform-STM32G474-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]()
 
-**Embedded Jail for ARM Cortex-M4** - Guest bytecode apps run under an embedded hypervisor, granted access to specific host peripherals via a generic API. Bytecode compiler based on ANTLR. Bootloader protocol to upload and verify guest bytecode. GUI to flash and verify.
+**Embedded Jail for ARM Cortex-M4** - Guest bytecode apps run under an embedded hypervisor, granted access to specific host peripherals via a generic API. Comprehensive testing system to support a TDD approach: compilation, execution, and memory are used to validate. Bytecode compiler based on ANTLR. Bootloader protocol to upload and verify guest bytecode. GUI to flash and verify.
 
 > **Phase 4.8 Demo** - Multi-peripheral demo app to connect, test, and validate system as a whole.
 
