@@ -120,7 +120,7 @@ typedef struct {
 
 ## 🏆 **Development Milestone**
 
-CockpitVM Bootloader Framework implemented by grace of the Oracle bootloader test client, copying and verifying bytecode to flash memory. CanopyUI for external verification without direct SWD connection, using 
+CockpitVM Bootloader Framework implemented by grace of the Oracle bootloader test client, copying and verifying bytecode to flash memory. CanopyUI for external verification without direct SWD connection.
 
 ---
 
