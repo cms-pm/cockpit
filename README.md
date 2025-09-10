@@ -23,7 +23,7 @@
 ****
 - **Core Peripherals**: OLED display, 5-button GPIO
 - **Static Task Memory**: 4KB compile-time allocation (OLED 2.5KB, Button 1.25KB)
-- **GUI Integration Tool**: [![Canopy](https://github.com/cms-pm/canopy)]() GUI tool provides flash upload, protocol execution post-mortem, and bytecode file info (read/info with vm_bootloader Protocol V2)
+- **GUI Integration Tool**: [Canopy](https://github.com/cms-pm/canopy) GUI tool provides flash upload, protocol execution post-mortem, and bytecode file info (read/info with vm_bootloader Protocol V2)
 
 ### **Completed Milestones** ✅
 - **Phase 4.6**: Oracle Bootloader Client Complete - Full protobuf bootloader cycle
