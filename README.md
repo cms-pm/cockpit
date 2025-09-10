@@ -10,12 +10,12 @@
 
 **CockpitVM** is a research-grade embedded hypervisor enabling safe C bytecode execution on ARM Cortex-M4 microcontrollers with hardware-level safety, predictable performance, and multi-peripheral coordination.
 
-### **Core Achievements**
-- **32-bit Virtual Instruction Set** - Guest bytecode app runs within a VM with peripheral pass-thru to host
-- **6-Layer Fresh Architecture** - Clean separation from Guest Application → Hardware  
-- **Static Memory Allocation** - Compile-time task partitioning eliminates non-determinism
-- **Peripheral Coordination** - In-progress: basic IO and display support
-- **Serial Bootloader** - Wisdom of the Oracle bootloader client to support TDD combined with the Golden Triange test framework to validate compilation, execution, and memory
+### **Core Research Areas**
+- **32-bit Virtual Instruction Set** - Stack-based VM with peripheral isolation and validation
+- **6-Layer Architecture** - Clean abstraction layers from Guest Application → Hardware  
+- **Static Memory Allocation** - Research into compile-time task partitioning for determinism
+- **Trinity Zero-Cost Abstraction** - Research implementation of three-tier hardware abstraction templates
+- **Serial Bootloader Protocol** - Oracle bootloader client supporting test-driven development methodology
 
 ## 📊 Current Status
 
@@ -30,13 +30,27 @@
 - **Phase 4.7**: Host Bootloader Tool - Dual-bank flash programming implementation complete  
 - **Phase 4.7.4**: Protocol Hardening - CRC16 validation + Universal Frame Parser divined by the Oracle
 
-### **Upcoming Milestones**
-- **CanopyUI**: Stand-alone repo to increase development momentum and focus
-- **vm_bootloader**: Version 2 of the CockpitVM bootloader protocol: larger guest app size, better visibility for validation, improved clarity
-- **Phase 4.9**: Update execution_engine - Instruction handler pattern optimized to memory bounds, fix compiler tests
-- **Phase 5.0**: Preemptive RTOS Architecture - Multiple tasks with hardware timer coordination
+### **Research Development Roadmap**
+- **Phase 4.9**: Trinity Architecture Implementation - Three-tier zero-cost hardware abstraction system
+- **Phase 5.0**: Cooperative Task Scheduler - Multi-program switching with static memory allocation  
+- **Future Research**: RTOS integration, cross-platform template expansion, security enhancements
+- **Tooling**: CanopyUI standalone repository, enhanced Oracle bootloader protocol
 
 ## 🏗️ Technical Architecture
+
+### **Trinity: Zero-Cost Hardware Abstraction (Phase 4.9 Research)**
+
+CockpitVM is developing **Trinity** - a revolutionary three-tier template system achieving bare-metal performance with hardware independence:
+
+```
+Tier 1: Template Hardware Descriptors (90% operations - zero runtime cost)
+Tier 2: Runtime HAL Integration     (9% operations - performance fallback)  
+Tier 3: Generic Register Interface  (1% edge cases - compatibility layer)
+```
+
+**Research Goal**: `digitalWrite(13, HIGH)` compiles to **single instruction**: `GPIOC->BSRR = GPIO_PIN_6`
+
+**Documentation**: [Trinity Architecture](docs/architecture/ZERO_COST_HARDWARE_ABSTRACTION_ARCHITECTURE.md) • [CVBC Format](docs/technical/CVBC_BYTECODE_FORMAT_SPECIFICATION.md) • [Implementation Plan](docs/development/PHASE_4_9_ZERO_COST_IMPLEMENTATION_PLAN.md)
 
 ### **Hardware Platform**
 ```yaml
@@ -94,7 +108,7 @@ Layer 2: STM32 HAL (Vendor library)
 Layer 1: Hardware (STM32G4)
 ```
 
-### **Memory Layout (Research Implementation)**
+### **Memory Layout (Current Research Implementation)**
 ```
 Flash (128KB):
   Bootloader: 16KB     (CockpitVM bootloader)
@@ -120,9 +134,9 @@ typedef struct {
 
 ---
 
-## 🏆 **Development Milestone**
+## 🔬 **Research Status**
 
-CockpitVM Bootloader Framework implemented by grace of the Oracle bootloader test client, copying and verifying bytecode to flash memory. CanopyUI for external verification without direct SWD connection.
+Current implementation focuses on foundational embedded hypervisor concepts with the Oracle bootloader protocol enabling test-driven development. Trinity architecture represents ongoing research into zero-cost abstraction techniques for embedded systems.
 
 ---
 

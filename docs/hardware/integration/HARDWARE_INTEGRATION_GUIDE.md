@@ -1,10 +1,11 @@
-# ComponentVM Hardware Integration Guide - STM32G431CB
+# CockpitVM Hardware Integration Guide - STM32G474 WeAct CoreBoard
 
-**Version**: 3.10.0  
-**Date**: July 10, 2025  
-**Target Hardware**: WeAct Studio STM32G431CB CoreBoard  
+**Current Implementation**: Phase 4.8 (6-Layer Architecture)  
+**Research Development**: Phase 4.9 Trinity (Zero-Cost Templates)  
+**Date**: September 2025  
+**Target Hardware**: WeAct Studio STM32G474 CoreBoard (128KB Flash, 32KB RAM)  
 **Toolchain**: PlatformIO + OpenOCD + ST-Link V2  
-**Approach**: Progressive hardware bringup with embedded bytecode firmware  
+**Approach**: Progressive hardware bringup with Oracle bootloader protocol  
 
 ---
 
@@ -22,78 +23,173 @@
 
 ## Hardware Overview
 
-### **WeAct Studio STM32G431CB CoreBoard Specifications**
+### **Current Implementation: WeAct Studio STM32G474 CoreBoard** ✅
 
 ```yaml
-Microcontroller: STM32G431CBU6
-Core: ARM Cortex-M4F @ 170MHz
-Flash: 128KB (0x08000000 - 0x0801FFFF)
-RAM: 32KB (0x20000000 - 0x20007FFF)
-Package: UFQFPN48
+Microcontroller: STM32G474CB
+Core: ARM Cortex-M4F @ 168MHz (with ART + CCM-SRAM optimization)
+Flash: 128KB (0x08000000 - 0x0801FFFF) - Dual-bank capable
+RAM: 32KB (0x20000000 - 0x20007FFF) - Fast CCM-SRAM available
+Package: LQFP64
 
-Key Peripherals:
-  - GPIO Ports: A, B, C
-  - USART: USART1 (PA9/PA10)
+Key Peripherals (Phase 4.8):
+  - GPIO Ports: A, B, C (5-button GPIO PC0-4)
+  - Oracle USART: USART1 (PA9/PA10) for bootloader protocol
+  - Debug USART: USART2 (PA2/PA3@115200) for diagnostics
   - SWD: PA13 (SWDIO), PA14 (SWCLK)
-  - Timers: TIM1, TIM2, TIM3, TIM4, TIM6, TIM7, TIM8
-  - ADC: 12-bit, 16 channels
-  - Clock: 8MHz HSE crystal
+  - DAC: PA4 (audio output with DMA queue)
+  - I2C: PB8/PB9 (OLED display)
+  - PWM: PA0 (IR signaling)
+  - Clock: 25MHz HSE crystal
 ```
 
-### **Board-Specific Pin Configuration**
+### **Trinity Research Extensions** (Phase 4.9) 🔬
+
+```yaml
+Template Performance Targets:
+  - GPIO Operations: Single instruction via constexpr templates
+  - Cross-Platform: STM32, ESP32, RISC-V template specializations
+  - CVBC Bytecode: Metadata-rich containers for hardware discovery
+  - Zero Runtime Cost: All abstraction resolved at compile time
+```
+
+### **Current Pin Configuration** (Phase 4.8)
 ```c
-// WeAct STM32G431CB pin definitions
+// STM32G474 CockpitVM pin definitions - SOS MVP Configuration
 #define LED_PIN             PC6     // Onboard LED (active high)
-#define USER_BUTTON_PIN     PC13    // User button (active low, pull-up)
-#define USB_USART_TX        PA11    // USB-connected USART
-#define USB_USART_RX        PA12    // USB-connected USART  
-#define DEBUG_USART_TX      PA9     // Debug USART1 TX
-#define DEBUG_USART_RX      PA10    // Debug USART1 RX
-#define BOOT0_BUTTON        PB8     // BOOT0 button
-#define HSE_CRYSTAL_FREQ    8000000 // 8MHz external crystal
+
+// Oracle Bootloader Protocol (USART1)
+#define ORACLE_USART_TX     PA9     // Oracle protocol TX
+#define ORACLE_USART_RX     PA10    // Oracle protocol RX
+
+// CockpitVM Runtime Diagnostics (USART2)
+#define DEBUG_USART_TX      PA2     // Diagnostics TX
+#define DEBUG_USART_RX      PA3     // Diagnostics RX
+
+// SOS Emergency Signaling Peripherals
+#define AUDIO_DAC_PIN       PA4     // Audio output (DAC)
+#define IR_PWM_PIN          PA0     // Infrared PWM output
+#define OLED_I2C_SCL        PB8     // OLED display I2C clock
+#define OLED_I2C_SDA        PB9     // OLED display I2C data
+#define BUTTON_0            PC0     // 5-button array
+#define BUTTON_1            PC1     // Emergency trigger
+#define BUTTON_2            PC2     // Status/mode
+#define BUTTON_3            PC3     // Volume control
+#define BUTTON_4            PC4     // Settings
+
+// Hardware Configuration
+#define HSE_CRYSTAL_FREQ    25000000 // 25MHz external crystal
+#define BOOT0_BUTTON        PB8      // BOOT0 button
+```
+
+### **Trinity Template Configuration** (Phase 4.9 Research)
+```cpp
+// Trinity zero-cost GPIO template example
+template<uintptr_t port_base, uint32_t pin_mask>
+class STM32G474_GPIO {
+    static constexpr void set_high() noexcept {
+        *reinterpret_cast<volatile uint32_t*>(port_base + 0x18) = pin_mask;
+    }
+    static constexpr void set_low() noexcept {
+        *reinterpret_cast<volatile uint32_t*>(port_base + 0x18) = (pin_mask << 16);
+    }
+};
+
+// CVBC hardware discovery metadata
+constexpr HardwareConfig trinity_config = {
+    .gpio_ports = {GPIOA_BASE, GPIOB_BASE, GPIOC_BASE},
+    .peripheral_map = SOS_PERIPHERAL_CONFIG,
+    .template_specialization = STM32G474_TEMPLATES
+};
 ```
 
 ### **Required Hardware Components**
+
+#### **Current Implementation (Phase 4.8)** ✅
 ```yaml
-Primary Components:
-  - WeAct Studio STM32G431CB CoreBoard
+Core Components:
+  - WeAct Studio STM32G474 CoreBoard (128KB Flash, 32KB RAM)
   - ST-Link V2 debugger (or compatible)
   - SWD ribbon cable (2x5 pin, 1.27mm pitch)
-  - USB cable (board power)
-  - USB cable (ST-Link connection)
+  - USB cable (board power + Oracle protocol)
+  - USB-to-Serial adapter (USART2 diagnostics)
 
-Optional Components:
-  - USB-to-Serial adapter (for USART debugging)
-  - Oscilloscope (for timing validation)
-  - Logic analyzer (for debugging)
-  - Breadboard + jumper wires (for external peripherals)
+SOS MVP Peripherals:
+  - 128x64 OLED Display (I2C, SSD1306 compatible)
+  - 5x Tactile buttons (PC0-PC4 GPIO)
+  - Speaker/Buzzer (DAC audio output)
+  - IR LED (PWM signaling capability)
+  - Breadboard + jumper wires (prototype connections)
+
+Debug & Validation:
+  - Oscilloscope (timing validation)
+  - Logic analyzer (I2C/USART debugging)
+  - Multimeter (power consumption analysis)
+```
+
+#### **Trinity Research Requirements** (Phase 4.9) 🔬
+```yaml
+Development Platform Extensions:
+  - Multiple target boards (ESP32, RISC-V) for cross-platform validation
+  - Template compilation analysis tools
+  - CVBC bytecode generation toolchain
+  - Cross-platform testing framework
+  - Performance profiling instrumentation
 ```
 
 ---
 
 ## Memory Layout & Partitioning
 
-### **STM32G431CB Memory Map**
+### **Current STM32G474 Memory Map** (Phase 4.8)
 ```
 ┌─────────────────────────────────────┐ 0x08000000
-│ Flash Memory (128KB)                │
+│ Flash Memory (128KB) - Dual Bank    │
 │ ├─ Vector Table (1KB)               │ 0x08000000 - 0x08000400
-│ ├─ ComponentVM Firmware (96KB)      │ 0x08000400 - 0x08018000
-│ ├─ Embedded Bytecode (30KB)         │ 0x08018000 - 0x0801F800
-│ ├─ Configuration Data (1KB)         │ 0x0801F800 - 0x0801FC00
-│ └─ Reserved Space (1KB)             │ 0x0801FC00 - 0x08020000
+│ ├─ Oracle Bootloader (16KB)         │ 0x08000400 - 0x08004400  
+│ ├─ CockpitVM 6-Layer Firmware (48KB)│ 0x08004400 - 0x08010400
+│ │  ├─ ExecutionEngine + VM Core     │
+│ │  ├─ Platform Layer + STM32 HAL    │
+│ │  └─ SOS Peripheral Controllers    │
+│ ├─ User Bytecode Region (64KB)      │ 0x08010400 - 0x08020400
+│ │  ├─ SOS Emergency Program (2.5KB) │
+│ │  ├─ Audio Program (1.75KB)        │
+│ │  ├─ Display Program (1.25KB)      │
+│ │  └─ Available Space (58.5KB)      │
+│ └─ Reserved/Config (0KB)            │ (Dual-bank boundary)
 └─────────────────────────────────────┘
 
 ┌─────────────────────────────────────┐ 0x20000000  
-│ SRAM Memory (32KB)                  │
+│ SRAM Memory (32KB) + CCM-SRAM       │
 │ ├─ System RAM (8KB)                 │ 0x20000000 - 0x20002000
 │ │  ├─ Main Stack (4KB)              │
-│ │  ├─ System Heap (3KB)             │
-│ │  └─ Hardware Drivers (1KB)        │
-│ └─ ComponentVM Memory (24KB)        │ 0x20002000 - 0x20008000
-│    ├─ VM Stack (12KB)               │
-│    ├─ VM Heap (10KB)                │
-│    └─ VM Globals (2KB)              │
+│ │  ├─ Oracle Protocol Buffer (2KB)  │
+│ │  └─ Hardware Drivers (2KB)        │
+│ └─ CockpitVM Static Allocation (24KB)│ 0x20002000 - 0x20008000
+│    ├─ Task Allocation Pool (16KB)   │ (SOS: 2.5KB, Audio: 1.75KB, etc.)
+│    ├─ VM Execution State (4KB)      │ (Stack machine + registers)
+│    ├─ Platform Layer Buffers (2KB)  │ (I2C, USART, DAC queues)
+│    └─ Debug/Diagnostics (2KB)       │ (USART2 logging)
+└─────────────────────────────────────┘
+```
+
+### **Trinity Memory Architecture** (Phase 4.9 Research)
+```
+┌─────────────────────────────────────┐ Template Metaprogram Domain
+│ Compile-Time Template Generation    │
+│ ├─ CVBC Metadata Analysis          │ (Hardware discovery)
+│ ├─ Constexpr Template Specialization│ (Zero runtime cost)
+│ ├─ Cross-Platform GPIO Templates   │ (STM32, ESP32, RISC-V)
+│ └─ Static Hardware Verification    │ (Compile-time validation)
+└─────────────────────────────────────┘ 
+           │ (Template instantiation)
+           ▼
+┌─────────────────────────────────────┐ Runtime Domain  
+│ Single-Instruction Hardware Access │
+│ ├─ GPIO: Direct register write     │ (1 ARM instruction)
+│ ├─ Timer: Template-resolved access │ (Compile-time address resolution)
+│ ├─ UART: Zero-cost abstraction     │ (Template specialization)
+│ └─ Cross-Platform Binary           │ (CVBC container format)
 └─────────────────────────────────────┘
 ```
 

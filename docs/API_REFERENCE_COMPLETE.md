@@ -1,9 +1,10 @@
-# ComponentVM Complete API Reference
+# CockpitVM Complete API Reference
 
-**Version**: 3.10.0  
-**Date**: July 10, 2025  
+**Current Implementation**: Phase 4.8 (STM32G474 6-Layer Architecture)  
+**Research Development**: Phase 4.9 Trinity (Zero-Cost Templates)  
+**Date**: September 2025  
 **Target Audience**: Embedded Systems Engineers, Hardware Integration Teams  
-**Compatibility**: ARM Cortex-M4, STM32G431RB, PlatformIO Framework  
+**Compatibility**: ARM Cortex-M4, STM32G474 WeAct CoreBoard, PlatformIO Framework  
 
 ---
 
@@ -25,32 +26,49 @@
 
 ## Overview
 
-The ComponentVM is a development prototype for an embedded hypervisor that runs C bytecode on ARM Cortex-M4 microcontrollers. This API reference covers the **C wrapper interface** designed for embedded C applications.
+CockpitVM is an embedded hypervisor implementing a 6-layer architecture that executes C bytecode on ARM Cortex-M4 microcontrollers. This API reference covers the **current implementation** (Phase 4.8) with connections to **Trinity research goals** (Phase 4.9).
 
-### **Key Features (Development)**
+### **Current Implementation Features** ✅
+- **6-Layer Architecture**: Complete separation from Guest Applications to Hardware
 - **Memory Safety**: Stack canaries, bounds checking, memory corruption detection
 - **Performance**: 32-bit ARM-optimized instruction format, O(1) instruction dispatch
-- **Hardware Integration**: Arduino API compatibility, HAL abstraction
-- **Debug Support**: Printf integration, semihosting, error reporting
-- **Development Status**: 100% test coverage on QEMU, hardware testing in progress
+- **Hardware Integration**: Arduino API compatibility, STM32 HAL abstraction
+- **Debug Support**: Printf integration, USART2 diagnostics, error reporting
+- **Implementation Status**: Hardware-validated on STM32G474 WeAct CoreBoard
 
-### **System Requirements**
+### **Trinity Research Goals** 🔬
+- **Zero-Cost Templates**: Single-instruction GPIO operations via C++20 metaprogramming
+- **Three-Tier Abstraction**: Hardware → Template → Bytecode with compile-time optimization
+- **CVBC Format**: Metadata-rich bytecode containers for cross-platform deployment
+- **Research Status**: Architecture specification complete, implementation planning in progress
+
+### **Current System Requirements** (Phase 4.8)
 ```c
-// Memory Requirements
-#define VM_TOTAL_MEMORY     8192    // 8KB total VM memory
-#define VM_STACK_SIZE       4096    // 4KB stack space
-#define VM_HEAP_SIZE        4096    // 4KB heap space  
-#define VM_GLOBALS_SIZE     256     // 256 bytes global variables
+// STM32G474 WeAct CoreBoard Memory Layout
+#define FLASH_TOTAL         128KB   // Available flash memory
+#define RAM_TOTAL          32KB     // Available SRAM
+#define VM_STACK_SIZE      4096     // 4KB stack space
+#define VM_HEAP_SIZE       4096     // 4KB heap space  
+#define VM_GLOBALS_SIZE    256      // 256 bytes global variables
 
-// Performance Characteristics
-#define TYPICAL_FLASH_USAGE 97000   // ~97KB flash (includes test code)
-#define TYPICAL_RAM_USAGE   10800   // ~11KB RAM (static + VM memory)
-#define INSTRUCTION_SPEED   "7 cycles per function call round-trip"
+// Current Performance Characteristics
+#define FLASH_USAGE_CURRENT 97KB    // ~97KB flash (hypervisor + platform layer)
+#define RAM_USAGE_CURRENT   11KB    // ~11KB RAM (6-layer architecture overhead)
+#define GPIO_CALL_OVERHEAD  "4-6 function calls per operation"
+```
+
+### **Trinity Target Requirements** (Phase 4.9 Research)
+```c
+// Trinity Zero-Cost Performance Goals
+#define GPIO_TARGET_OVERHEAD "1 instruction (constexpr template)"
+#define TEMPLATE_FLASH_COST  "0 bytes (compile-time only)"
+#define CVBC_METADATA_SIZE   "~256 bytes per bytecode container"
+#define CROSS_PLATFORM_SUPPORT "STM32, ESP32, RISC-V via templates"
 ```
 
 ---
 
-## Core VM Functions
+## Core VM Functions (Current Implementation)
 
 ### `component_vm_create()`
 
@@ -58,7 +76,7 @@ The ComponentVM is a development prototype for an embedded hypervisor that runs 
 ComponentVM_C* component_vm_create(void);
 ```
 
-**Purpose**: Creates and initializes a new ComponentVM instance with full memory layout and hardware abstraction.
+**Purpose**: Creates and initializes a new CockpitVM instance with 6-layer architecture and STM32G474 hardware abstraction.
 
 **Returns**: 
 - `ComponentVM_C*` - Pointer to initialized VM instance
@@ -88,14 +106,25 @@ int main(void) {
 }
 ```
 
-**Hardware Integration**:
+**Current Hardware Integration**:
 ```c
-// Hardware initialization sequence within component_vm_create()
-SystemInit();                    // ARM Cortex-M4 clock setup
-initialize_gpio_hal();          // Arduino-compatible GPIO
+// STM32G474 6-layer initialization sequence within component_vm_create()
+SystemInit();                    // ARM Cortex-M4 clock setup (168MHz)
+initialize_gpio_hal();          // Arduino-compatible GPIO via STM32 HAL
 initialize_timing_hal();        // millis()/micros() support  
-initialize_debug_hal();         // Printf/semihosting setup
+initialize_debug_hal();         // USART2 diagnostics (PA2/PA3@115200)
 allocate_vm_memory();           // 8KB unified memory space
+platform_layer_init();         // 6-layer architecture platform abstraction
+```
+
+**Trinity Research Alternative**: 
+```cpp
+// Phase 4.9: Template-based zero-cost initialization
+template<typename Platform>
+constexpr auto trinity_vm_create() {
+    Platform::template initialize<STM32G474_CONFIG>();
+    return Platform::template create_vm<CVBC_METADATA>();
+}
 ```
 
 **Error Conditions**:

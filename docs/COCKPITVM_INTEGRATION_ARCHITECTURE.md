@@ -1,23 +1,30 @@
 # CockpitVM Integration Architecture: Technical Whitepaper
-**Separation of Concerns in Embedded Hypervisor Systems**
+**Current Implementation + Trinity Research Architecture**
 
-**Document Version**: 1.0  
-**Architecture Version**: Phase 4.8 SOS MVP  
+**Document Version**: 1.1  
+**Architecture Version**: Phase 4.8 Current + Phase 4.9 Trinity Research  
 **Target Platform**: STM32G431CB WeAct Studio CoreBoard  
-**Date**: 2025-09-07  
+**Date**: 2025-09-10  
 **Authority**: Staff Embedded Systems Architect
 
 ---
 
 ## Executive Summary
 
-This whitepaper defines the complete integration architecture for CockpitVM, a 6-layer embedded hypervisor system that achieves clean separation between guest applications (user bytecode) and hypervisor infrastructure (peripheral drivers, protocol stacks). The analysis demonstrates how third-party libraries like u8g2 integrate at the platform layer while maintaining architectural integrity, and how dual compilation workflows (ANTLR bytecode compiler + PlatformIO firmware compiler) create a robust embedded development ecosystem.
+This whitepaper defines the integration architecture for CockpitVM, covering both the current 6-layer embedded hypervisor implementation and the planned Trinity zero-cost abstraction system. The document demonstrates current capabilities including clean separation between guest applications (user bytecode) and hypervisor infrastructure, while outlining Trinity's research goals for bare-metal performance with hardware independence.
 
-**Key Innovation**: Complete separation of user application logic (compiled to bytecode) from system infrastructure (compiled to firmware), enabling safe multi-application execution with hardware-level resource protection.
+**Current Implementation**: Complete separation of user application logic (compiled to bytecode) from system infrastructure (compiled to firmware), enabling multi-application execution with resource protection.
+
+**Trinity Research Goal**: Three-tier zero-cost hardware abstraction achieving single-instruction GPIO operations while maintaining cross-platform portability.
 
 ---
 
-## 1. Architecture Foundation: 6-Layer Separation Model
+## 1. Current Architecture: 6-Layer Separation Model
+
+### 1.0 Implementation Status
+- **Current**: 6-layer architecture with Arduino-compatible HAL
+- **Research**: Trinity 3-tier zero-cost abstraction system (Phase 4.9)
+- **Integration**: Trinity will enhance Layer 3-4 with template-based optimization
 
 ### 1.1 Layer Hierarchy Definition
 
