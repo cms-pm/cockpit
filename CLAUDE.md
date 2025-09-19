@@ -17,8 +17,8 @@
 ## Phase Roadmap
 
 ### **COMPLETED PHASES** ✅
-**Phase 4.6**: Oracle Bootloader Client Complete - Full protobuf bootloader cycle functional
-**Phase 4.7**: Host Bootloader Tool - Dual-bank flash programming + Oracle bootloader client implementation complete
+**Phase 4.6**: vm_bootloader Protocol Complete - Full protobuf bootloader cycle functional
+**Phase 4.7**: Host Bootloader Tool - Dual-bank flash programming + vm_bootloader protocol implementation complete
 **Phase 4.7.4**: Protocol Hardening - CRC16 validation + Universal Frame Parser
 
 ### **CURRENT PHASE** 🎯
@@ -28,12 +28,17 @@
 - **4.8.3**: SOS bytecode program (7-peripheral emergency signaling)
 
 ### **UPCOMING PHASES**
-**Phase 4.9**: Cooperative Task Scheduler - Multi-program switching with static memory allocation
-**Phase 5.0**: Preemptive RTOS Architecture - FreeRTOS integration with hardware timer coordination
+**Phase 4.9**: End-to-End Golden Triangle Bytecode Validation - Guest bytecode execution on actual hardware
+- **4.9.0**: STM32G4 CoreDebug detection foundation (completed) ✅
+- **4.9.1**: IOController printf routing with automatic debugger detection (completed) ✅
+- **4.9.2**: CockpitVM bytecode execution with Page 63 auto-loading
+- **4.9.3**: Golden Triangle guest bytecode validation infrastructure
+**Phase 5.0**: Cooperative Task Scheduler - Multi-program switching with static memory allocation (includes previous 4.9 roadmap)
+**Phase 5.1**: Preemptive RTOS Architecture - FreeRTOS integration with hardware timer coordination
 
 ## Development Environment
 **Build**: `~/.platformio/penv/bin/pio run --target upload` (hardware) | `cd tests && ./tools/run_test <name>` (testing)
-**Oracle Bootloader Client**: `tests/oracle_bootloader/oracle_cli.py --flash` (dual-bank flash programming complete)
+**vm_bootloader Protocol Testing**: `tests/oracle_bootloader/oracle_cli.py --flash` (Oracle test client for dual-bank flash programming complete)
 **Debug**: OpenOCD + GDB, CockpitVM Runtime Diagnostic Console USART2 PA2/PA3@115200
 **Git**: Branch per chunk, author cms-pm only, `/dev/ttyUSB2` serial device
 
@@ -45,5 +50,6 @@
 
 ## Key Documents
 - **Phase 4.8 Plan**: `docs/development/PHASE_4_8_SOS_MVP_IMPLEMENTATION_PLAN.md` - Complete roadmap to Phase 5.0
+- **Phase 4.9 Architecture**: `docs/development/PHASE_4_9_UNIFIED_HANDLER_ARCHITECTURE_PLAN.md` - Unified execution engine optimization
 - **Fresh Architecture**: `docs/architecture/VM_COCKPIT_FRESH_ARCHITECTURE.md` - 6-layer system design
 - **Diagnostic Framework**: `docs/technical/diagnostics/MODULAR_DIAGNOSTICS_FRAMEWORK.md` - USART2 logging
