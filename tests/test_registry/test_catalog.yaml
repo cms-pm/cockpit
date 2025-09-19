@@ -1061,6 +1061,296 @@ tests:
         include_peripheral_summary: false
         include_both_passes: true
 
+  # I2C Peripheral Validation Test (Phase 4.8.1)
+  test_i2c_peripheral_validation:
+    source: test_i2c_peripheral_validation.c
+    dependencies: []
+    description: "Phase 4.8.1 I2C peripheral validation - device detection, command/data transmission, reliability testing"
+    timeout: 30s
+    expected_patterns:
+      - "I2C Peripheral Validation Test Starting"
+      - "Test 1: Device Detection"
+      - "Test 2: Command Transmission" 
+      - "Test 3: Data Transmission"
+      - "Test 4: Reliability Testing"
+      - "I2C Peripheral Validation: COMPLETE"
+    hardware_requirements:
+      - i2c1_pc11_pa8
+      - ssd1306_oled_128x32
+    category: peripheral_validation
+    priority: high
+    stability: phase_4_8_1
+    notes: "Hardware validation for 128x32 SSD1306 OLED via I2C3: PA8=SCL, PC11=SDA @ 100kHz"
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+      
+      semihosting_checks:
+        - contains: "I2C Peripheral Validation Test Starting"
+        - contains: "Test 1: Device Detection"
+        - contains: "Device detected at address 0x3C: PASS"
+        - contains: "Test 2: Command Transmission"
+        - contains: "Display command sequence: PASS"
+        - contains: "Test 3: Data Transmission"
+        - contains: "Data pattern transmission: PASS"
+        - contains: "Test 4: Reliability Testing"
+        - contains: "Reliability: PASS"
+        - contains: "I2C Peripheral Validation: COMPLETE"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 30s
+      
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_both_passes: true
+
+  # I2C Continuous Scan Test (Phase 4.8.1 Oscilloscope Analysis)
+  test_i2c_scan_continuous:
+    source: test_i2c_scan_continuous.c
+    dependencies: []
+    description: "Continuous I2C scan with LED indicators and GT DIAG framework integration"
+    timeout: 60s
+    semihosting: false  # Disable semihosting - uses GT DIAG framework
+    diag_enabled: true  # Enable Golden Triangle DIAG framework
+    expected_patterns:
+      - "Golden Triangle Diagnostics v4.8"
+      - "CockpitVM I2C Continuous Scan Test"
+      - "Phase 4.8.1: Oscilloscope Analysis"
+      - "I2C3 peripheral ready"
+      - "Starting continuous I2C scan"
+      - "OSCILLOSCOPE SETUP INSTRUCTIONS"
+    hardware_requirements:
+      - i2c1_pc11_pa8
+      - ssd1306_oled_128x32
+      - led_pc6
+      - usart2_pa2_pa3
+    category: peripheral_validation
+    priority: high
+    stability: phase_4_8_1
+    notes: "Continuous I2C scanning with PC6 LED startup sequence (3 blinks), GT DIAG framework via USART2 @ PA2/PA3, oscilloscope analysis @ 100kHz, 500ms intervals"
+    validation:
+      execution_strategy: diag_only
+      required: false
+      authority:
+        overall: supplemental
+        semihosting: skip
+        memory: optional
+        timeout_strategy: manual_stop
+      timeout: 120s
+
+      diagnostics:
+        verbosity: minimal
+        memory_dump_range: 0x10
+        include_peripheral_summary: false
+        include_both_passes: false
+
+  # STM32G4 Debug Detection Test (Phase 4.9.0)
+  stm32g4_debug_detection_gt:
+    source: test_stm32g4_debug_detection_gt.c
+    dependencies: []
+    description: "Phase 4.9.0 STM32G4 hardware debugger detection validation using CoreDebug DHCSR register"
+    timeout: 20s
+    expected_patterns:
+      - "STM32G4 Debug Detection Test Starting"
+      - "CoreDebug DHCSR register access test"
+      - "Debugger detection with pyOCD connected"
+      - "DHCSR register value: 0x"
+      - "C_DEBUGEN bit detected: PASS"
+      - "stm32g4_debug_is_debugger_connected() returns: true"
+      - "STM32G4 Debug Detection Test Complete"
+    hardware_requirements:
+      - swd_debugger_pyocd
+      - stm32g4_coredebug
+    category: debug_hardware_validation
+    priority: high
+    stability: phase_4_9_0
+    notes: "Hardware debugger detection validation for printf routing - REQUIRES active pyOCD session via SWD"
+    platform_test_interface: true
+    debugger_required: true
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: required
+        timeout_strategy: fail_graceful
+      timeout: 30s
+
+      # Pass 1: Semihosting validation
+      semihosting_checks:
+        - contains: "STM32G4 Debug Detection Test Starting"
+        - contains: "CoreDebug DHCSR register accessible: PASS"
+        - contains: "Debugger detection result: PASS"
+        - contains: "C_DEBUGEN bit detected: PASS"
+        - contains: "API consistency check: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 25s
+
+      # Pass 2: Memory validation
+      memory_checks:
+        coredebug_dhcsr_access:
+          address: 0xE000EDF0        # ARM CoreDebug DHCSR register
+          mask: 0x00000001           # C_DEBUGEN bit mask
+          expected: 0x00000001       # C_DEBUGEN bit set when debugger connected
+          description: "CoreDebug DHCSR C_DEBUGEN bit indicates debugger connected"
+
+      # Rich diagnostics
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x10
+        include_peripheral_summary: true
+        include_both_passes: true
+
+  # GPIO Pin 13 Golden Triangle Test (Phase 4.9.1.A)
+  gpio_pin13_golden_triangle:
+    source: test_gpio_pin13_golden_triangle.c
+    dependencies: []
+    description: "Phase 4.9.1.A GPIO Pin 13 (PC6) Golden Triangle validation with Platform Test Interface"
+    timeout: 30s
+    expected_patterns:
+      - "GPIO Pin 13 Golden Triangle Test Starting"
+      - "Test 1: Configuring Pin 13 as OUTPUT"
+      - "Test 2: Setting Pin 13 HIGH"
+      - "Test 3: Setting Pin 13 LOW"
+      - "GPIO_VALIDATION_START"
+      - "Expected MODER bits for Pin 13: 01 (output mode)"
+      - "Expected ODR state transitions: 0→1→0"
+      - "GPIO_VALIDATION_END"
+      - "GPIO Pin 13 Golden Triangle Test Complete"
+    hardware_requirements:
+      - led_pc6
+      - gpio_pin13_pc6
+    category: gpio_hardware_validation
+    priority: high
+    stability: phase_4_9_1_a
+    notes: "GPIO Pin 13 (PC6) Golden Triangle validation: ArduinoC compilation → VM execution → Platform Test Interface hardware validation"
+    platform_test_interface: true
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: required
+        timeout_strategy: fail_graceful
+      timeout: 45s
+
+      # Pass 1: Semihosting validation (Golden Triangle Requirement 2)
+      semihosting_checks:
+        - contains: "GPIO Pin 13 Golden Triangle Test Starting"
+        - contains: "Test 1: Configuring Pin 13 as OUTPUT"
+        - contains: "Test 2: Setting Pin 13 HIGH"
+        - contains: "Test 3: Setting Pin 13 LOW"
+        - contains: "GPIO_VALIDATION_START"
+        - contains: "Expected MODER bits for Pin 13: 01 (output mode)"
+        - contains: "Expected ODR state transitions: 0→1→0"
+        - contains: "Expected register access: GPIOC base 0x48000800"
+        - contains: "GPIO_VALIDATION_END"
+        - contains: "GPIO Pin 13 Golden Triangle Test Complete"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 25s
+
+      # Pass 2: Platform Test Interface validation (Golden Triangle Requirement 3)
+      memory_checks:
+        gpioc_pin13_output_mode:
+          address: 0x48000800        # GPIOC base
+          offset: 0x00               # MODER register
+          mask: 0x3000               # Pin 6 mode bits [13:12]
+          expected: 0x1000           # Output mode (01)
+          description: "GPIO Pin 13 (PC6) configured as output mode"
+        gpioc_pin13_odr_control:
+          address: 0x48000800        # GPIOC base
+          offset: 0x14               # ODR register
+          mask: 0x40                 # Pin 6 output bit [6]
+          description: "GPIO Pin 13 (PC6) output data register access"
+        gpioc_clock_enabled:
+          address: 0x4002104C        # RCC AHB2ENR
+          mask: 0x04                 # GPIOC clock enable bit [2]
+          expected: 0x04             # GPIOC clock enabled
+          description: "GPIOC clock enabled for Pin 13 operations"
+
+      # Platform Test Interface checks
+      platform_interface_checks:
+        pin13_output_mode_validation:
+          function: "pin13_is_output_mode"
+          expected_return: true
+          description: "Platform Test Interface confirms Pin 13 is in output mode"
+        pin13_register_access_validation:
+          function: "gpioc_get_moder_register"
+          expected_mask: "0x48000800"
+          description: "Platform Test Interface can access GPIOC registers"
+        pin13_atomic_validation:
+          function: "pin13_set_and_verify_output"
+          test_sequence: ["high", "low"]
+          description: "Platform Test Interface atomic set-and-verify operations"
+
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x40
+        include_peripheral_summary: true
+        include_both_passes: true
+        platform_test_interface: true
+
+  # GPIO Platform Interface Integration Test (Phase 4.9.1.A)
+  gpio_platform_interface_integration:
+    source: test_gpio_platform_interface_integration.c
+    dependencies: []
+    description: "Phase 4.9.1.A GPIO Platform Interface integration test"
+    timeout: 30s
+    expected_patterns:
+      - "GPIO Platform Interface Integration Test"
+      - "Integration Test 1: GPIO Configuration"
+      - "Integration Test 2: GPIO Write Operations"
+      - "Integration Test 3: GPIO Read Operations"
+      - "INTEGRATION_TEST_START"
+      - "Expected GPIO commands: configure, write_high, write_low, read"
+      - "INTEGRATION_TEST_END"
+      - "GPIO Platform Interface Integration Test Complete"
+    hardware_requirements:
+      - led_pc6
+      - gpio_pin13_pc6
+    category: gpio_hardware_validation
+    priority: medium
+    stability: phase_4_9_1_a
+    notes: "GPIO Platform Interface integration validation for Phase 4.9.1.A"
+    platform_test_interface: true
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: supplemental
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 45s
+
+      semihosting_checks:
+        - contains: "GPIO Platform Interface Integration Test"
+        - contains: "Integration Test 1: GPIO Configuration"
+        - contains: "Integration Test 2: GPIO Write Operations"
+        - contains: "Integration Test 3: GPIO Read Operations"
+        - contains: "INTEGRATION_TEST_START"
+        - contains: "INTEGRATION_TEST_END"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 25s
+
+      diagnostics:
+        verbosity: standard
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_both_passes: true
+
 # Test suites for batch execution
 test_suites:
   smoke_tests:
@@ -1074,7 +1364,8 @@ test_suites:
     tests:
       - pc6_led_focused
       - led_basic
-    timeout: 60s
+      - gpio_pin13_golden_triangle
+    timeout: 90s
     
   bootloader_foundation:
     description: "Bootloader Phase 4.5.1 blocking foundation tests"
@@ -1131,6 +1422,26 @@ test_suites:
       - vm_logical_comprehensive
       - vm_bitwise_comprehensive
     timeout: 180s
+
+  phase_4_9_0:
+    description: "Phase 4.9.0 STM32G4 Debug Detection - Hardware debugger detection validation"
+    tests:
+      - stm32g4_debug_detection_gt
+    timeout: 45s
+
+  gpio_platform_test_interface:
+    description: "Phase 4.9.1.A GPIO Platform Test Interface validation suite"
+    tests:
+      - gpio_pin13_golden_triangle
+      - gpio_platform_interface_integration
+    timeout: 90s
+
+  phase_4_9_1_a:
+    description: "Phase 4.9.1.A VM Host Startup Integration - GPIO validation"
+    tests:
+      - gpio_pin13_golden_triangle
+      - gpio_platform_interface_integration
+    timeout: 90s
     
   full_regression:
     description: "Complete regression test suite"

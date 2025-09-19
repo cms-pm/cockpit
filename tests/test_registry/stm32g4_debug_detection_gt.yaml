@@ -1,0 +1,134 @@
+# STM32G4 Debug Detection Golden Triangle Test Configuration
+# Phase 4.9.0 - Hardware debugger detection validation for printf routing
+
+test_name: stm32g4_debug_detection_gt
+description: "STM32G4 hardware debugger detection validation using CoreDebug DHCSR register"
+phase: "4.9.0"
+category: "debug_hardware_validation"
+
+# Test Configuration
+hardware_target: "weact_g431cb_hardware"
+platform: "stm32g4"
+framework: "arduino"
+
+# Debug Detection Configuration
+debug_config:
+  coredebug_base: "0xE000EDF0"     # ARM CoreDebug base address
+  dhcsr_offset: "0x00"            # DHCSR register offset
+  dhcsr_address: "0xE000EDF0"     # Complete DHCSR address
+  c_debugen_bit: 0                # C_DEBUGEN bit position
+  c_debugen_mask: "0x00000001"    # C_DEBUGEN bit mask
+
+# Golden Triangle Requirements
+golden_triangle:
+  requirement_1:
+    name: "Successful Compilation"
+    description: "Debug detection test compiles without error"
+    validation_method: "compilation_check"
+    expected_result: "no_errors"
+
+  requirement_2:
+    name: "Expected Execution"
+    description: "Test executes and produces expected semihosting output"
+    validation_method: "semihosting_capture"
+    expected_patterns:
+      - "STM32G4.*Debug.*Detection.*Test.*Starting"
+      - "CoreDebug.*DHCSR.*register.*access.*test"
+      - "Debugger.*detection.*with.*pyOCD.*connected"
+      - "DHCSR.*register.*value.*0x[0-9A-Fa-f]+"
+      - "C_DEBUGEN.*bit.*detected.*true"
+      - "stm32g4_debug_is_debugger_connected.*returns.*true"
+      - "STM32G4.*Debug.*Detection.*Test.*Complete"
+
+  requirement_3:
+    name: "Hardware Register Verification"
+    description: "GT framework confirms DHCSR register access and debugger detection"
+    validation_method: "golden_triangle_memory_validation"
+    expected_validations:
+      - register: "COREDEBUG_DHCSR"
+        description: "CoreDebug DHCSR register accessible"
+        address: "0xE000EDF0"
+        expected_readable: true
+        function_call: "stm32g4_debug_get_dhcsr_register()"
+      - register: "DHCSR_C_DEBUGEN_BIT"
+        description: "C_DEBUGEN bit indicates debugger connected"
+        address: "0xE000EDF0"
+        bit_position: "[0]"
+        expected_value: "0x1"
+        function_call: "stm32g4_debug_is_debugger_connected()"
+
+# Test Source Files
+source_files:
+  main_test: "tests/test_registry/src/test_stm32g4_debug_detection_gt.c"
+  debug_module: "lib/vm_cockpit/src/platform/stm32g4/stm32g4_debug.c"
+  debug_header: "lib/vm_cockpit/src/platform/stm32g4/stm32g4_debug.h"
+
+# Build Configuration
+build_config:
+  includes:
+    - "lib/vm_cockpit/src/platform/stm32g4"
+    - "lib/vm_cockpit/src/platform"
+  defines:
+    - "STM32G4XX"
+    - "PLATFORM_STM32G4"
+    - "HARDWARE_PLATFORM"
+  libs:
+    - "vm_cockpit"
+
+# Validation Configuration
+validation_config:
+  timeout_ms: 8000
+  expected_duration_ms: 1500
+  memory_limit_kb: 16
+  stack_limit_bytes: 512
+
+  # GT validation points
+  gt_validation_points:
+    - name: "CoreDebug register access validation"
+      function: "validate_coredebug_dhcsr_access"
+      expected_return: 0
+      description: "DHCSR register readable and accessible"
+
+    - name: "Debugger detection positive test"
+      function: "validate_debugger_detection_positive"
+      expected_return: 0
+      description: "Detection returns true with pyOCD connected"
+
+    - name: "DHCSR register bit validation"
+      function: "validate_dhcsr_c_debugen_bit"
+      expected_return: 0
+      description: "C_DEBUGEN bit correctly detected when debugger attached"
+
+# Success Criteria
+success_criteria:
+  compilation: "must_pass"
+  execution: "must_pass"
+  hardware_validation: "must_pass"
+  debugger_detection: "must_pass"
+
+# Test Metadata
+metadata:
+  author: "cms-pm"
+  created: "2025-09-18"
+  phase_4_9_0: true
+  golden_triangle_test: true
+  hardware_required: true
+  debugger_required: true
+  estimated_duration_seconds: 15
+
+# Special Test Notes
+test_notes: |
+  This test REQUIRES a hardware debugger (pyOCD/OpenOCD) to be connected via SWD.
+
+  Test validates:
+  1. ARM CoreDebug DHCSR register accessibility
+  2. C_DEBUGEN bit detection when debugger is attached
+  3. stm32g4_debug_is_debugger_connected() API correctness
+
+  Expected behavior with pyOCD connected:
+  - DHCSR register returns non-zero value
+  - C_DEBUGEN bit (bit 0) is set to 1
+  - stm32g4_debug_is_debugger_connected() returns true
+
+  This test establishes confidence in debug detection logic before
+  integrating with CockpitVM printf routing in Phase 4.9.1.

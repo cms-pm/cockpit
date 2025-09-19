@@ -15,6 +15,10 @@
 #include "host_interface/host_interface.h"
 #include "platform/platform_interface.h"
 
+#ifdef PLATFORM_STM32G4
+#include "../vm_cockpit/src/platform/stm32g4/stm32g4_debug.h"
+#endif
+
 // External timing function
 extern uint32_t get_tick_us(void);
 
@@ -64,6 +68,19 @@ void vm_bootloader_protocol_engine_init(void)
         // Initialize Oracle-style diagnostics first
         bootloader_diag_init(NULL, 115200);
         DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "Protocol engine initializing");
+
+        // Phase 4.9.0: Hardware debugger detection validation for printf routing
+        #ifdef PLATFORM_STM32G4
+        bool debugger_connected = stm32g4_debug_is_debugger_connected();
+        uint32_t dhcsr_value = stm32g4_debug_get_dhcsr_register();
+        if (debugger_connected) {
+            DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "CoreDebug DHCSR: Hardware debugger DETECTED (printf → semihosting)");
+        } else {
+            DIAG_INFO(DIAG_COMPONENT_PROTOCOL_ENGINE, "CoreDebug DHCSR: No debugger detected (printf → UART)");
+        }
+        DIAG_DEBUGF(DIAG_COMPONENT_PROTOCOL_ENGINE, STATUS_SUCCESS, "DHCSR register: 0x%08lX, C_DEBUGEN bit: %s",
+                    dhcsr_value, (dhcsr_value & 0x00000001) ? "SET" : "CLEAR");
+        #endif
         
         // Step 2.3: Verify nanopb integration before proceeding
         if (!nanopb_run_verification()) {
