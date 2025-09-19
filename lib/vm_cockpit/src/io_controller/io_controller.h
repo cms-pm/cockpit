@@ -96,8 +96,11 @@ private:
     bool is_input_pin(uint8_t pin) const noexcept;
     
     // Printf formatting helpers
-    bool format_printf_string(const char* format, const int32_t* args, 
+    bool format_printf_string(const char* format, const int32_t* args,
                              uint8_t arg_count, char* output, size_t output_size) noexcept;
+
+    // Phase 4.9.1: Automatic printf routing based on CoreDebug detection
+    void route_printf(const char* message) noexcept;
     
     // Disable copy/move
     IOController(const IOController&) = delete;

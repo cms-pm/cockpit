@@ -1,0 +1,144 @@
+# IOController Printf Routing Golden Triangle Test Configuration
+# Phase 4.9.1 - Printf routing based on CoreDebug detection validation
+
+test_name: iocontroller_printf_routing_gt
+description: "Phase 4.9.1 IOController printf routing with CoreDebug detection validation"
+phase: "4.9.1"
+category: "printf_routing_validation"
+
+# Test Configuration
+hardware_target: "weact_g431cb_hardware"
+platform: "stm32g4"
+framework: "arduino"
+
+# Printf Routing Configuration
+printf_routing_config:
+  coredebug_detection: true
+  semihosting_target: "pyocd"
+  uart_target: "usart2_pa2_pa3"
+  routing_method: "automatic"
+
+# Golden Triangle Requirements
+golden_triangle:
+  requirement_1:
+    name: "Successful Compilation"
+    description: "Printf routing test compiles with IOController integration"
+    validation_method: "compilation_check"
+    expected_result: "no_errors"
+
+  requirement_2:
+    name: "Expected Execution"
+    description: "Test executes and demonstrates printf routing"
+    validation_method: "semihosting_capture"
+    expected_patterns:
+      - "IOController.*Printf.*Routing.*Test.*Starting"
+      - "CoreDebug.*detection.*CONNECTED.*printf.*semihosting"
+      - "Printf.*routing.*mechanism.*validation"
+      - "ROUTING_TEST.*Hello.*from.*guest.*printf"
+      - "ROUTING_TEST.*Debugger.*connected.*routing.*to.*semihosting"
+      - "ROUTING_TEST.*Printf.*routing.*mechanism.*working"
+      - "Routing.*consistency.*PASS"
+      - "Multiple.*routing.*calls.*PASS"
+      - "IOController.*Printf.*Routing.*Test.*Complete"
+
+  requirement_3:
+    name: "Printf Routing Verification"
+    description: "GT framework confirms printf routing behavior"
+    validation_method: "golden_triangle_routing_validation"
+    expected_validations:
+      - routing: "DEBUGGER_CONNECTED"
+        description: "With debugger: printf routes to semihosting"
+        expected_target: "semihosting"
+        validation_method: "semihosting_capture"
+      - routing: "DEBUGGER_DISCONNECTED"
+        description: "Without debugger: printf routes to UART"
+        expected_target: "uart_diag"
+        validation_method: "uart_monitoring"
+
+# Test Source Files
+source_files:
+  main_test: "tests/test_registry/src/test_iocontroller_printf_routing_gt.c"
+  iocontroller: "lib/vm_cockpit/src/io_controller/io_controller.cpp"
+  debug_module: "lib/vm_cockpit/src/platform/stm32g4/stm32g4_debug.c"
+  semihosting: "lib/semihosting/semihosting.c"
+
+# Build Configuration
+build_config:
+  includes:
+    - "lib/vm_cockpit/src/io_controller"
+    - "lib/vm_cockpit/src/platform/stm32g4"
+    - "lib/vm_cockpit/src/platform"
+    - "lib/semihosting"
+  defines:
+    - "STM32G4XX"
+    - "PLATFORM_STM32G4"
+    - "HARDWARE_PLATFORM"
+  libs:
+    - "vm_cockpit"
+    - "semihosting"
+
+# Validation Configuration
+validation_config:
+  timeout_ms: 10000
+  expected_duration_ms: 2000
+  memory_limit_kb: 20
+  stack_limit_bytes: 1024
+
+  # GT validation points
+  gt_validation_points:
+    - name: "Printf routing mechanism validation"
+      function: "validate_printf_routing_mechanism"
+      expected_return: 0
+      description: "Printf routing works with CoreDebug detection"
+
+    - name: "Semihosting output validation"
+      function: "validate_semihosting_routing"
+      expected_return: 0
+      description: "With debugger: printf outputs via semihosting"
+
+    - name: "Routing consistency validation"
+      function: "validate_routing_consistency"
+      expected_return: 0
+      description: "Printf routing matches CoreDebug detection state"
+
+# Success Criteria
+success_criteria:
+  compilation: "must_pass"
+  execution: "must_pass"
+  printf_routing: "must_pass"
+  debugger_detection: "must_pass"
+  semihosting_output: "must_pass"
+
+# Test Metadata
+metadata:
+  author: "cms-pm"
+  created: "2025-09-18"
+  phase_4_9_1: true
+  golden_triangle_test: true
+  hardware_required: true
+  debugger_required: true
+  estimated_duration_seconds: 20
+
+# Special Test Notes
+test_notes: |
+  This test REQUIRES a hardware debugger (pyOCD/OpenOCD) to be connected via SWD
+  to validate the positive printf routing case.
+
+  Test validates:
+  1. IOController printf routing integration with CoreDebug detection
+  2. Automatic routing: debugger connected → semihosting
+  3. Automatic routing: debugger disconnected → UART
+  4. Printf routing consistency with hardware debugger state
+
+  Expected behavior with pyOCD connected:
+  - CoreDebug DHCSR C_DEBUGEN bit = SET
+  - Guest printf() calls route to semihosting (captured by GT)
+  - test_route_printf() demonstrates routing mechanism
+
+  Expected behavior without debugger:
+  - CoreDebug DHCSR C_DEBUGEN bit = CLEAR
+  - Guest printf() calls route to UART (visible via USART2 DIAG)
+
+  This test validates the printf routing foundation for CockpitVM guest applications.
+  Guest programs can transparently use printf() with automatic routing based on
+  deployment context (development vs production).

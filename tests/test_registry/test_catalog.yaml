@@ -1210,6 +1210,124 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
+  # IOController Printf Routing Test (Phase 4.9.1)
+  iocontroller_printf_routing_gt:
+    source: test_iocontroller_printf_routing_gt.c
+    dependencies: []
+    description: "Phase 4.9.1 IOController printf routing with CoreDebug detection validation"
+    timeout: 25s
+    expected_patterns:
+      - "IOController Printf Routing Test Starting"
+      - "CoreDebug detection: CONNECTED"
+      - "Printf routing mechanism validation"
+      - "ROUTING_TEST: Hello from guest printf"
+      - "ROUTING_TEST: Debugger connected, routing to semihosting"
+      - "Routing consistency: PASS"
+      - "Multiple routing calls: PASS"
+      - "IOController Printf Routing Test Complete"
+    hardware_requirements:
+      - swd_debugger_pyocd
+      - stm32g4_coredebug
+      - iocontroller_printf
+    category: printf_routing_validation
+    priority: high
+    stability: phase_4_9_1
+    notes: "Printf routing validation for CockpitVM guest applications - REQUIRES active pyOCD session via SWD"
+    platform_test_interface: true
+    debugger_required: true
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 35s
+
+      # Pass 1: Semihosting validation
+      semihosting_checks:
+        - contains: "IOController Printf Routing Test Starting"
+        - contains: "CoreDebug detection: CONNECTED"
+        - contains: "Printf routing mechanism: PASS"
+        - contains: "ROUTING_TEST: Hello from guest printf"
+        - contains: "Routing consistency: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 30s
+
+      # Pass 2: Printf routing validation
+      routing_checks:
+        printf_routing_validation:
+          mechanism: "coredebug_detection"
+          expected_target: "semihosting"
+          description: "Printf routing via CoreDebug detection to semihosting"
+
+      # Rich diagnostics
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x10
+        include_peripheral_summary: true
+        include_both_passes: true
+
+  # Guest Printf Integration Test (Phase 4.9.1)
+  guest_printf_integration:
+    source: test_guest_printf_integration.c
+    dependencies: []
+    description: "Phase 4.9.1 Guest application printf integration end-to-end validation through IOController"
+    timeout: 30s
+    expected_patterns:
+      - "Guest Printf Integration Test Starting"
+      - "IOController initialization: PASS"
+      - "String registration: PASS"
+      - "CoreDebug detection: CONNECTED"
+      - "Guest printf integration: PASS"
+      - "Multiple guest printf calls: PASS"
+      - "Routing consistency: PASS"
+      - "Guest Printf Integration Test Complete"
+    hardware_requirements:
+      - swd_debugger_pyocd
+      - stm32g4_coredebug
+      - iocontroller_printf
+    category: printf_routing_validation
+    priority: high
+    stability: phase_4_9_1
+    notes: "End-to-end guest application printf validation through complete CockpitVM stack - REQUIRES active pyOCD session via SWD"
+    platform_test_interface: true
+    debugger_required: true
+    validation:
+      execution_strategy: dual_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 35s
+
+      # Pass 1: Semihosting validation
+      semihosting_checks:
+        - contains: "Guest Printf Integration Test Starting"
+        - contains: "IOController initialization: PASS"
+        - contains: "String registration: PASS"
+        - contains: "Guest printf integration: PASS"
+        - contains: "Routing consistency: PASS"
+        - not_contains: "FAIL"
+      semihosting_timeout: 30s
+
+      # Pass 2: Guest printf validation
+      guest_printf_checks:
+        iocontroller_integration:
+          mechanism: "vm_printf_through_iocontroller"
+          expected_target: "semihosting"
+          description: "Guest printf routed through IOController to semihosting"
+
+      # Rich diagnostics
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x10
+        include_peripheral_summary: true
+        include_both_passes: true
+
   # GPIO Pin 13 Golden Triangle Test (Phase 4.9.1.A)
   gpio_pin13_golden_triangle:
     source: test_gpio_pin13_golden_triangle.c
@@ -1428,6 +1546,13 @@ test_suites:
     tests:
       - stm32g4_debug_detection_gt
     timeout: 45s
+
+  phase_4_9_1:
+    description: "Phase 4.9.1 IOController Printf Routing - CoreDebug-based automatic routing"
+    tests:
+      - iocontroller_printf_routing_gt
+      - guest_printf_integration
+    timeout: 90s
 
   gpio_platform_test_interface:
     description: "Phase 4.9.1.A GPIO Platform Test Interface validation suite"

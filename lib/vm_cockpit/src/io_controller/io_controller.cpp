@@ -11,6 +11,15 @@
 #include <time.h>
 #endif
 
+// Phase 4.9.1: STM32G4 CoreDebug detection for printf routing
+#ifdef PLATFORM_STM32G4
+#include "../platform/stm32g4/stm32g4_debug.h"
+// Include semihosting support for debugger-connected routing
+extern "C" {
+    void semihost_write_string(const char* str);
+}
+#endif
+
 IOController::IOController() noexcept
     : string_table_{}, string_count_(0), pin_states_{}, 
       hardware_initialized_(false), startup_time_(0), button_states_{}
@@ -260,15 +269,34 @@ bool IOController::vm_printf(uint8_t string_id, const int32_t* args, uint8_t arg
         return false;
     }
     
-    #ifdef ARDUINO_PLATFORM
-    Serial.print(output_buffer);
-    #elif defined(QEMU_PLATFORM)
-    printf("%s", output_buffer);
-    #else
-    // Fallback - could write to debug buffer
-    #endif
+    // Phase 4.9.1: Use automatic printf routing based on CoreDebug detection
+    route_printf(output_buffer);
     
     return true;
+}
+
+// Phase 4.9.1: Automatic printf routing based on CoreDebug detection
+// TODO: Hardware validation required - test printf routing with actual bytecode execution
+//       once upload/hardware connection is available for end-to-end validation
+void IOController::route_printf(const char* message) noexcept
+{
+    #ifdef PLATFORM_STM32G4
+    // Use CoreDebug DHCSR register to determine printf routing
+    if (stm32g4_debug_is_debugger_connected()) {
+        // Debugger connected - route to semihosting for GT automation
+        semihost_write_string(message);
+    } else {
+        // No debugger - route to UART for production operation
+        printf("%s", message);  // Routes to STM32 HAL UART
+    }
+    #elif defined(ARDUINO_PLATFORM)
+    Serial.print(message);
+    #elif defined(QEMU_PLATFORM)
+    printf("%s", message);
+    #else
+    // Fallback - standard printf
+    printf("%s", message);
+    #endif
 }
 
 bool IOController::initialize_hardware() noexcept
@@ -282,7 +310,7 @@ bool IOController::initialize_hardware() noexcept
     // Serial already initialized by Arduino framework
     #elif defined(QEMU_PLATFORM)
     // QEMU initialization
-    printf("VM IOController initialized\n");
+    route_printf("VM IOController initialized\n");
     #endif
     
     hardware_initialized_ = true;
@@ -308,7 +336,9 @@ bool IOController::hal_digital_write(uint8_t pin, uint8_t value) noexcept
     digitalWrite(pin, value);
     return true;
     #elif defined(QEMU_PLATFORM)
-    printf("Digital write: pin %d = %d\n", pin, value);
+    char debug_msg[64];
+    snprintf(debug_msg, sizeof(debug_msg), "Digital write: pin %d = %d\n", pin, value);
+    route_printf(debug_msg);
     return true;
     #else
     return false;
@@ -334,7 +364,9 @@ bool IOController::hal_analog_write(uint8_t pin, uint16_t value) noexcept
     analogWrite(pin, value);
     return true;
     #elif defined(QEMU_PLATFORM)
-    printf("Analog write: pin %d = %d\n", pin, value);
+    char debug_msg[64];
+    snprintf(debug_msg, sizeof(debug_msg), "Analog write: pin %d = %d\n", pin, value);
+    route_printf(debug_msg);
     return true;
     #else
     return false;
@@ -360,7 +392,9 @@ bool IOController::hal_set_pin_mode(uint8_t pin, uint8_t mode) noexcept
     pinMode(pin, mode);
     return true;
     #elif defined(QEMU_PLATFORM)
-    printf("Pin mode: pin %d = %d\n", pin, mode);
+    char debug_msg[64];
+    snprintf(debug_msg, sizeof(debug_msg), "Pin mode: pin %d = %d\n", pin, mode);
+    route_printf(debug_msg);
     return true;
     #else
     return false;
