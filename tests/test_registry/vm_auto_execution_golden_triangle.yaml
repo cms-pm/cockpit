@@ -1,0 +1,66 @@
+test_name: vm_auto_execution_golden_triangle
+source: test_vm_auto_execution_golden_triangle.c
+dependencies: []
+description: "Phase 4.9.3 ComponentVM auto-execution validation via Golden Triangle"
+timeout: 45s
+expected_patterns:
+  - "VM_AUTO_EXECUTION_TEST_START"
+  - "Testing ComponentVM auto-execution integration"
+  - "GPIO_PIN_13_CONFIGURED_OUTPUT"
+  - "GPIO_PIN_13_WRITE_HIGH"
+  - "GPIO_PIN_13_WRITE_LOW"
+  - "ComponentVM execution successful"
+  - "Auto-execution glue working correctly"
+  - "VM_AUTO_EXECUTION_TEST_COMPLETE"
+  - "GT_VALIDATION: pinMode(pin=13"
+  - "GT_VALIDATION: digitalWrite(pin=13"
+  - "GT_VALIDATION: Execution complete"
+hardware_requirements:
+  - gpio_pin13
+  - vm_auto_execution
+  - componentvm
+category: vm_auto_execution_validation
+priority: high
+stability: phase_4_9_3
+notes: "Validates elegant ComponentVM auto-execution solution - 100 lines total implementation"
+platform_test_interface: true
+debugger_required: true
+bytecode_info:
+  compilation_method: "phase_4_9_3_minimal_auto_execution"
+  auto_execution: true
+validation:
+  execution_strategy: vm_auto_execution
+  required: true
+  authority:
+    overall: authoritative
+    semihosting: required
+    vm_auto_execution: required
+    memory: optional
+    timeout_strategy: fail_graceful
+  timeout: 40s
+  semihosting_checks:
+    - contains: "VM_AUTO_EXECUTION_TEST_START"
+    - contains: "Testing ComponentVM auto-execution integration"
+    - contains: "GPIO_PIN_13_CONFIGURED_OUTPUT"
+    - contains: "GPIO_PIN_13_WRITE_HIGH"
+    - contains: "GPIO_PIN_13_WRITE_LOW"
+    - contains: "ComponentVM execution successful"
+    - contains: "Auto-execution glue working correctly"
+    - contains: "VM_AUTO_EXECUTION_TEST_COMPLETE"
+    - contains: "GT_VALIDATION: pinMode(pin=13"
+    - contains: "GT_VALIDATION: digitalWrite(pin=13"
+    - contains: "GT_VALIDATION: Execution complete"
+    - not_contains: "FAIL"
+    - not_contains: "ERROR"
+  semihosting_timeout: 35s
+  vm_auto_execution_checks:
+    - contains: "Phase 4.9.3: Starting ComponentVM auto-execution"
+    - contains: "Valid guest program found"
+    - contains: "Guest program loaded into ComponentVM"
+    - contains: "Guest program execution complete"
+  diagnostics:
+    verbosity: verbose
+    memory_dump_range: 0x20
+    include_peripheral_summary: true
+    include_vm_metrics: true
+    include_both_passes: true
