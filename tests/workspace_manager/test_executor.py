@@ -139,7 +139,7 @@ class TestExecutor:
             result = subprocess.run(clean_cmd, capture_output=True, text=True, timeout=30)
             
             # Build firmware
-            build_cmd = [self.pio_path, "run", "--environment", "weact_g431cb_hardware"]
+            build_cmd = [self.pio_path, "run", "--environment", "weact_g474re_hardware"]
             result = subprocess.run(build_cmd, capture_output=True, text=True, timeout=90)
             
             if result.returncode != 0:
@@ -168,7 +168,7 @@ class TestExecutor:
             os.chdir(workspace_path)
             
             # Upload firmware
-            upload_cmd = [self.pio_path, "run", "--environment", "weact_g431cb_hardware", "--target", "upload"]
+            upload_cmd = [self.pio_path, "run", "--environment", "weact_g474re_hardware", "--target", "upload"]
             result = subprocess.run(upload_cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode != 0:
@@ -242,7 +242,7 @@ class TestExecutor:
             print("   ✓ Debug session initialized")
             
             # Load symbols
-            elf_path = "active_workspaces/" + test_name + "/.pio/build/weact_g431cb_hardware/firmware.elf"
+            elf_path = "active_workspaces/" + test_name + "/.pio/build/weact_g474re_hardware/firmware.elf"
             result = self.debug_engine.execute_gdb_command(f"file {elf_path}")
             if not result.success:
                 print(f"   Warning: Symbol loading failed: {result.error}")

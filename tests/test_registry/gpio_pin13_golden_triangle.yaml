@@ -1,0 +1,116 @@
+# GPIO Pin 13 Golden Triangle Test Configuration
+# Phase 4.9.1.A - Platform Test Interface GPIO Hardware Validation
+
+test_name: gpio_pin13_golden_triangle
+description: "GPIO Pin 13 (PC6) Golden Triangle validation with Platform Test Interface"
+phase: "4.9.1.A"
+category: "gpio_hardware_validation"
+
+# Test Configuration
+hardware_target: "weact_g431cb_hardware"
+platform: "stm32g4"
+framework: "arduino"
+
+# GPIO-specific configuration
+gpio_config:
+  target_pin: 13          # Arduino pin numbering
+  physical_pin: "PC6"     # STM32G4 physical pin
+  port: "GPIOC"          # GPIO port
+  pin_number: 6          # Port pin number
+  expected_moder_bits: "01"  # Output mode configuration
+
+# Golden Triangle Requirements
+golden_triangle:
+  requirement_1:
+    name: "Successful Compilation"
+    description: "ArduinoC test compiles to VM bytecode without error"
+    validation_method: "compilation_check"
+    expected_result: "no_errors"
+
+  requirement_2:
+    name: "Expected Execution"
+    description: "VM executes bytecode and produces expected semihosting output"
+    validation_method: "semihosting_capture"
+    expected_patterns:
+      - "GPIO.*Pin.*13.*Golden.*Triangle.*Test.*Starting"
+      - "Test.*1.*Configuring.*Pin.*13.*OUTPUT"
+      - "Test.*2.*Setting.*Pin.*13.*HIGH"
+      - "Test.*3.*Setting.*Pin.*13.*LOW"
+      - "GPIO.*Pin.*13.*Golden.*Triangle.*Test.*Complete"
+
+  requirement_3:
+    name: "Hardware Register Verification"
+    description: "Platform Test Interface confirms actual hardware register states"
+    validation_method: "platform_test_interface"
+    expected_validations:
+      - register: "GPIOC_MODER"
+        description: "Pin 13 configured as output mode"
+        bit_position: "[13:12]"
+        expected_value: "0x01"
+        function_call: "pin13_is_output_mode()"
+      - register: "GPIOC_ODR"
+        description: "Pin 13 output state control"
+        bit_position: "[6]"
+        expected_pattern: "0→1→0"
+        function_call: "pin13_get_output_state()"
+      - register: "GPIOC_BASE"
+        description: "GPIO port C base address validation"
+        expected_address: "0x48000800"
+        function_call: "gpioc_get_moder_register()"
+
+# Test Source Files
+source_files:
+  main_test: "tests/test_registry/src/test_gpio_pin13_golden_triangle.c"
+  platform_interface: "lib/vm_cockpit/src/test_platform/stm32g4_gpio_test_platform.c"
+  validation_framework: "lib/vm_cockpit/src/test_platform/gpio_validation_test.c"
+
+# Build Configuration
+build_config:
+  includes:
+    - "lib/vm_cockpit/src/test_platform"
+    - "lib/vm_compiler/validation/compiler"
+  defines:
+    - "STM32G4XX"
+    - "PLATFORM_STM32G4"
+  libs:
+    - "vm_cockpit"
+
+# Validation Configuration
+validation_config:
+  timeout_ms: 10000
+  expected_duration_ms: 2000
+  memory_limit_kb: 32
+  stack_limit_bytes: 1024
+
+  # Platform Test Interface validation points
+  platform_test_points:
+    - name: "GPIO configuration validation"
+      function: "verify_gpio_platform_interface"
+      expected_return: 0
+      description: "Platform Test Interface basic functionality"
+
+    - name: "Pin 13 atomic validation"
+      function: "validate_gpio_pin13_atomic"
+      expected_return: 0
+      description: "Pin 13 specific register access validation"
+
+    - name: "GPIO register state validation"
+      function: "validate_gpio_register_state"
+      expected_return: 0
+      description: "Direct register state verification"
+
+# Success Criteria
+success_criteria:
+  compilation: "must_pass"
+  execution: "must_pass"
+  hardware_validation: "must_pass"
+  platform_interface: "must_pass"
+
+# Test Metadata
+metadata:
+  author: "cms-pm"
+  created: "2025-09-18"
+  phase_4_9_1_a: true
+  golden_triangle_test: true
+  hardware_required: true
+  estimated_duration_seconds: 30

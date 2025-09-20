@@ -16,7 +16,7 @@
 #include "platform/platform_interface.h"
 
 #ifdef PLATFORM_STM32G4
-#include "../vm_cockpit/src/platform/stm32g4/stm32g4_debug.h"
+#include "platform/stm32g4/stm32g4_debug.h"
 #endif
 
 // External timing function

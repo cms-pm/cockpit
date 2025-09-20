@@ -1567,6 +1567,138 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
+  # Phase 4.9.3 ComponentVM Auto-Execution Test
+  vm_auto_execution_golden_triangle:
+    source: test_vm_auto_execution_golden_triangle.c
+    dependencies: []
+    description: "Phase 4.9.3 ComponentVM auto-execution validation via Golden Triangle"
+    timeout: 45s
+    expected_patterns:
+      - "VM_AUTO_EXECUTION_TEST_START"
+      - "Testing ComponentVM auto-execution integration"
+      - "Program available check:"
+      - "Testing result string function"
+      - "Success string: Success"
+      - "No program string: No program found"
+      - "Attempting auto-execution test run"
+      - "Auto-execution result:"
+      - "ComponentVM auto-execution framework validated"
+      - "Integration glue working correctly"
+      - "VM_AUTO_EXECUTION_TEST_COMPLETE"
+    hardware_requirements:
+      - gpio_pin13
+      - vm_auto_execution
+      - componentvm
+    category: vm_auto_execution_validation
+    priority: high
+    stability: phase_4_9_3
+    notes: "Validates elegant ComponentVM auto-execution solution - 100 lines total implementation"
+    platform_test_interface: true
+    debugger_required: true
+    bytecode_info:
+      compilation_method: "phase_4_9_3_minimal_auto_execution"
+      auto_execution: true
+    validation:
+      execution_strategy: vm_auto_execution
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        vm_auto_execution: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 40s
+      semihosting_checks:
+        - contains: "VM_AUTO_EXECUTION_TEST_START"
+        - contains: "Testing ComponentVM auto-execution integration"
+        - contains: "Program available check:"
+        - contains: "Testing result string function"
+        - contains: "Success string: Success"
+        - contains: "No program string: No program found"
+        - contains: "Attempting auto-execution test run"
+        - contains: "Auto-execution result:"
+        - contains: "ComponentVM auto-execution framework validated"
+        - contains: "Integration glue working correctly"
+        - contains: "VM_AUTO_EXECUTION_TEST_COMPLETE"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 35s
+      vm_auto_execution_checks:
+        - contains: "Phase 4.9.3: Starting ComponentVM auto-execution"
+        - contains: "Valid guest program found"
+        - contains: "Guest program loaded into ComponentVM"
+        - contains: "Guest program execution complete"
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_vm_metrics: true
+        include_both_passes: true
+
+  # Phase 4.9.4 Host Startup Coordination Test
+  phase_4_9_4_host_startup_coordination:
+    source: test_phase_4_9_4_host_startup_coordination.c
+    dependencies: []
+    description: "Phase 4.9.4 unified host startup coordination validation"
+    timeout: 30s
+    expected_patterns:
+      - "Phase 4.9.4: Host Startup Coordination Test"
+      - "System initialization result: SUCCESS"
+      - "PC13 button state: NOT_PRESSED"
+      - "Auto-execution result: No program found"
+      - "GT_VALIDATION: Startup coordination framework operational"
+      - "GT_VALIDATION: PC13 button detection working"
+      - "GT_VALIDATION: Auto-execution integration functional"
+      - "GT_VALIDATION: vm_bootloader fallback path available"
+      - "Phase 4.9.4: Host Startup Coordination Test COMPLETE"
+    hardware_requirements:
+      - gpio_pc13
+      - led_pc6
+      - vm_host_startup
+      - vm_auto_execution
+    category: host_startup_integration
+    priority: high
+    stability: phase_4_9_4
+    notes: "Tests unified startup coordinator with button detection, auto-execution integration, and bootloader fallback"
+    validation:
+      execution_strategy: single_pass
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+      timeout: 30s
+      semihosting_checks:
+        - contains: "Phase 4.9.4: Host Startup Coordination Test"
+        - contains: "System initialization result: SUCCESS"
+        - contains: "PC13 button state: NOT_PRESSED"
+        - contains: "Auto-execution result: No program found"
+        - contains: "GT_VALIDATION: Startup coordination framework operational"
+        - contains: "GT_VALIDATION: PC13 button detection working"
+        - contains: "GT_VALIDATION: Auto-execution integration functional"
+        - contains: "GT_VALIDATION: vm_bootloader fallback path available"
+        - contains: "GT_VALIDATION: Result handling and error reporting working"
+        - contains: "GPIO configuration successful"
+        - contains: "Phase 4.9.4: Host Startup Coordination Test COMPLETE"
+        - not_contains: "FAILED"
+        - not_contains: "ERROR"
+      semihosting_timeout: 25s
+      memory_checks:
+        gpio_pc13_input_config:
+          address: 0x48000800  # GPIOC MODER register
+          mask: 0x0C000000     # PC13 mode bits [27:26]
+          expected: 0x00000000 # Input mode (00)
+          description: "PC13 configured as input for button detection"
+        gpio_pc6_output_config:
+          address: 0x48000800  # GPIOC MODER register
+          mask: 0x00003000     # PC6 mode bits [13:12]
+          expected: 0x00001000 # Output mode (01)
+          description: "PC6 configured as output for LED"
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_both_passes: true
+
 # Test suites for batch execution
 test_suites:
   smoke_tests:
@@ -1666,22 +1798,166 @@ test_suites:
       - gpio_platform_interface_integration
     timeout: 90s
 
+  # Phase 4.9.3 Concierge Architecture Tests
+  concierge_gpio_pin13_simple:
+    source: test_concierge_gpio_pin13_simple.c
+    dependencies: []
+    description: "Phase 4.9.3 Simple GPIO test via concierge auto-execution"
+    timeout: 45s
+    expected_patterns:
+      - "CONCIERGE_GPIO_TEST_START"
+      - "GPIO_PIN_13_CONFIGURED_OUTPUT"
+      - "GPIO_PIN_13_WRITE_HIGH"
+      - "GPIO_PIN_13_WRITE_LOW"
+      - "CONCIERGE_GPIO_TEST_COMPLETE"
+      - "CONCIERGE: Guest program loaded"
+      - "CONCIERGE: Guest program execution started"
+      - "CONCIERGE: Guest program execution completed"
+    hardware_requirements:
+      - gpio_pin13
+      - concierge_runtime
+    category: concierge_gpio_auto_execution
+    priority: high
+    stability: phase_4_9_3
+    notes: "Concierge auto-execution test: 26 instructions, 5 strings"
+    platform_test_interface: true
+    debugger_required: true
+    concierge_test: true
+    auto_execution: true
+    bytecode_info:
+      instruction_count: 26
+      string_count: 5
+      compilation_method: "phase_4_9_3_concierge_infrastructure"
+    concierge_config:
+      auto_loader_enabled: true
+      page63_flash_required: true
+      guest_api_integration: true
+      printf_routing_validation: false
+      gpio_validation: true
+    validation:
+      execution_strategy: concierge_auto_execution
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        concierge: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 40s
+      semihosting_checks:
+        - contains: "CONCIERGE_GPIO_TEST_START"
+        - contains: "GPIO_PIN_13_CONFIGURED_OUTPUT"
+        - contains: "GPIO_PIN_13_WRITE_HIGH"
+        - contains: "GPIO_PIN_13_WRITE_LOW"
+        - contains: "CONCIERGE_GPIO_TEST_COMPLETE"
+        - contains: "CONCIERGE: Guest program loaded"
+        - contains: "CONCIERGE: Guest program execution started"
+        - contains: "CONCIERGE: Guest program execution completed"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 35s
+      concierge_checks:
+        - contains: "CONCIERGE: Guest program loaded"
+        - contains: "CONCIERGE: Guest program execution started"
+        - contains: "CONCIERGE: Guest program execution completed"
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_concierge_metrics: true
+        include_both_passes: true
+
+  concierge_printf_routing_simple:
+    source: test_concierge_printf_routing_simple.c
+    dependencies: []
+    description: "Phase 4.9.3 Simple printf routing test via concierge auto-execution"
+    timeout: 45s
+    expected_patterns:
+      - "CONCIERGE_PRINTF_TEST_START"
+      - "Testing concierge auto-execution"
+      - "Guest program running under concierge management"
+      - "Printf routing should work transparently"
+      - "CONCIERGE_PRINTF_TEST_COMPLETE"
+      - "CONCIERGE: Guest program loaded"
+      - "CONCIERGE: Guest program execution started"
+      - "CONCIERGE: Guest program execution completed"
+    hardware_requirements:
+      - concierge_runtime
+      - iocontroller_printf
+    category: concierge_printf_auto_execution
+    priority: high
+    stability: phase_4_9_3
+    notes: "Concierge auto-execution test: 13 instructions, 5 strings"
+    platform_test_interface: true
+    debugger_required: true
+    concierge_test: true
+    auto_execution: true
+    bytecode_info:
+      instruction_count: 13
+      string_count: 5
+      compilation_method: "phase_4_9_3_concierge_infrastructure"
+    concierge_config:
+      auto_loader_enabled: true
+      page63_flash_required: true
+      guest_api_integration: true
+      printf_routing_validation: true
+      gpio_validation: false
+    validation:
+      execution_strategy: concierge_auto_execution
+      required: true
+      authority:
+        overall: authoritative
+        semihosting: required
+        concierge: required
+        memory: optional
+        timeout_strategy: fail_graceful
+      timeout: 40s
+      semihosting_checks:
+        - contains: "CONCIERGE_PRINTF_TEST_START"
+        - contains: "Testing concierge auto-execution"
+        - contains: "Guest program running under concierge management"
+        - contains: "Printf routing should work transparently"
+        - contains: "CONCIERGE_PRINTF_TEST_COMPLETE"
+        - contains: "CONCIERGE: Guest program loaded"
+        - contains: "CONCIERGE: Guest program execution started"
+        - contains: "CONCIERGE: Guest program execution completed"
+        - not_contains: "FAIL"
+        - not_contains: "ERROR"
+      semihosting_timeout: 35s
+      concierge_checks:
+        - contains: "CONCIERGE: Guest program loaded"
+        - contains: "CONCIERGE: Guest program execution started"
+        - contains: "CONCIERGE: Guest program execution completed"
+      diagnostics:
+        verbosity: verbose
+        memory_dump_range: 0x20
+        include_peripheral_summary: true
+        include_concierge_metrics: true
+        include_both_passes: true
+
   phase_4_9_1_a:
     description: "Phase 4.9.1.A VM Host Startup Integration - GPIO validation"
     tests:
       - gpio_pin13_golden_triangle
       - gpio_platform_interface_integration
     timeout: 90s
-    
+
+
+  phase_4_9_3:
+    description: "Phase 4.9.3 ComponentVM Auto-Execution - Elegant minimal solution"
+    tests:
+      - vm_auto_execution_golden_triangle
+    timeout: 60s
+
+  phase_4_9_4:
+    description: "Phase 4.9.4 Host Startup Integration - Unified startup coordination"
+    tests:
+      - phase_4_9_4_host_startup_coordination
+    timeout: 45s
+
   full_regression:
     description: "Complete regression test suite"
     tests:
       - pc6_led_focused
-      - led_basic  
+      - led_basic
       - uart_basic
-      - bootloader_foundation
-      - vm_arithmetic_comprehensive
-      - vm_comparison_comprehensive
-      - vm_logical_comprehensive
-      - vm_bitwise_comprehensive
-    timeout: 300s

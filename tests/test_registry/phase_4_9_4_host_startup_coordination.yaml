@@ -1,0 +1,89 @@
+# Phase 4.9.4: Host Startup Coordination Golden Triangle Test
+# Tests unified startup coordinator that manages button detection,
+# auto-execution, and bootloader fallback integration
+
+test_name: "phase_4_9_4_host_startup_coordination"
+description: "Phase 4.9.4 unified host startup coordination validation"
+source_file: "test_phase_4_9_4_host_startup_coordination.c"
+category: "host_startup_integration"
+priority: "high"
+phase: "4.9.4"
+stability: "stable"
+
+# Test execution configuration
+execution:
+  timeout_seconds: 30
+  expected_outcome: "success"
+  validation_strategy: "semihosting_patterns"
+  hardware_requirements:
+    - "gpio_pc13"
+    - "led_pc6"
+
+# Expected semihosting output patterns
+validation:
+  semihosting_patterns:
+    required:
+      - "Phase 4.9.4: Host Startup Coordination Test"
+      - "System initialization result: SUCCESS"
+      - "PC13 button state: NOT_PRESSED"
+      - "Auto-execution result: No program found"
+      - "GT_VALIDATION: Startup coordination framework operational"
+      - "GT_VALIDATION: PC13 button detection working"
+      - "GT_VALIDATION: Auto-execution integration functional"
+      - "GT_VALIDATION: vm_bootloader fallback path available"
+      - "GT_VALIDATION: Result handling and error reporting working"
+      - "GPIO configuration successful"
+      - "Phase 4.9.4: Host Startup Coordination Test COMPLETE"
+
+    optional:
+      - "Expected: NOT_PRESSED (Golden Triangle automated testing)"
+      - "Expected result: No program found (test environment)"
+
+    forbidden:
+      - "FAILED"
+      - "ERROR"
+      - "CRASH"
+
+# Memory validation (GPIO register checks)
+memory_validation:
+  gpio_pc13_input_config:
+    description: "Verify PC13 configured as input"
+    address: 0x48000800  # GPIOC MODER register
+    mask: 0x0C000000     # PC13 mode bits [27:26]
+    expected: 0x00000000 # Input mode (00)
+
+  gpio_pc6_output_config:
+    description: "Verify PC6 configured as output (LED)"
+    address: 0x48000800  # GPIOC MODER register
+    mask: 0x00003000     # PC6 mode bits [13:12]
+    expected: 0x00001000 # Output mode (01)
+
+# Test environment notes
+notes: |
+  This test validates the Phase 4.9.4 unified startup coordinator:
+
+  1. **System Initialization**: Tests vm_host_startup_init_systems()
+  2. **Button Detection**: Validates PC13 button reading (expects not pressed)
+  3. **Auto-Execution Integration**: Tests vm_auto_execution integration
+  4. **Result Handling**: Validates error codes and string mappings
+  5. **Hardware Access**: Confirms GPIO configuration works
+
+  Expected flow in test environment:
+  - PC13 button not pressed -> continue to auto-execution
+  - Auto-execution finds no program -> would fallback to bootloader
+  - Test ends before bootloader (GT validation complete)
+
+  Golden Triangle validates coordination framework without requiring
+  actual bytecode upload or Oracle protocol interaction.
+
+# Integration dependencies
+dependencies:
+  - "vm_host_startup"
+  - "vm_auto_execution"
+  - "host_interface"
+  - "gpio"
+
+# Author and tracking
+author: "cms-pm"
+created_date: "2025-09-20"
+last_modified: "2025-09-20"
