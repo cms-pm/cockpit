@@ -3,6 +3,7 @@
 ## Development Methodology
 **Staff Embedded Systems Architect**: Hardware-first reliability, KISS+Evolution, TDD 100% pass rate
 **Target**: STM32G474 WeAct Studio CoreBoard (128KB flash, 32KB RAM, 168MHz ARM Cortex-M4)
+**Implementation Pattern**: Incremental chunk-based development with git branch rollback strategy (see `docs/development/PHASE_4_KILL_BILL_VMMEMORYOPS_ELIMINATION.md` for detailed methodology)
 
 ## Current Architecture Status ✅ **COMPLETE**
 **6-Layer Fresh Architecture**: Guest Application → VM Hypervisor → Host Interface → Platform Layer → STM32 HAL → Hardware

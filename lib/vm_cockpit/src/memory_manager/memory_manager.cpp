@@ -2,9 +2,23 @@
 #include <cstring>  // for memset
 
 MemoryManager::MemoryManager() noexcept
-    : globals_{}, global_count_(0), array_pool_{}, pool_used_(0), 
-      arrays_{}, array_count_(0)
+    : context_(&internal_context_), internal_context_{}
 {
+    context_->reset();  // Initialize to clean state
+
+    #ifdef DEBUG
+    stack_canary_enabled_ = true;
+    stack_canary_value_ = 0xDEADBEEF;
+    #endif
+}
+
+MemoryManager::MemoryManager(VMMemoryContext* context) noexcept
+    : context_(context), internal_context_{}
+{
+    if (context_) {
+        context_->reset();  // Initialize to clean state
+    }
+
     #ifdef DEBUG
     stack_canary_enabled_ = true;
     stack_canary_value_ = 0xDEADBEEF;
@@ -20,198 +34,170 @@ MemoryManager::~MemoryManager() noexcept
     }
     #endif
     
-    // Clear all memory for security (prevent data leakage)
-    memset(globals_, 0, sizeof(globals_));
-    memset(array_pool_, 0, sizeof(array_pool_));
-    
-    // Reset array descriptors
-    for (auto& desc : arrays_) {
-        desc.offset = 0;
-        desc.size = 0;
-        desc.active = false;
+    // Clear context memory for security (prevent data leakage)
+    if (context_) {
+        context_->reset();  // Clears globals and arrays
     }
 }
 
 bool MemoryManager::store_global(uint8_t index, int32_t value) noexcept
 {
-    if (!is_valid_global_index(index)) {
+    if (!context_ || index >= VM_MAX_GLOBALS) {
         return false;
     }
-    
-    globals_[index] = value;
-    
+
+    context_->globals[index] = value;
+
     // Expand global count if needed
-    if (index >= global_count_) {
-        global_count_ = index + 1;
+    if (index >= context_->global_count) {
+        context_->global_count = index + 1;
     }
-    
+
     return true;
 }
 
 bool MemoryManager::load_global(uint8_t index, int32_t& value) const noexcept
 {
-    if (!is_valid_global_index(index)) {
+    if (!context_ || index >= VM_MAX_GLOBALS) {
         return false;
     }
-    
-    value = globals_[index];
+
+    value = context_->globals[index];
     return true;
 }
 
 bool MemoryManager::create_array(uint8_t array_id, size_t size) noexcept
 {
-    if (array_id >= MAX_ARRAYS || size == 0 || size > MAX_ARRAY_SIZE) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS || size == 0 || size > VM_ARRAY_ELEMENTS) {
         return false;
     }
-    
+
     // Check if array already exists
-    if (arrays_[array_id].active) {
+    if (context_->array_active[array_id]) {
         return false;
     }
-    
-    // Allocate space in pool
-    size_t offset;
-    if (!allocate_array_space(size, offset)) {
-        return false;
-    }
-    
-    // Initialize array descriptor
-    arrays_[array_id].offset = offset;
-    arrays_[array_id].size = size;
-    arrays_[array_id].active = true;
-    
+
+    // Static array allocation - just mark as active
+    context_->array_active[array_id] = true;
+
     // Initialize array elements to zero
-    memset(&array_pool_[offset], 0, size * sizeof(int32_t));
-    
-    // Update array count
-    if (array_id >= array_count_) {
-        array_count_ = array_id + 1;
-    }
-    
+    memset(context_->arrays[array_id], 0, VM_ARRAY_ELEMENTS * sizeof(int32_t));
+
     return true;
 }
 
 bool MemoryManager::store_array_element(uint8_t array_id, uint16_t index, int32_t value) noexcept
 {
-    if (!is_valid_array_id(array_id) || !is_valid_array_index(array_id, index)) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS || index >= VM_ARRAY_ELEMENTS ||
+        !context_->array_active[array_id]) {
         return false;
     }
-    
-    const ArrayDescriptor& desc = arrays_[array_id];
-    array_pool_[desc.offset + index] = value;
+
+    context_->arrays[array_id][index] = value;
     return true;
 }
 
 bool MemoryManager::load_array_element(uint8_t array_id, uint16_t index, int32_t& value) const noexcept
 {
-    if (!is_valid_array_id(array_id) || !is_valid_array_index(array_id, index)) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS || index >= VM_ARRAY_ELEMENTS ||
+        !context_->array_active[array_id]) {
         return false;
     }
-    
-    const ArrayDescriptor& desc = arrays_[array_id];
-    value = array_pool_[desc.offset + index];
+
+    value = context_->arrays[array_id][index];
     return true;
 }
 
 bool MemoryManager::get_array_size(uint8_t array_id, size_t& size) const noexcept
 {
-    if (!is_valid_array_id(array_id)) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS || !context_->array_active[array_id]) {
         return false;
     }
-    
-    size = arrays_[array_id].size;
+
+    size = VM_ARRAY_ELEMENTS;  // Static array size in VMMemoryContext
     return true;
 }
 
 int32_t* MemoryManager::get_array_base(uint8_t array_id) const noexcept
 {
-    if (!is_valid_array_id(array_id)) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS || !context_->array_active[array_id]) {
         return nullptr;
     }
-    
-    const ArrayDescriptor& desc = arrays_[array_id];
-    if (!desc.active) {
-        return nullptr;
-    }
-    
-    return const_cast<int32_t*>(&array_pool_[desc.offset]);
+
+    return const_cast<int32_t*>(context_->arrays[array_id]);
 }
 
 uint16_t MemoryManager::get_array_size_direct(uint8_t array_id) const noexcept
 {
-    if (!is_valid_array_id(array_id)) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS || !context_->array_active[array_id]) {
         return 0;
     }
-    
-    const ArrayDescriptor& desc = arrays_[array_id];
-    if (!desc.active) {
-        return 0;
-    }
-    
-    return static_cast<uint16_t>(desc.size);
+
+    return VM_ARRAY_ELEMENTS;
 }
 
 void MemoryManager::reset() noexcept
 {
-    // Clear all globals
-    memset(globals_, 0, sizeof(globals_));
-    global_count_ = 0;
-    
-    // Clear all arrays
-    memset(array_pool_, 0, sizeof(array_pool_));
-    pool_used_ = 0;
-    
-    // Reset array descriptors
-    for (auto& desc : arrays_) {
-        desc.offset = 0;
-        desc.size = 0;
-        desc.active = false;
+    if (!context_) {
+        return;
     }
-    array_count_ = 0;
+
+    context_->reset();
 }
 
 size_t MemoryManager::get_used_array_memory() const noexcept
 {
-    return pool_used_;
+    if (!context_) {
+        return 0;
+    }
+
+    size_t used = 0;
+    for (uint8_t i = 0; i < VM_MAX_ARRAYS; ++i) {
+        if (context_->array_active[i]) {
+            used += VM_ARRAY_ELEMENTS * sizeof(int32_t);
+        }
+    }
+    return used;
 }
 
 size_t MemoryManager::get_available_array_memory() const noexcept
 {
-    return ARRAY_POOL_SIZE - pool_used_;
+    return sizeof(VMMemoryContext) - get_used_array_memory();
 }
 
 bool MemoryManager::validate_memory_integrity() const noexcept
 {
     #ifdef DEBUG
-    // Check for array descriptor consistency
-    size_t calculated_used = 0;
-    for (uint8_t i = 0; i < array_count_; ++i) {
-        if (arrays_[i].active) {
-            if (arrays_[i].offset + arrays_[i].size > ARRAY_POOL_SIZE) {
-                return false;  // Array bounds exceed pool
-            }
-            calculated_used += arrays_[i].size;
+    if (!context_) {
+        return false;
+    }
+
+    // Check global count bounds
+    if (context_->global_count > VM_MAX_GLOBALS) {
+        return false;
+    }
+
+    // Check array consistency
+    for (uint8_t i = 0; i < VM_MAX_ARRAYS; ++i) {
+        if (context_->array_active[i]) {
+            // Array is active, no additional checks needed for static allocation
         }
     }
-    
-    if (calculated_used != pool_used_) {
-        return false;  // Pool usage accounting mismatch
-    }
-    
+
     // Additional integrity checks could be added here
     #endif
-    
+
     return true;
 }
 
 bool MemoryManager::is_valid_global_index(uint8_t index) const noexcept
 {
-    return index < MAX_GLOBALS;
+    return index < VM_MAX_GLOBALS;
 }
 
 bool MemoryManager::is_valid_array_id(uint8_t array_id) const noexcept
 {
-    return array_id < MAX_ARRAYS && arrays_[array_id].active;
+    return context_ && array_id < VM_MAX_ARRAYS && context_->array_active[array_id];
 }
 
 bool MemoryManager::is_valid_array_index(uint8_t array_id, uint16_t index) const noexcept
@@ -219,31 +205,24 @@ bool MemoryManager::is_valid_array_index(uint8_t array_id, uint16_t index) const
     if (!is_valid_array_id(array_id)) {
         return false;
     }
-    
-    return index < arrays_[array_id].size;
+
+    return index < VM_ARRAY_ELEMENTS;
 }
 
 bool MemoryManager::allocate_array_space(size_t size, size_t& offset) noexcept
 {
-    if (pool_used_ + size > ARRAY_POOL_SIZE) {
-        return false;  // Not enough space
-    }
-    
-    offset = pool_used_;
-    pool_used_ += size;
-    return true;
+    // Static allocation - no dynamic space management needed
+    offset = 0;  // Not used in static allocation
+    return size <= VM_ARRAY_ELEMENTS;
 }
 
 void MemoryManager::deallocate_array_space(uint8_t array_id) noexcept
 {
-    if (!is_valid_array_id(array_id)) {
+    if (!context_ || array_id >= VM_MAX_ARRAYS) {
         return;
     }
-    
-    // Simple deallocation - just mark as inactive
-    // In a more sophisticated system, we might implement compaction
-    arrays_[array_id].active = false;
-    
-    // For now, we don't reclaim the space to avoid fragmentation
-    // A future enhancement could implement array compaction
+
+    // Static deallocation - mark as inactive and clear memory
+    context_->array_active[array_id] = false;
+    memset(context_->arrays[array_id], 0, VM_ARRAY_ELEMENTS * sizeof(int32_t));
 }

@@ -1,19 +1,20 @@
 #include "component_vm.h"
 #include "execution_engine/execution_engine.h"
 #include "memory_manager/memory_manager.h"
+#include "memory_manager/vm_memory_context.h"
 #include "io_controller/io_controller.h"
 #include <algorithm>
 
 ComponentVM::ComponentVM() noexcept
-    : engine_{}, memory_{}, io_{}, program_loaded_(false), 
-      instruction_count_(0), last_error_(VM_ERROR_NONE), 
+    : engine_{}, memory_context_{}, memory_{&memory_context_}, memory_ops_{create_memory_ops(&memory_context_)}, io_{},
+      program_loaded_(false), instruction_count_(0), last_error_(VM_ERROR_NONE),
       metrics_{}, execution_start_time_(0)
 {
     #ifdef DEBUG
     trace_enabled_ = false;
     trace_instruction_limit_ = 10000;
     #endif
-    
+
     // Initialize hardware
     io_.initialize_hardware();
 }
@@ -44,7 +45,7 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
         // Get current instruction info before execution for observer notification
         uint32_t pc = static_cast<uint32_t>(engine_.get_pc());
         
-        if (!engine_.execute_single_instruction(memory_, io_)) {
+        if (!engine_.execute_single_instruction(memory_ops_, io_)) {
             // Propagate error from ExecutionEngine
             vm_error_t engine_error = engine_.get_last_error();
             set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
@@ -79,7 +80,7 @@ bool ComponentVM::execute_single_step() noexcept
     // Get current instruction info before execution for observer notification
     uint32_t pc = static_cast<uint32_t>(engine_.get_pc());
     
-    bool success = engine_.execute_single_instruction(memory_, io_);
+    bool success = engine_.execute_single_instruction(memory_ops_, io_);
     
     if (success) {
         instruction_count_++;
@@ -113,20 +114,46 @@ bool ComponentVM::load_program(const VM::Instruction* program, size_t program_si
     return true;
 }
 
+bool ComponentVM::load_program_with_strings(const VM::Instruction* program, size_t program_size,
+                                          const char* const* string_literals, size_t string_count) noexcept
+{
+    if (!load_program(program, program_size)) {
+        return false;
+    }
+    
+    // Load string literals into IOController
+    for (size_t i = 0; i < string_count; i++) {
+        uint8_t string_id;
+        if (!io_.add_string(string_literals[i], string_id)) {
+            set_error(VM_ERROR_PROGRAM_NOT_LOADED);
+            return false;
+        }
+        
+        // Verify string_id matches expected index
+        if (string_id != i) {
+            set_error(VM_ERROR_PROGRAM_NOT_LOADED);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 void ComponentVM::reset_vm() noexcept
 {
     engine_.reset();
-    memory_.reset();
+    memory_context_.reset();  // Reset static context directly
+    memory_.reset();          // Legacy MemoryManager reset (will call context reset again, but safe)
     io_.reset_hardware();
-    
+
     program_loaded_ = false;
     instruction_count_ = 0;
     clear_error();
     reset_performance_metrics();
-    
+
     // Re-initialize hardware
     io_.initialize_hardware();
-    
+
     // Notify observers that VM has been reset
     notify_vm_reset();
 }

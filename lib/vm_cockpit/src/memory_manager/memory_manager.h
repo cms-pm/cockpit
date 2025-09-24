@@ -19,7 +19,7 @@ public:
     // Global variable operations
     bool store_global(uint8_t index, int32_t value) noexcept;
     bool load_global(uint8_t index, int32_t& value) const noexcept;
-    uint8_t get_global_count() const noexcept { return global_count_; }
+    uint8_t get_global_count() const noexcept { return context_ ? context_->global_count : 0; }
     
     // Array management
     bool create_array(uint8_t array_id, size_t size) noexcept;
@@ -28,7 +28,14 @@ public:
     
     // Array information
     bool get_array_size(uint8_t array_id, size_t& size) const noexcept;
-    uint8_t get_array_count() const noexcept { return array_count_; }
+    uint8_t get_array_count() const noexcept {
+        if (!context_) return 0;
+        uint8_t count = 0;
+        for (uint8_t i = 0; i < VM_MAX_ARRAYS; ++i) {
+            if (context_->array_active[i]) count++;
+        }
+        return count;
+    }
     
     // Hybrid approach: Direct access methods for ExecutionEngine
     int32_t* get_array_base(uint8_t array_id) const noexcept;

@@ -2,6 +2,7 @@
 
 #include "execution_engine/execution_engine.h"
 #include "memory_manager/memory_manager.h"
+#include "memory_manager/vm_memory_context.h"
 #include "io_controller/io_controller.h"
 #include "vm_errors.h"
 #include <cstdint>
@@ -30,15 +31,21 @@ public:
     
     // Program management
     bool load_program(const VM::Instruction* program, size_t program_size) noexcept;
+    bool load_program_with_strings(const VM::Instruction* program, size_t program_size,
+                                 const char* const* string_literals, size_t string_count) noexcept;
     void reset_vm() noexcept;
     
     // Component access (for testing and debugging)
     ExecutionEngine& get_execution_engine() noexcept { return engine_; }
-    MemoryManager& get_memory_manager() noexcept { return memory_; }
+    MemoryManager& get_memory_manager() noexcept { return memory_; }  // Legacy for Phase 3 transition
+    VMMemoryContext& get_memory_context() noexcept { return memory_context_; }
+    VMMemoryOps& get_memory_ops() noexcept { return memory_ops_; }
     IOController& get_io_controller() noexcept { return io_; }
-    
+
     const ExecutionEngine& get_execution_engine() const noexcept { return engine_; }
-    const MemoryManager& get_memory_manager() const noexcept { return memory_; }
+    const MemoryManager& get_memory_manager() const noexcept { return memory_; }  // Legacy for Phase 3 transition
+    const VMMemoryContext& get_memory_context() const noexcept { return memory_context_; }
+    const VMMemoryOps& get_memory_ops() const noexcept { return memory_ops_; }
     const IOController& get_io_controller() const noexcept { return io_; }
     
     // VM state inspection
@@ -69,9 +76,11 @@ public:
     
 private:
     // VM Components - construction order matters for RAII
-    ExecutionEngine engine_;    // Constructed first
-    MemoryManager memory_;      // Constructed second
-    IOController io_;          // Constructed third
+    ExecutionEngine engine_;      // Constructed first
+    VMMemoryContext memory_context_;  // Static memory context - must be before MemoryManager
+    MemoryManager memory_;        // Legacy for Phase 3 transition - takes memory_context_ pointer
+    VMMemoryOps memory_ops_;      // Function pointer interface
+    IOController io_;            // Constructed last
     
     // VM state
     bool program_loaded_;
