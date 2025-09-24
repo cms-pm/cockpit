@@ -3,6 +3,7 @@
 // #include <array> - removed for embedded compatibility
 #include <cstdint>
 #include <cstddef>
+#include "vm_memory_context.h"
 
 class MemoryManager {
 public:
@@ -11,7 +12,8 @@ public:
     static constexpr size_t MAX_ARRAYS = 16;
     static constexpr size_t MAX_ARRAY_SIZE = 1024;  // MVP limit: 1024 ints per array
     
-    MemoryManager() noexcept;
+    MemoryManager() noexcept;  // Default constructor (legacy compatibility)
+    explicit MemoryManager(VMMemoryContext* context) noexcept;  // New static context constructor
     ~MemoryManager() noexcept;
     
     // Global variable operations
@@ -41,22 +43,11 @@ public:
     bool validate_memory_integrity() const noexcept;
     
 private:
-    // Global variable storage
-    int32_t globals_[MAX_GLOBALS];
-    uint8_t global_count_;
-    
-    // Array storage - static pool allocation
-    int32_t array_pool_[ARRAY_POOL_SIZE];
-    size_t pool_used_;
-    
-    // Array metadata
-    struct ArrayDescriptor {
-        size_t offset;      // Offset into array_pool_
-        size_t size;        // Number of elements
-        bool active;        // Is this array slot in use
-    };
-    ArrayDescriptor arrays_[MAX_ARRAYS];
-    uint8_t array_count_;
+    // Phase 4.11.1: Static memory context backing (replaces dynamic pool)
+    VMMemoryContext* context_;          // Static context pointer
+
+    // Legacy compatibility: Default constructor creates internal context
+    VMMemoryContext internal_context_;  // Used by default constructor only
     
     // Memory protection (debug builds)
     #ifdef DEBUG
