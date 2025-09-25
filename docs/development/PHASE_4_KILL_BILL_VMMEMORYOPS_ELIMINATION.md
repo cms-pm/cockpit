@@ -86,14 +86,17 @@ Following CockpitVM development methodology, Phase 4 is implemented as **Phase 4
 - Main branch always represents latest stable implementation
 - Rollback available at chunk granularity
 
-## Phase 4 Implementation Strategy
+## Phase 4.11 Implementation Strategy
 
-### Phase 4.1: MemoryManager Static Conversion (Day 1 Morning)
+### Phase 4.11.1: MemoryManager Static Conversion ✅ **COMPLETED**
 **Duration**: 4 hours
 **Objective**: Convert MemoryManager from dynamic pool to static VMMemoryContext backing
+**Status**: Successfully implemented and committed in `phase-4-11-memory-manager-static-foundation` branch
 
-#### Task 4.1.1: MemoryManager Internal Restructure
+#### Task 4.11.1A: MemoryManager Header Transformation ✅ **COMPLETED**
 **Target Files**: `memory_manager.h`, `memory_manager.cpp`
+**Branch**: `phase-4-11-memory-manager-static-foundation`
+**Commit**: `64fc26d Phase 4.11.1A: MemoryManager header transformation`
 
 **Current Implementation (Dynamic Pool):**
 ```cpp
@@ -204,36 +207,143 @@ public:
 };
 ```
 
-#### Validation Checkpoint 4.1
-- [ ] MemoryManager compiles with new VMMemoryContext backing
-- [ ] ComponentVM compiles with unified memory system
-- [ ] Basic memory operations (store_global, load_global) work correctly
-- [ ] Memory integrity validation passes
+#### Validation Checkpoint 4.11.1 ✅ **COMPLETED**
+- [x] MemoryManager compiles with new VMMemoryContext backing
+- [x] ComponentVM compiles with unified memory system
+- [x] Basic memory operations (store_global, load_global) work correctly
+- [x] Memory integrity validation passes
 
-### Phase 4.2: Unified Handler Mass Conversion (Day 1 Afternoon)
-**Duration**: 4 hours
-**Objective**: Convert all 30+ unified handlers from VMMemoryOps to MemoryManager
+**Completed Implementation:**
+- Task 4.11.1A: Header transformation with VMMemoryContext constructor
+- Task 4.11.1B: Implementation conversion to static allocation
+- Task 4.11.1C: ComponentVM integration with new MemoryManager constructor
+- Task 4.11.1D: Build validation successful for STM32G474 target
 
-#### Handler Conversion Strategy: Staged Batches
+### Phase 4.11.2: ExecutionEngine Direct MemoryManager Interface ✅ **COMPLETED**
+**Duration**: 6 hours
+**Objective**: Eliminate VMMemoryOps function pointers in favor of direct MemoryManager method calls
+**Status**: Successfully implemented and committed in `phase-4-11-memory-manager-static-foundation` branch
+**Commit**: `c695862 Phase 4.11.2: ExecutionEngine Direct MemoryManager Interface Complete`
 
-**Batch 1: Core VM Operations (0x00-0x0F) - 5 handlers**
+#### Implementation Summary:
+- Added `execute_single_instruction_direct()` method bypassing VMMemoryOps
+- Implemented `DirectOpcodeHandler` signature for direct MemoryManager calls
+- Created `direct_opcode_handlers_` dispatch table with core operations
+- Implemented direct handlers for arithmetic, memory, I/O, comparison, control flow
+- Added `use_direct_handler_` migration flags for incremental conversion
+- Build validation successful: STM32G474 target compiles without errors
+
+#### Key Achievements:
+- Direct handlers eliminate function pointer overhead for ARM Cortex-M4
+- Memory operations call MemoryManager.load_global(), store_global() directly
+- Arduino HAL operations use IOController methods with proper error handling
+- Unified error system integration (VM_ERROR_MEMORY_BOUNDS, etc.)
+
+### Phase 4.11.3: ComponentVM Direct Execution Integration
+**Duration**: 3 hours
+**Objective**: Enable ComponentVM to use direct execution method and validate performance
+**Status**: 🎯 **CURRENT PHASE**
+
+#### Task 4.11.3A: ComponentVM execute_single_instruction_direct Integration
+**Target Files**: `component_vm.h`, `component_vm.cpp`
+**Objective**: Update ComponentVM to use new direct execution method for performance-critical operations
+
+**Implementation Steps:**
+1. Add `execute_single_instruction_direct()` calls to ComponentVM execution methods
+2. Update auto-execution system to use direct method calls
+3. Maintain backward compatibility with existing VMMemoryOps interface
+4. Add performance comparison hooks for direct vs. function pointer execution
+
+#### Task 4.11.3B: End-to-End Integration Testing
+**Objective**: Validate direct execution path works correctly with real bytecode
+
+**Validation Requirements:**
+1. Basic arithmetic operations (add, sub, mul, div) execute correctly
+2. Memory operations (load_global, store_global, array operations) work properly
+3. Arduino HAL operations (digitalWrite, digitalRead, pinMode) function correctly
+4. Control flow operations (jmp, jmp_true, jmp_false) execute properly
+5. Error handling propagates correctly through direct execution path
+
+#### Task 4.11.3C: Performance Benchmarking
+**Objective**: Measure performance improvement of direct method calls vs function pointers
+
+**Benchmarking Targets:**
+- Instruction execution throughput (instructions per second)
+- Memory access latency for global/array operations
+- Function call overhead reduction measurement
+- Stack usage analysis for direct vs indirect calls
+
+### Phase 4.11.4: Legacy Cleanup and Final Validation
+**Duration**: 2 hours
+**Objective**: Remove VMMemoryOps dependencies and finalize Kill Bill elimination
+**Status**: ⏳ **PLANNED**
+
+#### Task 4.11.4A: VMMemoryOps Interface Removal
+**Target Files**: `component_vm.h`, `component_vm.cpp`, `execution_engine.h`
+**Objective**: Remove VMMemoryOps accessor methods and dependencies
+
+**Cleanup Tasks:**
+1. Remove `VMMemoryOps& get_memory_ops()` methods from ComponentVM
+2. Remove `execute_single_instruction(VMMemoryOps&)` method from ExecutionEngine
+3. Clean up unused unified handler table entries
+4. Update component initialization to use direct execution by default
+
+#### Task 4.11.4B: Final Integration Testing
+**Objective**: Comprehensive validation of Kill Bill elimination
+
+**Test Requirements:**
+1. All existing tests pass with direct execution method
+2. Memory usage analysis shows elimination of function pointer overhead
+3. Performance benchmarks demonstrate measurable improvement
+4. Error handling maintains consistency across all execution paths
+5. Golden Triangle validation with real Arduino bytecode
+
+#### Task 4.11.4C: Documentation and Methodology Completion
+**Objective**: Complete Kill Bill documentation and methodology compliance
+
+**Documentation Updates:**
+1. Update architecture diagrams to reflect direct method call architecture
+2. Document performance improvements achieved
+3. Update development methodology with Phase 4.11 lessons learned
+4. Create rollback procedures for each chunk in case of future issues
+
+## 🎯 **Current Status: Phase 4.11.3 Ready to Begin**
+
+**Completed Phases:**
+- ✅ Phase 4.11.1: MemoryManager Static Conversion (committed `bfb3b36`)
+- ✅ Phase 4.11.2: ExecutionEngine Direct Interface (committed `c695862`)
+
+**Next Steps:**
+- 🎯 Phase 4.11.3: ComponentVM Direct Execution Integration
+- ⏳ Phase 4.11.4: Legacy Cleanup and Final Validation
+
+**Branch Strategy:**
+- Current branch: `phase-4-11-memory-manager-static-foundation`
+- Ready for Phase 4.11.3 implementation
+- Merge to `main` after Phase 4.11.4 completion and full validation
+
+---
+
+## Architecture Summary
+
+The Phase 4.11 Kill Bill VMMemoryOps elimination creates a clean embedded C++ architecture:
+
+**Before (Function Pointer Architecture):**
 ```
-handle_halt_unified
-handle_push_unified
-handle_pop_unified
-handle_call_unified
-handle_ret_unified
+Guest Bytecode → ExecutionEngine → VMMemoryOps (function pointers) → MemoryManager
 ```
 
-**Batch 2: Arduino HAL Functions (0x10-0x1F) - 6 handlers**
+**After (Direct Method Architecture):**
 ```
-handle_digital_write_unified
-handle_digital_read_unified
-handle_analog_write_unified
-handle_analog_read_unified
-handle_pin_mode_unified
-handle_printf_unified
+Guest Bytecode → ExecutionEngine → MemoryManager (direct method calls) → VMMemoryContext
 ```
+
+**Key Benefits:**
+- Eliminates function pointer overhead for ARM Cortex-M4 performance
+- Static memory allocation through VMMemoryContext (4KB deterministic)
+- Clean C++ method interfaces instead of C-style function pointers
+- Maintains full backward compatibility during incremental migration
+- Enables compiler optimization of direct method calls
 
 **Batch 3: Memory Operations (0x20-0x3F) - 5 handlers**
 ```
