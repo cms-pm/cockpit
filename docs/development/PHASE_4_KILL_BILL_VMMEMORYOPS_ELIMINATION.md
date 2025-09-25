@@ -207,7 +207,7 @@ public:
 };
 ```
 
-#### Validation Checkpoint 4.11.1 ✅ **COMPLETED**
+#### Validation Checkpoint 4.11.11.1 ✅ **COMPLETED**
 - [x] MemoryManager compiles with new VMMemoryContext backing
 - [x] ComponentVM compiles with unified memory system
 - [x] Basic memory operations (store_global, load_global) work correctly
@@ -345,38 +345,17 @@ Guest Bytecode → ExecutionEngine → MemoryManager (direct method calls) → V
 - Maintains full backward compatibility during incremental migration
 - Enables compiler optimization of direct method calls
 
-**Batch 3: Memory Operations (0x20-0x3F) - 5 handlers**
-```
-handle_load_global_unified
-handle_store_global_unified
-handle_load_array_unified
-handle_store_array_unified
-handle_create_array_unified
-```
+---
 
-**Batch 4: Arithmetic Operations (0x20-0x3F) - 5 handlers**
-```
-handle_add_unified
-handle_sub_unified
-handle_mul_unified
-handle_div_unified
-handle_mod_unified
-```
+## Background: Original Phase 4.11 Implementation Strategy
 
-**Batch 5: Control Flow Operations (0x40-0x5F) - 9 handlers**
-```
-handle_eq_unified
-handle_ne_unified
-handle_lt_unified
-handle_gt_unified
-handle_le_unified
-handle_ge_unified
-handle_jmp_unified
-handle_jmp_true_unified
-handle_jmp_false_unified
-```
+**Note:** The following sections represent the original comprehensive Kill Bill plan. The actual implementation followed the chunk-based approach documented above (Phase 4.11.1-4.11.4), but this background provides valuable context for the complete elimination strategy.
 
-#### Task 4.2.1: Handler Signature Mass Conversion
+### Phase 4.11.5: Handler Mass Conversion (Background)
+**Original Objective**: Convert all 30+ unified handlers from VMMemoryOps to MemoryManager
+**Status**: Superseded by direct handler approach in Phase 4.11.2
+
+#### Task 4.11.5.1: Handler Signature Mass Conversion
 
 **Conversion Pattern:**
 ```cpp
@@ -417,7 +396,7 @@ find lib/vm_cockpit/src/execution_engine/ -name "*.cpp" -exec sed -i 's/memory\.
 find lib/vm_cockpit/src/execution_engine/ -name "*.cpp" -exec sed -i 's/memory\.create_array(memory\.context, \([^,]*\), \([^)]*\))/memory.create_array(\1, \2)/g' {} \;
 ```
 
-#### Task 4.2.2: Batch Validation Process
+#### Task 4.11.5.2: Batch Validation Process
 
 **Per-Batch Validation:**
 1. **Convert batch handlers** using automated commands
@@ -431,17 +410,17 @@ find lib/vm_cockpit/src/execution_engine/ -name "*.cpp" -exec sed -i 's/memory\.
 - Failed batch can be rolled back independently
 - Continue with remaining batches
 
-#### Validation Checkpoint 4.2
+#### Validation Checkpoint 4.11.11.5
 - [ ] All 30+ unified handlers use MemoryManager& parameter
 - [ ] All handler implementations use MemoryManager methods (not function pointers)
 - [ ] Compilation succeeds for all handler batches
 - [ ] Golden Triangle test passes with converted handlers
 
-### Phase 4.3: ExecutionEngine Unification (Day 2 Morning)
+### Phase 4.11.6: ExecutionEngine Unification (Background)
 **Duration**: 3 hours
 **Objective**: Eliminate dual dispatch, simplify to single MemoryManager path
 
-#### Task 4.3.1: Remove VMMemoryOps Execute Method
+#### Task 4.11.6.1: Remove VMMemoryOps Execute Method
 
 **Current Implementation:**
 ```cpp
@@ -461,7 +440,7 @@ public:
 };
 ```
 
-#### Task 4.3.2: Handler Table Simplification
+#### Task 4.11.6.2: Handler Table Simplification
 
 **Current State:**
 ```cpp
@@ -560,17 +539,17 @@ bool ComponentVM::execute_single_step() noexcept {
 }
 ```
 
-#### Validation Checkpoint 4.3
+#### Validation Checkpoint 4.11.3
 - [ ] ExecutionEngine has single execute_single_instruction method
 - [ ] Single handler table with MemoryManager handlers
 - [ ] ComponentVM uses unified memory system
 - [ ] No VMMemoryOps references in ExecutionEngine
 
-### Phase 4.4: Nuclear VMMemoryOps Elimination (Day 2 Afternoon)
+### Phase 4.11.7: Nuclear VMMemoryOps Elimination (Day 2 Afternoon)
 **Duration**: 2 hours
 **Objective**: Complete eradication of VMMemoryOps files and abstractions
 
-#### Task 4.4.1: File Elimination Strategy
+#### Task 4.11.7.1: File Elimination Strategy
 
 **Files to Delete:**
 ```bash
@@ -582,7 +561,7 @@ rm lib/vm_cockpit/src/memory_manager/vm_memory_ops.cpp
 # Keep: lib/vm_cockpit/src/memory_manager/vm_memory_pool.cpp (context pool management)
 ```
 
-#### Task 4.4.2: VMMemoryContext Header Cleanup
+#### Task 4.11.7.2: VMMemoryContext Header Cleanup
 
 **Edit vm_memory_context.h to remove VMMemoryOps artifacts:**
 ```cpp
@@ -613,7 +592,7 @@ struct VMMemoryContext {
 };
 ```
 
-#### Task 4.4.3: Include Cleanup
+#### Task 4.11.7.3: Include Cleanup
 
 **Remove VMMemoryOps includes from all files:**
 ```bash
@@ -625,7 +604,7 @@ find lib/vm_cockpit/src/ -name "*.h" -exec sed -i '/vm_memory_ops\.h/d' {} \;
 # (Only MemoryManager should include vm_memory_context.h)
 ```
 
-#### Task 4.4.4: Handler Table Final Cleanup
+#### Task 4.11.7.4: Handler Table Final Cleanup
 
 **Remove legacy handler tables from execution_engine.cpp:**
 ```cpp
@@ -644,7 +623,7 @@ const ExecutionEngine::OpcodeHandler ExecutionEngine::opcode_handlers_[MAX_OPCOD
 };
 ```
 
-#### Validation Checkpoint 4.4
+#### Validation Checkpoint 4.11.4
 - [ ] vm_memory_ops.cpp deleted successfully
 - [ ] VMMemoryOps struct and functions removed from headers
 - [ ] No VMMemoryOps references in codebase
