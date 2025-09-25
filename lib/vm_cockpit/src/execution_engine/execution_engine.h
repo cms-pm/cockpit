@@ -8,6 +8,9 @@
 class MemoryManager;
 class IOController;
 
+// Include VMMemoryOps for new memory interface
+#include "../memory_manager/vm_memory_context.h"
+
 // Include unified error system
 #include "../vm_errors.h"
 
@@ -64,6 +67,12 @@ public:
     bool execute_program(const VM::Instruction* program, size_t program_size, 
                         MemoryManager& memory, IOController& io) noexcept;
     bool execute_single_instruction(MemoryManager& memory, IOController& io) noexcept;
+
+    // Phase 3: New VMMemoryOps interface
+    bool execute_single_instruction(VMMemoryOps& memory, IOController& io) noexcept;
+
+    // Phase 4.11.2: Direct MemoryManager method interface (eliminates function pointers)
+    bool execute_single_instruction_direct(MemoryManager& memory, IOController& io) noexcept;
     
     // State management
     void reset() noexcept;
@@ -116,8 +125,16 @@ private:
                                                    MemoryManager& memory, IOController& io) noexcept;
     
     // New handler signature with explicit PC management
-    using NewOpcodeHandler = VM::HandlerResult (ExecutionEngine::*)(uint8_t flags, uint16_t immediate, 
+    using NewOpcodeHandler = VM::HandlerResult (ExecutionEngine::*)(uint8_t flags, uint16_t immediate,
                                                                     MemoryManager& memory, IOController& io) noexcept;
+
+    // Phase 3: VMMemoryOps handler signature for unified handlers
+    using UnifiedOpcodeHandler = VM::HandlerResult (ExecutionEngine::*)(uint8_t flags, uint16_t immediate,
+                                                                        VMMemoryOps& memory, IOController& io) noexcept;
+
+    // Phase 4.11.2: Direct MemoryManager handler signature (eliminates function pointers)
+    using DirectOpcodeHandler = VM::HandlerResult (ExecutionEngine::*)(uint8_t flags, uint16_t immediate,
+                                                                       MemoryManager& memory, IOController& io) noexcept;
     
     // Compile-time opcode dispatch table - eliminates switch statement
     static constexpr size_t MAX_OPCODE = 0x6F;
@@ -125,9 +142,17 @@ private:
     
     // New handler table for migrated handlers
     static const NewOpcodeHandler new_opcode_handlers_[MAX_OPCODE + 1];
-    
+
+    // Phase 3: Unified handler table for VMMemoryOps interface
+    static const UnifiedOpcodeHandler unified_opcode_handlers_[MAX_OPCODE + 1];
+
+    // Phase 4.11.2: Direct MemoryManager handler table (final architecture)
+    static const DirectOpcodeHandler direct_opcode_handlers_[MAX_OPCODE + 1];
+
     // Handler migration tracking
     static const bool use_new_handler_[MAX_OPCODE + 1];
+    static const bool use_unified_handler_[MAX_OPCODE + 1];
+    static const bool use_direct_handler_[MAX_OPCODE + 1];  // Phase 4.11.2 migration flag
     
     // ============= CORE VM OPERATIONS =============
     bool handle_halt(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
@@ -198,42 +223,42 @@ private:
     // ============= NEW HANDLER DECLARATIONS (HANDLERRESULT RETURN) =============
 
     // Core VM Operations (0x00-0x0F) - Priority batch for Phase 2
-    VM::HandlerResult handle_halt_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_push_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_pop_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_call_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_ret_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_halt_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_push_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_pop_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_call_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_ret_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
 
     // Arduino HAL Functions (0x10-0x1F) - Hardware interface batch for Phase 2
-    VM::HandlerResult handle_digital_write_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_digital_read_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_analog_write_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_analog_read_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_pin_mode_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_printf_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_digital_write_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_digital_read_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_analog_write_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_analog_read_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_pin_mode_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_printf_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
 
     // Memory and Logic Operations (0x20-0x3F) - Arithmetic and memory batch for Phase 2
-    VM::HandlerResult handle_add_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_sub_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_mul_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_div_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_mod_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_load_global_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_store_global_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_load_array_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_store_array_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_create_array_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_add_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_sub_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_mul_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_div_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_mod_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_load_global_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_store_global_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_load_array_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_store_array_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_create_array_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
 
     // Control Flow Operations (0x40-0x5F) - Comparison and branching batch for Phase 2
-    VM::HandlerResult handle_eq_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_ne_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_lt_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_gt_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_le_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_ge_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_jmp_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_jmp_true_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
-    VM::HandlerResult handle_jmp_false_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_eq_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_ne_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_lt_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_gt_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_le_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_ge_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_true_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_false_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept;
 
 
     // Critical control flow handlers - first to migrate
@@ -254,6 +279,40 @@ private:
 
     // Arduino HAL operations (migrated)
     VM::HandlerResult handle_delay_migrated(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+
+    // ============= PHASE 4.11.2: DIRECT MEMORY MANAGER HANDLERS =============
+    // Core VM operations - direct MemoryManager interface (no function pointers)
+    VM::HandlerResult handle_halt_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_push_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_pop_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_add_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_sub_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_mul_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_div_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+
+    // Memory operations - direct MemoryManager interface
+    VM::HandlerResult handle_load_global_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_store_global_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_load_array_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_store_array_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_create_array_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+
+    // Control flow operations - direct interface
+    VM::HandlerResult handle_jmp_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_true_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_jmp_false_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+
+    // Comparison operations - direct interface
+    VM::HandlerResult handle_eq_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_ne_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_lt_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_gt_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+
+    // Arduino HAL operations - direct interface
+    VM::HandlerResult handle_digital_write_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_digital_read_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_pin_mode_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
+    VM::HandlerResult handle_printf_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept;
     
     // Stack protection utilities
     bool validate_stack_protection(VM::HandlerReturn protection_level) const noexcept;

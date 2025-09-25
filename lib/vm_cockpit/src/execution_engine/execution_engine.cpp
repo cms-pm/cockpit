@@ -168,6 +168,162 @@ bool ExecutionEngine::execute_single_instruction(MemoryManager& memory, IOContro
     }
 }
 
+// Phase 3: New execute_single_instruction method using VMMemoryOps
+bool ExecutionEngine::execute_single_instruction(VMMemoryOps& memory, IOController& io) noexcept
+{
+    if (program_ == nullptr || pc_ >= program_size_ || halted_) {
+        return false;
+    }
+
+    const VM::Instruction& instr = program_[pc_];
+    uint8_t opcode = instr.opcode;
+    uint8_t flags = instr.flags;
+    uint16_t immediate = instr.immediate;
+
+    // Function pointer table dispatch for unified handlers
+    if (opcode > MAX_OPCODE) {
+        last_error_ = VM_ERROR_INVALID_OPCODE;
+        #ifdef DEBUG
+        printf("EXECUTION_ENGINE_ERROR: Opcode 0x%02X exceeds MAX_OPCODE (0x%02X) at PC=%zu\n",
+               opcode, (unsigned)MAX_OPCODE, pc_);
+        #endif
+        return false;
+    }
+
+    // Check if unified handler is available for this opcode
+    if (use_unified_handler_[opcode]) {
+        UnifiedOpcodeHandler unified_handler = unified_opcode_handlers_[opcode];
+        if (unified_handler == nullptr) {
+            last_error_ = VM_ERROR_INVALID_OPCODE;
+            #ifdef DEBUG
+            printf("EXECUTION_ENGINE_ERROR: Unified handler for opcode 0x%02X is nullptr at PC=%zu\n", opcode, pc_);
+            #endif
+            return false;
+        }
+
+        // Execute unified handler with VMMemoryOps
+        VM::HandlerResult result = (this->*unified_handler)(flags, immediate, memory, io);
+
+        // Handle result
+        if (result.error_code != VM_ERROR_NONE) {
+            last_error_ = result.error_code;
+            return false;
+        }
+
+        // EXPLICIT PC management based on handler result
+        switch (result.action) {
+            case VM::HandlerReturn::CONTINUE:
+                pc_++;
+                break;
+
+            case VM::HandlerReturn::CONTINUE_NO_CHECK:
+                pc_++;
+                break;
+
+            case VM::HandlerReturn::JUMP_ABSOLUTE:
+                if (result.jump_address >= program_size_) {
+                    last_error_ = VM_ERROR_INVALID_JUMP;
+                    return false;
+                }
+                pc_ = result.jump_address;
+                break;
+
+            case VM::HandlerReturn::HALT:
+                halted_ = true;
+                return true;  // Successful halt
+
+            default:
+                last_error_ = VM_ERROR_EXECUTION_FAILED;
+                return false;
+        }
+
+        return true;
+    }
+
+    // Fallback: not yet implemented for unified handlers
+    last_error_ = VM_ERROR_INVALID_OPCODE;
+    #ifdef DEBUG
+    printf("EXECUTION_ENGINE_ERROR: Opcode 0x%02X not implemented for unified handlers at PC=%zu\n", opcode, pc_);
+    #endif
+    return false;
+}
+
+// Phase 4.11.2: Direct MemoryManager execution method (eliminates function pointers)
+bool ExecutionEngine::execute_single_instruction_direct(MemoryManager& memory, IOController& io) noexcept
+{
+    if (program_ == nullptr || pc_ >= program_size_ || halted_) {
+        return false;
+    }
+
+    const VM::Instruction& instr = program_[pc_];
+    uint8_t opcode = instr.opcode;
+    uint8_t flags = instr.flags;
+    uint16_t immediate = instr.immediate;
+
+    // Direct method dispatch for Phase 4.11.2
+    if (opcode > MAX_OPCODE) {
+        last_error_ = VM_ERROR_INVALID_OPCODE;
+        #ifdef DEBUG
+        printf("EXECUTION_ENGINE_ERROR: Opcode 0x%02X exceeds MAX_OPCODE (0x%02X) at PC=%zu\n",
+               opcode, (unsigned)MAX_OPCODE, pc_);
+        #endif
+        return false;
+    }
+
+    // Check if direct handler is available for this opcode (Phase 4.11.2)
+    if (use_direct_handler_[opcode]) {
+        DirectOpcodeHandler direct_handler = direct_opcode_handlers_[opcode];
+        if (direct_handler == nullptr) {
+            last_error_ = VM_ERROR_INVALID_OPCODE;
+            #ifdef DEBUG
+            printf("EXECUTION_ENGINE_ERROR: Direct handler for opcode 0x%02X is nullptr at PC=%zu\n", opcode, pc_);
+            #endif
+            return false;
+        }
+
+        // Execute direct handler with MemoryManager methods (no function pointers)
+        VM::HandlerResult result = (this->*direct_handler)(flags, immediate, memory, io);
+
+        // Handle error result
+        if (result.error_code != VM_ERROR_NONE) {
+            last_error_ = result.error_code;
+            return false;
+        }
+
+        // EXPLICIT PC management based on handler result
+        switch (result.action) {
+            case VM::HandlerReturn::CONTINUE:
+                pc_++;
+                break;
+
+            case VM::HandlerReturn::CONTINUE_NO_CHECK:
+                pc_++;
+                break;
+
+            case VM::HandlerReturn::JUMP_ABSOLUTE:
+                if (result.jump_address >= program_size_) {
+                    last_error_ = VM_ERROR_INVALID_JUMP;
+                    return false;
+                }
+                pc_ = result.jump_address;
+                break;
+
+            case VM::HandlerReturn::HALT:
+                halted_ = true;
+                return true;  // Successful halt
+
+            default:
+                last_error_ = VM_ERROR_EXECUTION_FAILED;
+                return false;
+        }
+
+        return true;
+    }
+
+    // Fallback: Use existing MemoryManager interface (Phase 4.11.1 compatibility)
+    return execute_single_instruction(memory, io);
+}
+
 void ExecutionEngine::reset() noexcept
 {
     sp_ = 1;  // Start above guard canary at stack_[0]
@@ -736,56 +892,117 @@ const ExecutionEngine::OpcodeHandler ExecutionEngine::opcode_handlers_[MAX_OPCOD
 
 // New handler table for migrated handlers
 const ExecutionEngine::NewOpcodeHandler ExecutionEngine::new_opcode_handlers_[MAX_OPCODE + 1] = {
-    // ========== Core VM Operations (0x00-0x0F) - UNIFIED ==========
-    &ExecutionEngine::handle_halt_unified,    // 0x00 - HALT (unified)
-    &ExecutionEngine::handle_push_unified,    // 0x01 - PUSH (unified)
-    &ExecutionEngine::handle_pop_unified,     // 0x02 - POP (unified)
-    &ExecutionEngine::handle_add_unified,     // 0x03 - ADD (unified)
-    &ExecutionEngine::handle_sub_unified,     // 0x04 - SUB (unified)
-    &ExecutionEngine::handle_mul_unified,     // 0x05 - MUL (unified)
-    &ExecutionEngine::handle_div_unified,     // 0x06 - DIV (unified)
-    &ExecutionEngine::handle_mod_unified,     // 0x07 - MOD (unified)
-    &ExecutionEngine::handle_call_unified,    // 0x08 - CALL (unified)
-    &ExecutionEngine::handle_ret_unified,     // 0x09 - RET (unified)
+    // ========== Core VM Operations (0x00-0x0F) - New MemoryManager-based handlers ==========
+    &ExecutionEngine::handle_halt_new,    // 0x00 - HALT (new style)
+    &ExecutionEngine::handle_push_new,    // 0x01 - PUSH (new style)
+    nullptr,                              // 0x02 - POP (not implemented)
+    &ExecutionEngine::handle_add_new,     // 0x03 - ADD (new style)
+    &ExecutionEngine::handle_sub_new,     // 0x04 - SUB (new style)
+    &ExecutionEngine::handle_mul_new,     // 0x05 - MUL (new style)
+    nullptr,                              // 0x06 - DIV (not implemented)
+    nullptr,                              // 0x07 - MOD (not implemented)
+    &ExecutionEngine::handle_call_new,    // 0x08 - CALL (new style)
+    &ExecutionEngine::handle_ret_new,     // 0x09 - RET (new style)
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x0A-0x0F reserved
 
-    // ========== Arduino HAL Functions (0x10-0x1F) - UNIFIED ==========
-    &ExecutionEngine::handle_digital_write_unified,  // 0x10 - DIGITAL_WRITE (unified)
-    &ExecutionEngine::handle_digital_read_unified,   // 0x11 - DIGITAL_READ (unified)
-    &ExecutionEngine::handle_analog_write_unified,   // 0x12 - ANALOG_WRITE (unified)
-    &ExecutionEngine::handle_analog_read_unified,    // 0x13 - ANALOG_READ (unified)
+    // ========== Arduino HAL Functions (0x10-0x1F) - New MemoryManager-based handlers ==========
+    nullptr,                                         // 0x10 - DIGITAL_WRITE (use unified handler)
+    nullptr,                                         // 0x11 - DIGITAL_READ (use unified handler)
+    nullptr,                                         // 0x12 - ANALOG_WRITE (use unified handler)
+    nullptr,                                         // 0x13 - ANALOG_READ (use unified handler)
     &ExecutionEngine::handle_delay_migrated,         // 0x14 - DELAY (keep migrated)
     nullptr, nullptr,                                 // 0x15-0x16 reserved
-    &ExecutionEngine::handle_pin_mode_unified,       // 0x17 - PIN_MODE (unified)
-    &ExecutionEngine::handle_printf_unified,         // 0x18 - PRINTF (unified)
+    nullptr,                                         // 0x17 - PIN_MODE (use unified handler)
+    nullptr,                                         // 0x18 - PRINTF (use unified handler)
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x19-0x1F reserved
 
-    // ========== Comparison Operations (0x20-0x2F) - UNIFIED ==========
-    &ExecutionEngine::handle_eq_unified,     // 0x20 - EQ (unified)
-    &ExecutionEngine::handle_ne_unified,     // 0x21 - NE (unified)
-    &ExecutionEngine::handle_lt_unified,     // 0x22 - LT (unified)
-    &ExecutionEngine::handle_gt_unified,     // 0x23 - GT (unified)
-    &ExecutionEngine::handle_le_unified,     // 0x24 - LE (unified)
-    &ExecutionEngine::handle_ge_unified,     // 0x25 - GE (unified)
+    // ========== Comparison Operations (0x20-0x2F) - New MemoryManager-based handlers ==========
+    nullptr,     // 0x20 - EQ (use unified handler)
+    nullptr,     // 0x21 - NE (use unified handler)
+    nullptr,     // 0x22 - LT (use unified handler)
+    nullptr,     // 0x23 - GT (use unified handler)
+    nullptr,     // 0x24 - LE (use unified handler)
+    nullptr,     // 0x25 - GE (use unified handler)
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x26-0x2F reserved
 
-    // ========== Control Flow Operations (0x30-0x3F) - UNIFIED ==========
-    &ExecutionEngine::handle_jmp_unified,         // 0x30 - JMP (unified)
-    &ExecutionEngine::handle_jmp_true_unified,    // 0x31 - JMP_TRUE (unified)
-    &ExecutionEngine::handle_jmp_false_unified,   // 0x32 - JMP_FALSE (unified)
+    // ========== Control Flow Operations (0x30-0x3F) - New MemoryManager-based handlers ==========
+    &ExecutionEngine::handle_jmp_migrated,         // 0x30 - JMP (migrated)
+    &ExecutionEngine::handle_jmp_true_migrated,    // 0x31 - JMP_TRUE (migrated)
+    &ExecutionEngine::handle_jmp_false_migrated,   // 0x32 - JMP_FALSE (migrated)
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x33-0x3F reserved
 
     // ========== Reserved Operations (0x40-0x4F) ==========
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x40-0x4F reserved
 
-    // ========== Memory Operations (0x50-0x5F) - UNIFIED ==========
-    &ExecutionEngine::handle_load_global_unified,  // 0x50 - LOAD_GLOBAL (unified)
-    &ExecutionEngine::handle_store_global_unified, // 0x51 - STORE_GLOBAL (unified)
+    // ========== Memory Operations (0x50-0x5F) - New MemoryManager-based handlers ==========
+    nullptr,  // 0x50 - LOAD_GLOBAL (use unified handler)
+    nullptr, // 0x51 - STORE_GLOBAL (use unified handler)
     nullptr, nullptr,                               // 0x52-0x53 reserved
-    &ExecutionEngine::handle_load_array_unified,   // 0x54 - LOAD_ARRAY (unified)
-    &ExecutionEngine::handle_store_array_unified,  // 0x55 - STORE_ARRAY (unified)
-    &ExecutionEngine::handle_create_array_unified, // 0x56 - CREATE_ARRAY (unified)
+    nullptr,   // 0x54 - LOAD_ARRAY (use unified handler)
+    nullptr,  // 0x55 - STORE_ARRAY (use unified handler)
+    nullptr, // 0x56 - CREATE_ARRAY (use unified handler)
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x57-0x5F reserved
+
+    // ========== Reserved Operations (0x60-0x6F) ==========
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr   // 0x60-0x6F reserved
+};
+
+// Phase 3: Unified handler table for VMMemoryOps interface
+const ExecutionEngine::UnifiedOpcodeHandler ExecutionEngine::unified_opcode_handlers_[MAX_OPCODE + 1] = {
+    // ========== Core VM Operations (0x00-0x0F) - Phase 3 Unified Handlers ==========
+    &ExecutionEngine::handle_halt_unified,        // 0x00
+    &ExecutionEngine::handle_push_unified,        // 0x01
+    &ExecutionEngine::handle_pop_unified,         // 0x02
+    nullptr,                                      // 0x03 - ADD (not yet unified)
+    nullptr,                                      // 0x04 - SUB (not yet unified)
+    nullptr,                                      // 0x05 - MUL (not yet unified)
+    nullptr,                                      // 0x06 - DIV (not yet unified)
+    nullptr,                                      // 0x07 - MOD (not yet unified)
+    &ExecutionEngine::handle_call_unified,        // 0x08
+    &ExecutionEngine::handle_ret_unified,         // 0x09
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x0A-0x0F reserved
+
+    // ========== Arduino HAL Functions (0x10-0x1F) - Phase 3 Unified Handlers ==========
+    &ExecutionEngine::handle_digital_write_unified,  // 0x10
+    &ExecutionEngine::handle_digital_read_unified,   // 0x11
+    &ExecutionEngine::handle_analog_write_unified,   // 0x12
+    &ExecutionEngine::handle_analog_read_unified,    // 0x13
+    nullptr,                                         // 0x14 - DELAY (not yet unified)
+    nullptr,                                         // 0x15 - BUTTON_PRESSED (not yet unified)
+    nullptr,                                         // 0x16 - BUTTON_RELEASED (not yet unified)
+    &ExecutionEngine::handle_pin_mode_unified,       // 0x17
+    &ExecutionEngine::handle_printf_unified,         // 0x18
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x19-0x1F reserved
+
+    // ========== Memory and Logic Operations (0x20-0x3F) - Phase 3 Unified Handlers ==========
+    &ExecutionEngine::handle_add_unified,            // 0x20
+    &ExecutionEngine::handle_sub_unified,            // 0x21
+    &ExecutionEngine::handle_mul_unified,            // 0x22
+    &ExecutionEngine::handle_div_unified,            // 0x23
+    &ExecutionEngine::handle_mod_unified,            // 0x24
+    &ExecutionEngine::handle_load_global_unified,    // 0x25
+    &ExecutionEngine::handle_store_global_unified,   // 0x26
+    &ExecutionEngine::handle_load_array_unified,     // 0x27
+    &ExecutionEngine::handle_store_array_unified,    // 0x28
+    &ExecutionEngine::handle_create_array_unified,   // 0x29
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x2A-0x33 reserved
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x34-0x3D reserved
+    nullptr, nullptr,  // 0x3E-0x3F reserved
+
+    // ========== Control Flow Operations (0x40-0x5F) - Phase 3 Unified Handlers ==========
+    &ExecutionEngine::handle_eq_unified,             // 0x40
+    &ExecutionEngine::handle_ne_unified,             // 0x41
+    &ExecutionEngine::handle_lt_unified,             // 0x42
+    &ExecutionEngine::handle_gt_unified,             // 0x43
+    &ExecutionEngine::handle_le_unified,             // 0x44
+    &ExecutionEngine::handle_ge_unified,             // 0x45
+    nullptr, nullptr,  // 0x46-0x47 reserved for signed comparisons
+    &ExecutionEngine::handle_jmp_unified,            // 0x48
+    &ExecutionEngine::handle_jmp_true_unified,       // 0x49
+    &ExecutionEngine::handle_jmp_false_unified,      // 0x4A
+    nullptr, nullptr, nullptr, nullptr, nullptr,    // 0x4B-0x4F reserved
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x50-0x58 reserved
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x59-0x5F reserved
 
     // ========== Reserved Operations (0x60-0x6F) ==========
     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr   // 0x60-0x6F reserved
@@ -842,6 +1059,181 @@ const bool ExecutionEngine::use_new_handler_[MAX_OPCODE + 1] = {
     true,   // 0x56 - CREATE_ARRAY (unified)
     false, false, false, false, false, false, false, false, false,  // 0x57-0x5F reserved
     false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false   // 0x60-0x6F reserved
+};
+
+// Phase 3: Unified handler migration tracking - true means use VMMemoryOps unified handler
+const bool ExecutionEngine::use_unified_handler_[MAX_OPCODE + 1] = {
+    // ========== Core VM Operations (0x00-0x0F) - Phase 3 Priority Unified Handlers ==========
+    true,   // 0x00 - HALT (unified with VMMemoryOps)
+    true,   // 0x01 - PUSH (unified with VMMemoryOps)
+    true,   // 0x02 - POP (unified with VMMemoryOps)
+    false,  // 0x03 - ADD (not yet unified)
+    false,  // 0x04 - SUB (not yet unified)
+    false,  // 0x05 - MUL (not yet unified)
+    false,  // 0x06 - DIV (not yet unified)
+    false,  // 0x07 - MOD (not yet unified)
+    true,   // 0x08 - CALL (unified with VMMemoryOps)
+    true,   // 0x09 - RET (unified with VMMemoryOps)
+    false, false, false, false, false, false,  // 0x0A-0x0F reserved
+
+    // ========== Arduino HAL Functions (0x10-0x1F) - Phase 3 Hardware Interface Unified Handlers ==========
+    true,   // 0x10 - DIGITAL_WRITE (unified with VMMemoryOps)
+    true,   // 0x11 - DIGITAL_READ (unified with VMMemoryOps)
+    true,   // 0x12 - ANALOG_WRITE (unified with VMMemoryOps)
+    true,   // 0x13 - ANALOG_READ (unified with VMMemoryOps)
+    false,  // 0x14 - DELAY (not yet unified)
+    false,  // 0x15 - BUTTON_PRESSED (not yet unified)
+    false,  // 0x16 - BUTTON_RELEASED (not yet unified)
+    true,   // 0x17 - PIN_MODE (unified with VMMemoryOps)
+    true,   // 0x18 - PRINTF (unified with VMMemoryOps)
+    false, false, false, false, false, false, false,  // 0x19-0x1F reserved
+
+    // ========== Memory and Logic Operations (0x20-0x3F) - Phase 3 Memory/Arithmetic Unified Handlers ==========
+    true,   // 0x20 - ADD (unified with VMMemoryOps)
+    true,   // 0x21 - SUB (unified with VMMemoryOps)
+    true,   // 0x22 - MUL (unified with VMMemoryOps)
+    true,   // 0x23 - DIV (unified with VMMemoryOps)
+    true,   // 0x24 - MOD (unified with VMMemoryOps)
+    true,   // 0x25 - LOAD_GLOBAL (unified with VMMemoryOps)
+    true,   // 0x26 - STORE_GLOBAL (unified with VMMemoryOps)
+    true,   // 0x27 - LOAD_ARRAY (unified with VMMemoryOps)
+    true,   // 0x28 - STORE_ARRAY (unified with VMMemoryOps)
+    true,   // 0x29 - CREATE_ARRAY (unified with VMMemoryOps)
+    false, false, false, false, false, false, false, false, false, false,  // 0x2A-0x33 reserved
+    false, false, false, false, false, false, false, false, false, false,  // 0x34-0x3D reserved
+    false, false,  // 0x3E-0x3F reserved
+
+    // ========== Control Flow Operations (0x40-0x5F) - Phase 3 Comparison/Branching Unified Handlers ==========
+    true,   // 0x40 - EQ (unified with VMMemoryOps)
+    true,   // 0x41 - NE (unified with VMMemoryOps)
+    true,   // 0x42 - LT (unified with VMMemoryOps)
+    true,   // 0x43 - GT (unified with VMMemoryOps)
+    true,   // 0x44 - LE (unified with VMMemoryOps)
+    true,   // 0x45 - GE (unified with VMMemoryOps)
+    false, false,  // 0x46-0x47 reserved for signed comparisons
+    true,   // 0x48 - JMP (unified with VMMemoryOps)
+    true,   // 0x49 - JMP_TRUE (unified with VMMemoryOps)
+    true,   // 0x4A - JMP_FALSE (unified with VMMemoryOps)
+    false, false, false, false, false,  // 0x4B-0x4F reserved
+    false, false, false, false, false, false, false, false, false,  // 0x50-0x58 reserved
+    false, false, false, false, false, false, false,  // 0x59-0x5F reserved
+
+    // ========== Reserved Operations (0x60-0x6F) ==========
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false   // 0x60-0x6F reserved
+};
+
+// ============================================================================
+//                      PHASE 4.11.2: DIRECT HANDLER ARCHITECTURE
+// ============================================================================
+
+// Phase 4.11.2: Direct MemoryManager handler table (eliminates function pointers)
+const ExecutionEngine::DirectOpcodeHandler ExecutionEngine::direct_opcode_handlers_[MAX_OPCODE + 1] = {
+    // ========== Core VM Operations (0x00-0x0F) - Direct MemoryManager interface ==========
+    &ExecutionEngine::handle_halt_direct,        // 0x00 - HALT (direct)
+    &ExecutionEngine::handle_push_direct,        // 0x01 - PUSH (direct)
+    &ExecutionEngine::handle_pop_direct,         // 0x02 - POP (direct)
+    &ExecutionEngine::handle_add_direct,         // 0x03 - ADD (direct)
+    &ExecutionEngine::handle_sub_direct,         // 0x04 - SUB (direct)
+    &ExecutionEngine::handle_mul_direct,         // 0x05 - MUL (direct)
+    &ExecutionEngine::handle_div_direct,         // 0x06 - DIV (direct)
+    nullptr,                                     // 0x07 - MOD (not implemented)
+    nullptr,                                     // 0x08 - CALL (not implemented)
+    nullptr,                                     // 0x09 - RET (not implemented)
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,  // 0x0A-0x0F reserved
+
+    // ========== Arduino HAL Functions (0x10-0x1F) - Direct interface ==========
+    &ExecutionEngine::handle_digital_write_direct, // 0x10 - DIGITAL_WRITE (direct)
+    &ExecutionEngine::handle_digital_read_direct,  // 0x11 - DIGITAL_READ (direct)
+    nullptr,                                       // 0x12 - ANALOG_WRITE (not implemented)
+    nullptr,                                       // 0x13 - ANALOG_READ (not implemented)
+    nullptr,                                       // 0x14 - DELAY (not implemented)
+    nullptr,                                       // 0x15 - BUTTON_PRESSED (not implemented)
+    nullptr,                                       // 0x16 - BUTTON_RELEASED (not implemented)
+    &ExecutionEngine::handle_pin_mode_direct,     // 0x17 - PIN_MODE (direct)
+    &ExecutionEngine::handle_printf_direct,       // 0x18 - PRINTF (direct)
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // 0x19-0x1F reserved
+
+    // Skip to memory operations for now...
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // 0x20-0x29
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // 0x2A-0x33
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // 0x34-0x3D
+    nullptr, nullptr, // 0x3E-0x3F
+
+    // Comparison operations
+    &ExecutionEngine::handle_eq_direct,           // 0x40 - EQ (direct)
+    &ExecutionEngine::handle_ne_direct,           // 0x41 - NE (direct)
+    &ExecutionEngine::handle_lt_direct,           // 0x42 - LT (direct)
+    &ExecutionEngine::handle_gt_direct,           // 0x43 - GT (direct)
+    nullptr, nullptr, nullptr, nullptr,           // 0x44-0x47 reserved
+    &ExecutionEngine::handle_jmp_direct,          // 0x48 - JMP (direct)
+    &ExecutionEngine::handle_jmp_true_direct,     // 0x49 - JMP_TRUE (direct)
+    &ExecutionEngine::handle_jmp_false_direct,    // 0x4A - JMP_FALSE (direct)
+    nullptr, nullptr, nullptr, nullptr, nullptr, // 0x4B-0x4F reserved
+
+    // ========== Memory Operations (0x50-0x5F) - Direct MemoryManager calls ==========
+    &ExecutionEngine::handle_load_global_direct,  // 0x50 - LOAD_GLOBAL (direct)
+    &ExecutionEngine::handle_store_global_direct, // 0x51 - STORE_GLOBAL (direct)
+    nullptr, nullptr,                             // 0x52-0x53 reserved
+    &ExecutionEngine::handle_load_array_direct,   // 0x54 - LOAD_ARRAY (direct)
+    &ExecutionEngine::handle_store_array_direct,  // 0x55 - STORE_ARRAY (direct)
+    &ExecutionEngine::handle_create_array_direct, // 0x56 - CREATE_ARRAY (direct)
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, // 0x57-0x5F reserved
+
+    // ========== Reserved Operations (0x60-0x6F) ==========
+    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr // 0x60-0x6F reserved
+};
+
+// Phase 4.11.2: Direct handler migration flags - true means use direct MemoryManager interface
+const bool ExecutionEngine::use_direct_handler_[MAX_OPCODE + 1] = {
+    // Start with core operations for Phase 4.11.2 validation
+    true,   // 0x00 - HALT (direct)
+    true,   // 0x01 - PUSH (direct)
+    true,   // 0x02 - POP (direct)
+    true,   // 0x03 - ADD (direct)
+    true,   // 0x04 - SUB (direct)
+    true,   // 0x05 - MUL (direct)
+    true,   // 0x06 - DIV (direct)
+    false,  // 0x07 - MOD (not implemented)
+    false,  // 0x08 - CALL (not implemented)
+    false,  // 0x09 - RET (not implemented)
+    false, false, false, false, false, false, // 0x0A-0x0F reserved
+
+    // Arduino HAL operations
+    true,   // 0x10 - DIGITAL_WRITE (direct)
+    true,   // 0x11 - DIGITAL_READ (direct)
+    false, false, false, false, false,         // 0x12-0x16 not implemented
+    true,   // 0x17 - PIN_MODE (direct)
+    true,   // 0x18 - PRINTF (direct)
+    false, false, false, false, false, false, false, // 0x19-0x1F reserved
+
+    // Skip arithmetic operations for now
+    false, false, false, false, false, false, false, false, false, false, // 0x20-0x29
+    false, false, false, false, false, false, false, false, false, false, // 0x2A-0x33
+    false, false, false, false, false, false, false, false, false, false, // 0x34-0x3D
+    false, false, // 0x3E-0x3F
+
+    // Comparison and control flow operations
+    true,   // 0x40 - EQ (direct)
+    true,   // 0x41 - NE (direct)
+    true,   // 0x42 - LT (direct)
+    true,   // 0x43 - GT (direct)
+    false, false, false, false,               // 0x44-0x47
+    true,   // 0x48 - JMP (direct)
+    true,   // 0x49 - JMP_TRUE (direct)
+    true,   // 0x4A - JMP_FALSE (direct)
+    false, false, false, false, false,       // 0x4B-0x4F reserved
+
+    // Memory operations - critical for Phase 4.11.2
+    true,   // 0x50 - LOAD_GLOBAL (direct)
+    true,   // 0x51 - STORE_GLOBAL (direct)
+    false, false,                             // 0x52-0x53 reserved
+    true,   // 0x54 - LOAD_ARRAY (direct)
+    true,   // 0x55 - STORE_ARRAY (direct)
+    true,   // 0x56 - CREATE_ARRAY (direct)
+    false, false, false, false, false, false, false, false, false, // 0x57-0x5F reserved
+
+    // Reserved operations
+    false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false // 0x60-0x6F reserved
 };
 
 // ============================================================================
@@ -1458,13 +1850,13 @@ bool ExecutionEngine::validate_stack_canaries() const noexcept
 // Core VM Operations (0x00-0x0F) - Priority batch
 // Hardware-first reliability with explicit PC management and fail-fast error handling
 
-VM::HandlerResult ExecutionEngine::handle_halt_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_halt_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     halted_ = true;
     return {VM::HandlerReturn::HALT};
 }
 
-VM::HandlerResult ExecutionEngine::handle_push_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_push_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     if (!push(static_cast<int32_t>(immediate))) {
         return {VM_ERROR_STACK_OVERFLOW};
@@ -1472,7 +1864,7 @@ VM::HandlerResult ExecutionEngine::handle_push_unified(uint8_t flags, uint16_t i
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_pop_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_pop_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t value;
     if (!pop(value)) {
@@ -1481,7 +1873,7 @@ VM::HandlerResult ExecutionEngine::handle_pop_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_call_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_call_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     // Push return address onto stack (PC + 1, next instruction after CALL)
     if (!push(static_cast<int32_t>(pc_ + 1))) {
@@ -1496,7 +1888,7 @@ VM::HandlerResult ExecutionEngine::handle_call_unified(uint8_t flags, uint16_t i
     return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate};
 }
 
-VM::HandlerResult ExecutionEngine::handle_ret_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_ret_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     // Pop return address from stack
     int32_t return_address;
@@ -1515,7 +1907,7 @@ VM::HandlerResult ExecutionEngine::handle_ret_unified(uint8_t flags, uint16_t im
 // Arduino HAL Functions (0x10-0x1F) - Hardware interface batch
 // Hardware-first reliability with fail-fast error handling and IOController delegation
 
-VM::HandlerResult ExecutionEngine::handle_digital_write_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_digital_write_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t value;
     if (!pop(value)) {
@@ -1529,7 +1921,7 @@ VM::HandlerResult ExecutionEngine::handle_digital_write_unified(uint8_t flags, u
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_digital_read_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_digital_read_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     uint8_t value;
     if (!io.digital_read(static_cast<uint8_t>(immediate), value)) {
@@ -1543,7 +1935,7 @@ VM::HandlerResult ExecutionEngine::handle_digital_read_unified(uint8_t flags, ui
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_analog_write_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_analog_write_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t value;
     if (!pop(value)) {
@@ -1557,7 +1949,7 @@ VM::HandlerResult ExecutionEngine::handle_analog_write_unified(uint8_t flags, ui
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_analog_read_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_analog_read_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     uint16_t value;
     if (!io.analog_read(static_cast<uint8_t>(immediate), value)) {
@@ -1571,7 +1963,7 @@ VM::HandlerResult ExecutionEngine::handle_analog_read_unified(uint8_t flags, uin
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_pin_mode_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_pin_mode_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t mode;
     if (!pop(mode)) {
@@ -1585,7 +1977,7 @@ VM::HandlerResult ExecutionEngine::handle_pin_mode_unified(uint8_t flags, uint16
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_printf_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_printf_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     // For now, use simplified printf without stack processing - this matches current behavior
     // Future enhancement: implement proper stack-based argument processing
@@ -1599,7 +1991,7 @@ VM::HandlerResult ExecutionEngine::handle_printf_unified(uint8_t flags, uint16_t
 // Memory and Logic Operations (0x20-0x3F) - Arithmetic and memory batch
 // Hardware-first reliability with fail-fast error handling and bounds checking
 
-VM::HandlerResult ExecutionEngine::handle_add_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_add_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1618,7 +2010,7 @@ VM::HandlerResult ExecutionEngine::handle_add_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_sub_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_sub_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1637,7 +2029,7 @@ VM::HandlerResult ExecutionEngine::handle_sub_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_mul_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_mul_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1656,7 +2048,7 @@ VM::HandlerResult ExecutionEngine::handle_mul_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_div_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_div_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1680,7 +2072,7 @@ VM::HandlerResult ExecutionEngine::handle_div_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_mod_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_mod_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1699,10 +2091,10 @@ VM::HandlerResult ExecutionEngine::handle_mod_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_load_global_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_load_global_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t value;
-    if (!memory.load_global(static_cast<uint8_t>(immediate), value)) {
+    if (!memory.load_global(memory.context, static_cast<uint8_t>(immediate), &value)) {
         return {VM_ERROR_MEMORY_BOUNDS};
     }
 
@@ -1713,21 +2105,21 @@ VM::HandlerResult ExecutionEngine::handle_load_global_unified(uint8_t flags, uin
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_store_global_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_store_global_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t value;
     if (!pop(value)) {
         return {VM_ERROR_STACK_UNDERFLOW};
     }
 
-    if (!memory.store_global(static_cast<uint8_t>(immediate), value)) {
+    if (!memory.store_global(memory.context, static_cast<uint8_t>(immediate), value)) {
         return {VM_ERROR_MEMORY_BOUNDS};
     }
 
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_load_array_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_load_array_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t index;
     if (!pop(index)) {
@@ -1740,7 +2132,7 @@ VM::HandlerResult ExecutionEngine::handle_load_array_unified(uint8_t flags, uint
     }
 
     int32_t value;
-    if (!memory.load_array_element(static_cast<uint8_t>(immediate), static_cast<uint16_t>(index), value)) {
+    if (!memory.load_array(memory.context, static_cast<uint8_t>(immediate), static_cast<uint16_t>(index), &value)) {
         return {VM_ERROR_MEMORY_BOUNDS};
     }
 
@@ -1751,7 +2143,7 @@ VM::HandlerResult ExecutionEngine::handle_load_array_unified(uint8_t flags, uint
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_store_array_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_store_array_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t value, index;
     if (!pop(value) || !pop(index)) {
@@ -1763,14 +2155,14 @@ VM::HandlerResult ExecutionEngine::handle_store_array_unified(uint8_t flags, uin
         return {VM_ERROR_MEMORY_BOUNDS};
     }
 
-    if (!memory.store_array_element(static_cast<uint8_t>(immediate), static_cast<uint16_t>(index), value)) {
+    if (!memory.store_array(memory.context, static_cast<uint8_t>(immediate), static_cast<uint16_t>(index), value)) {
         return {VM_ERROR_MEMORY_BOUNDS};
     }
 
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_create_array_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_create_array_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t size;
     if (!pop(size)) {
@@ -1782,7 +2174,7 @@ VM::HandlerResult ExecutionEngine::handle_create_array_unified(uint8_t flags, ui
         return {VM_ERROR_MEMORY_BOUNDS};
     }
 
-    if (!memory.create_array(static_cast<uint8_t>(immediate), static_cast<size_t>(size))) {
+    if (!memory.create_array(memory.context, static_cast<uint8_t>(immediate), static_cast<size_t>(size))) {
         return {VM_ERROR_EXECUTION_FAILED};
     }
 
@@ -1792,7 +2184,7 @@ VM::HandlerResult ExecutionEngine::handle_create_array_unified(uint8_t flags, ui
 // Control Flow Operations (0x40-0x5F) - Comparison and branching batch
 // Hardware-first reliability with explicit PC management and bounds checking
 
-VM::HandlerResult ExecutionEngine::handle_eq_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_eq_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1806,7 +2198,7 @@ VM::HandlerResult ExecutionEngine::handle_eq_unified(uint8_t flags, uint16_t imm
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_ne_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_ne_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1820,7 +2212,7 @@ VM::HandlerResult ExecutionEngine::handle_ne_unified(uint8_t flags, uint16_t imm
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_lt_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_lt_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1834,7 +2226,7 @@ VM::HandlerResult ExecutionEngine::handle_lt_unified(uint8_t flags, uint16_t imm
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_gt_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_gt_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1848,7 +2240,7 @@ VM::HandlerResult ExecutionEngine::handle_gt_unified(uint8_t flags, uint16_t imm
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_le_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_le_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1862,7 +2254,7 @@ VM::HandlerResult ExecutionEngine::handle_le_unified(uint8_t flags, uint16_t imm
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_ge_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_ge_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t b, a;
     if (!pop(b) || !pop(a)) {
@@ -1876,7 +2268,7 @@ VM::HandlerResult ExecutionEngine::handle_ge_unified(uint8_t flags, uint16_t imm
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_jmp_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_jmp_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     // Validate jump address bounds
     if (immediate >= program_size_) {
@@ -1886,7 +2278,7 @@ VM::HandlerResult ExecutionEngine::handle_jmp_unified(uint8_t flags, uint16_t im
     return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate};
 }
 
-VM::HandlerResult ExecutionEngine::handle_jmp_true_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_jmp_true_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t condition;
     if (!pop(condition)) {
@@ -1904,7 +2296,7 @@ VM::HandlerResult ExecutionEngine::handle_jmp_true_unified(uint8_t flags, uint16
     return {VM::HandlerReturn::CONTINUE};
 }
 
-VM::HandlerResult ExecutionEngine::handle_jmp_false_unified(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+VM::HandlerResult ExecutionEngine::handle_jmp_false_unified(uint8_t flags, uint16_t immediate, VMMemoryOps& memory, IOController& io) noexcept
 {
     int32_t condition;
     if (!pop(condition)) {
@@ -1913,6 +2305,327 @@ VM::HandlerResult ExecutionEngine::handle_jmp_false_unified(uint8_t flags, uint1
 
     if (condition == 0) {
         // Validate jump address bounds
+        if (immediate >= program_size_) {
+            return {VM_ERROR_INVALID_JUMP};
+        }
+        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+// ============================================================================
+//                    PHASE 4.11.2: DIRECT HANDLER IMPLEMENTATIONS
+// ============================================================================
+
+// Core VM Operations - Direct MemoryManager interface (no function pointers)
+VM::HandlerResult ExecutionEngine::handle_halt_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    halted_ = true;
+    return {VM::HandlerReturn::HALT};
+}
+
+VM::HandlerResult ExecutionEngine::handle_push_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    if (!push(static_cast<int32_t>(immediate))) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_pop_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t value;
+    if (!pop(value)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_add_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    int32_t result = a + b;
+    if (!push(result)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_sub_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    int32_t result = a - b;
+    if (!push(result)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_mul_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    int32_t result = a * b;
+    if (!push(result)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_div_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (b == 0) {
+        return {VM_ERROR_DIVISION_BY_ZERO};
+    }
+
+    int32_t result = a / b;
+    if (!push(result)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+// Memory Operations - Direct MemoryManager method calls (eliminates function pointers)
+VM::HandlerResult ExecutionEngine::handle_load_global_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t value;
+    if (!memory.load_global(static_cast<uint8_t>(immediate), value)) {
+        return {VM_ERROR_MEMORY_BOUNDS};
+    }
+
+    if (!push(value)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_store_global_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t value;
+    if (!pop(value)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (!memory.store_global(static_cast<uint8_t>(immediate), value)) {
+        return {VM_ERROR_MEMORY_BOUNDS};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_load_array_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t index;
+    if (!pop(index)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    int32_t value;
+    if (!memory.load_array_element(static_cast<uint8_t>(immediate), static_cast<uint16_t>(index), value)) {
+        return {VM_ERROR_MEMORY_BOUNDS};
+    }
+
+    if (!push(value)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_store_array_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t value, index;
+    if (!pop(value) || !pop(index)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (!memory.store_array_element(static_cast<uint8_t>(immediate), static_cast<uint16_t>(index), value)) {
+        return {VM_ERROR_MEMORY_BOUNDS};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_create_array_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t size;
+    if (!pop(size)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (size <= 0) {
+        return {VM_ERROR_MEMORY_BOUNDS};
+    }
+
+    if (!memory.create_array(static_cast<uint8_t>(immediate), static_cast<size_t>(size))) {
+        return {VM_ERROR_MEMORY_BOUNDS};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+// Arduino HAL Operations - Direct interface
+VM::HandlerResult ExecutionEngine::handle_digital_write_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t pin, value;
+    if (!pop(value) || !pop(pin)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    io.digital_write(static_cast<uint8_t>(pin), value != 0);
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_digital_read_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t pin;
+    if (!pop(pin)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    uint8_t value;
+    if (!io.digital_read(static_cast<uint8_t>(pin), value)) {
+        return {VM_ERROR_HARDWARE_FAULT};
+    }
+
+    if (!push(static_cast<int32_t>(value))) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_pin_mode_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t pin, mode;
+    if (!pop(mode) || !pop(pin)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    io.pin_mode(static_cast<uint8_t>(pin), static_cast<uint8_t>(mode));
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_printf_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    // TODO: Implement printf with direct MemoryManager access for format strings and arguments
+    // For now, simple implementation
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+// Comparison Operations - Direct interface
+VM::HandlerResult ExecutionEngine::handle_eq_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (!push(a == b ? 1 : 0)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_ne_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (!push(a != b ? 1 : 0)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_lt_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (!push(a < b ? 1 : 0)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_gt_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t b, a;
+    if (!pop(b) || !pop(a)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (!push(a > b ? 1 : 0)) {
+        return {VM_ERROR_STACK_OVERFLOW};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+// Control Flow Operations - Direct interface
+VM::HandlerResult ExecutionEngine::handle_jmp_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    if (immediate >= program_size_) {
+        return {VM_ERROR_INVALID_JUMP};
+    }
+    return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate};
+}
+
+VM::HandlerResult ExecutionEngine::handle_jmp_true_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t condition;
+    if (!pop(condition)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (condition != 0) {
+        if (immediate >= program_size_) {
+            return {VM_ERROR_INVALID_JUMP};
+        }
+        return {VM::HandlerReturn::JUMP_ABSOLUTE, immediate};
+    }
+
+    return {VM::HandlerReturn::CONTINUE};
+}
+
+VM::HandlerResult ExecutionEngine::handle_jmp_false_direct(uint8_t flags, uint16_t immediate, MemoryManager& memory, IOController& io) noexcept
+{
+    int32_t condition;
+    if (!pop(condition)) {
+        return {VM_ERROR_STACK_UNDERFLOW};
+    }
+
+    if (condition == 0) {
         if (immediate >= program_size_) {
             return {VM_ERROR_INVALID_JUMP};
         }
