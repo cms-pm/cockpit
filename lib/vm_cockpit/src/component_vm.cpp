@@ -45,7 +45,8 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
         // Get current instruction info before execution for observer notification
         uint32_t pc = static_cast<uint32_t>(engine_.get_pc());
         
-        if (!engine_.execute_single_instruction(memory_ops_, io_)) {
+        // Phase 4.11.3A: Use direct MemoryManager method calls for performance
+        if (!engine_.execute_single_instruction_direct(memory_, io_)) {
             // Propagate error from ExecutionEngine
             vm_error_t engine_error = engine_.get_last_error();
             set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
@@ -80,7 +81,8 @@ bool ComponentVM::execute_single_step() noexcept
     // Get current instruction info before execution for observer notification
     uint32_t pc = static_cast<uint32_t>(engine_.get_pc());
     
-    bool success = engine_.execute_single_instruction(memory_ops_, io_);
+    // Phase 4.11.3A: Use direct MemoryManager method calls for performance
+    bool success = engine_.execute_single_instruction_direct(memory_, io_);
     
     if (success) {
         instruction_count_++;
