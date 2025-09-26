@@ -7,7 +7,7 @@
 
 ComponentVM::ComponentVM() noexcept
     : engine_{}, memory_context_{}, memory_{&memory_context_}, memory_ops_{create_memory_ops(&memory_context_)}, io_{},
-      program_loaded_(false), instruction_count_(0), last_error_(VM_ERROR_NONE),
+      program_loaded_(false), program_(nullptr), program_size_(0), instruction_count_(0), last_error_(VM_ERROR_NONE),
       metrics_{}, execution_start_time_(0)
 {
     #ifdef DEBUG
@@ -44,7 +44,18 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
     while (!engine_.is_halted() && instruction_count_ < program_size) {
         // Get current instruction info before execution for observer notification
         uint32_t pc = static_cast<uint32_t>(engine_.get_pc());
-        
+
+        // Extract actual instruction data for observer notification
+        // Get instruction data from the loaded program through the ExecutionEngine
+        uint8_t actual_opcode = 0;
+        uint32_t actual_operand = 0;
+
+        if (pc < program_size) {
+            const VM::Instruction& current_instr = program[pc];
+            actual_opcode = current_instr.opcode;
+            actual_operand = static_cast<uint32_t>(current_instr.immediate) | (static_cast<uint32_t>(current_instr.flags) << 16);
+        }
+
         // Phase 4.11.3A: Use direct MemoryManager method calls for performance
         if (!engine_.execute_single_instruction_direct(memory_, io_)) {
             // Propagate error from ExecutionEngine
@@ -54,9 +65,9 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
         }
         instruction_count_++;
         metrics_.instructions_executed++;
-        
-        // Notify observers after successful instruction execution
-        notify_instruction_executed(pc, 0, 0);  // opcode=0, operand=0 as placeholders
+
+        // Notify observers after successful instruction execution with REAL instruction data
+        notify_instruction_executed(pc, actual_opcode, actual_operand);
     }
     
     update_performance_metrics();
@@ -80,18 +91,26 @@ bool ComponentVM::execute_single_step() noexcept
     
     // Get current instruction info before execution for observer notification
     uint32_t pc = static_cast<uint32_t>(engine_.get_pc());
-    
+
+    // Extract actual instruction data for observer notification
+    uint8_t actual_opcode = 0;
+    uint32_t actual_operand = 0;
+
+    if (program_loaded_ && pc < program_size_) {
+        const VM::Instruction& current_instr = program_[pc];
+        actual_opcode = current_instr.opcode;
+        actual_operand = static_cast<uint32_t>(current_instr.immediate) | (static_cast<uint32_t>(current_instr.flags) << 16);
+    }
+
     // Phase 4.11.3A: Use direct MemoryManager method calls for performance
     bool success = engine_.execute_single_instruction_direct(memory_, io_);
-    
+
     if (success) {
         instruction_count_++;
         metrics_.instructions_executed++;
-        
-        // Notify observers after successful instruction execution
-        // Note: We can't easily get the opcode/operand without accessing ExecutionEngine internals
-        // For now, notify with basic info - tests can examine VM state after execution
-        notify_instruction_executed(pc, 0, 0);  // opcode=0, operand=0 as placeholders
+
+        // Notify observers after successful instruction execution with REAL instruction data
+        notify_instruction_executed(pc, actual_opcode, actual_operand);
     } else {
         // Propagate error from ExecutionEngine
         vm_error_t engine_error = engine_.get_last_error();
@@ -107,12 +126,16 @@ bool ComponentVM::load_program(const VM::Instruction* program, size_t program_si
         set_error(VM_ERROR_PROGRAM_NOT_LOADED);
         return false;
     }
-    
+
+    // Store program data for observer access
+    program_ = program;
+    program_size_ = program_size;
+
     engine_.set_program(program, program_size);
     program_loaded_ = true;
     instruction_count_ = 0;
     clear_error();
-    
+
     return true;
 }
 

@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>  // For size_t
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +69,72 @@ bool bridge_c_is_opcode_registered(uint8_t opcode);
  * @return Function pointer or NULL if not found
  */
 void* bridge_c_get_function_ptr(uint8_t opcode);
+
+// =================================================================
+// Phase 4.11.5: Enhanced ComponentVM Integration with Detailed Observer
+// =================================================================
+
+/**
+ * @brief Enhanced VM execution context with detailed diagnostics
+ * Provides ComponentVM integration with comprehensive ExecutionEngine observability
+ */
+typedef struct {
+    void* component_vm;                    // ComponentVM* instance
+    void* detailed_observer;               // ExecutionEngineDetailedObserver* instance
+    uint32_t instruction_count_limit;      // Safety limit for execution
+    bool trace_enabled;                    // Enable detailed instruction tracing
+    bool gpio_verification_enabled;       // Enable GPIO state verification
+} enhanced_vm_context_t;
+
+/**
+ * @brief Create enhanced ComponentVM context with detailed observer
+ * @param enable_tracing Enable detailed PC/SP/operand tracing
+ * @param enable_gpio_verification Enable GPIO state verification
+ * @return Enhanced VM context or NULL on failure
+ */
+enhanced_vm_context_t* create_enhanced_vm_context(bool enable_tracing, bool enable_gpio_verification);
+
+/**
+ * @brief Load bytecode program into enhanced ComponentVM context
+ * @param ctx Enhanced VM context
+ * @param bytecode Raw bytecode array (VM::Instruction format)
+ * @param size Bytecode size in bytes
+ * @return true on success, false on failure
+ */
+bool enhanced_vm_load_program(enhanced_vm_context_t* ctx, const uint8_t* bytecode, size_t size);
+
+/**
+ * @brief Execute program with comprehensive diagnostics and observer tracing
+ * @param ctx Enhanced VM context
+ * @return true on successful execution, false on failure
+ */
+bool enhanced_vm_execute_with_diagnostics(enhanced_vm_context_t* ctx);
+
+/**
+ * @brief Get current ExecutionEngine state for inspection
+ * @param ctx Enhanced VM context
+ * @param pc Current program counter (output)
+ * @param sp Current stack pointer (output)
+ * @param halted Execution halted status (output)
+ */
+void enhanced_vm_get_execution_state(enhanced_vm_context_t* ctx, uint32_t* pc, uint32_t* sp, bool* halted);
+
+/**
+ * @brief Get performance metrics from ComponentVM
+ * @param ctx Enhanced VM context
+ * @param instructions_executed Total instructions executed (output)
+ * @param execution_time_ms Total execution time in ms (output)
+ * @param memory_operations Memory operation count (output)
+ * @param io_operations I/O operation count (output)
+ */
+void enhanced_vm_get_performance_metrics(enhanced_vm_context_t* ctx, uint32_t* instructions_executed,
+                                       uint32_t* execution_time_ms, size_t* memory_operations, size_t* io_operations);
+
+/**
+ * @brief Destroy enhanced VM context and cleanup resources
+ * @param ctx Enhanced VM context to destroy
+ */
+void destroy_enhanced_vm_context(enhanced_vm_context_t* ctx);
 
 // =================================================================
 // Future: Native C++ Support Foundation (Placeholder)

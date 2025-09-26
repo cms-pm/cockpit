@@ -84,6 +84,8 @@ private:
     
     // VM state
     bool program_loaded_;
+    const VM::Instruction* program_;  // Current loaded program
+    size_t program_size_;              // Program size in instructions
     size_t instruction_count_;
     vm_error_t last_error_;
     

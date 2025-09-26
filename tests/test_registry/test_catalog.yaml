@@ -801,53 +801,8 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
-  # ComponentVM Comprehensive Test Suite (Phase 4.5.3B)
-  vm_arithmetic_comprehensive:
-    source: test_vm_arithmetic_comprehensive.c
-    dependencies: []
-    description: "Comprehensive ComponentVM arithmetic operations validation"
-    timeout: 30s
-    expected_patterns:
-      - "ComponentVM Arithmetic Comprehensive Test"
-      - "Basic arithmetic operations: PASS"
-      - "Negative arithmetic operations: PASS"
-      - "Zero arithmetic edge cases: PASS"
-      - "Complex arithmetic expressions: PASS"
-      - "Arithmetic with loop iterations: PASS"
-      - "Large number arithmetic: PASS"
-      - "VM Arithmetic Comprehensive Test: PASS"
-    hardware_requirements: []
-    category: vm_operations
-    priority: high
-    stability: phase_4_5_3b
-    notes: "Validates all arithmetic operations: ADD, SUB, MUL, DIV, MOD with unified timing"
-    validation:
-      execution_strategy: dual_pass
-      required: true
-      authority:
-        overall: authoritative
-        semihosting: required
-        memory: optional
-        timeout_strategy: fail_graceful
-      timeout: 45s
-      
-      semihosting_checks:
-        - contains: "ComponentVM Arithmetic Comprehensive Test"
-        - contains: "Basic arithmetic operations: PASS"
-        - contains: "Negative arithmetic operations: PASS"
-        - contains: "Zero arithmetic edge cases: PASS"
-        - contains: "Complex arithmetic expressions: PASS"
-        - contains: "Arithmetic with loop iterations: PASS"
-        - contains: "Large number arithmetic: PASS"
-        - contains: "VM Arithmetic Comprehensive Test: PASS"
-        - not_contains: "FAIL"
-      semihosting_timeout: 30s
-      
-      diagnostics:
-        verbosity: standard
-        memory_dump_range: 0x20
-        include_peripheral_summary: false
-        include_both_passes: true
+  # ComponentVM Comprehensive Test Suite REMOVED - these were fake tests using native C arithmetic
+  # Real ExecutionEngine validation tests created separately with actual VM bytecode execution
 
   # Minimal Memory Validation Test (Dual-Pass Validation Proof)
   memory_validation_minimal:
@@ -912,153 +867,123 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
-  vm_comparison_comprehensive:
-    source: test_vm_comparison_comprehensive.c
-    dependencies: []
-    description: "Comprehensive ComponentVM comparison operations validation"
-    timeout: 30s
-    expected_patterns:
-      - "ComponentVM Comparison Comprehensive Test"
-      - "Equality comparisons: PASS"
-      - "Less than comparisons: PASS"
-      - "Greater than comparisons: PASS"
-      - "Negative number comparisons: PASS"
-      - "Zero comparisons: PASS"
-      - "Comparisons in control flow: PASS"
-      - "Comparisons with timing integration: PASS"
-      - "VM Comparison Comprehensive Test: PASS"
-    hardware_requirements: []
-    category: vm_operations
-    priority: high
-    stability: phase_4_5_3b
-    notes: "Validates all comparison operations: EQ, NE, LT, GT, LE, GE with control flow"
-    validation:
-      execution_strategy: dual_pass
-      required: true
-      authority:
-        overall: authoritative
-        semihosting: required
-        memory: optional
-        timeout_strategy: fail_graceful
-      timeout: 45s
-      
-      semihosting_checks:
-        - contains: "ComponentVM Comparison Comprehensive Test"
-        - contains: "Equality comparisons: PASS"
-        - contains: "Less than comparisons: PASS"
-        - contains: "Greater than comparisons: PASS"
-        - contains: "Negative number comparisons: PASS"
-        - contains: "Zero comparisons: PASS"
-        - contains: "Comparisons in control flow: PASS"
-        - contains: "Comparisons with timing integration: PASS"
-        - contains: "VM Comparison Comprehensive Test: PASS"
-        - not_contains: "FAIL"
-      semihosting_timeout: 30s
-      
-      diagnostics:
-        verbosity: standard
-        memory_dump_range: 0x20
-        include_peripheral_summary: false
-        include_both_passes: true
+  # vm_comparison_comprehensive REMOVED - fake test using native C comparisons masquerading as VM test
 
-  vm_logical_comprehensive:
-    source: test_vm_logical_comprehensive.c
-    dependencies: []
-    description: "Comprehensive ComponentVM logical operations validation"
-    timeout: 30s
-    expected_patterns:
-      - "ComponentVM Logical Comprehensive Test"
-      - "Logical AND operations: PASS"
-      - "Logical OR operations: PASS"
-      - "Logical NOT operations: PASS"
-      - "Complex logical expressions: PASS"
-      - "Logical operations with comparisons: PASS"
-      - "Logical operations in control flow: PASS"
-      - "Logical operations with timing integration: PASS"
-      - "VM Logical Comprehensive Test: PASS"
-    hardware_requirements: []
-    category: vm_operations
-    priority: high
-    stability: phase_4_5_3b
-    notes: "Validates all logical operations: AND, OR, NOT with control flow and timing"
-    validation:
-      execution_strategy: dual_pass
-      required: true
-      authority:
-        overall: authoritative
-        semihosting: required
-        memory: optional
-        timeout_strategy: fail_graceful
-      timeout: 45s
-      
-      semihosting_checks:
-        - contains: "ComponentVM Logical Comprehensive Test"
-        - contains: "Logical AND operations: PASS"
-        - contains: "Logical OR operations: PASS"
-        - contains: "Logical NOT operations: PASS"
-        - contains: "Complex logical expressions: PASS"
-        - contains: "Logical operations with comparisons: PASS"
-        - contains: "Logical operations in control flow: PASS"
-        - contains: "Logical operations with timing integration: PASS"
-        - contains: "VM Logical Comprehensive Test: PASS"
-        - not_contains: "FAIL"
-      semihosting_timeout: 30s
-      
-      diagnostics:
-        verbosity: standard
-        memory_dump_range: 0x20
-        include_peripheral_summary: false
-        include_both_passes: true
+  # vm_logical_comprehensive REMOVED - fake test using native C logical operations masquerading as VM test
 
-  vm_bitwise_comprehensive:
-    source: test_vm_bitwise_comprehensive.c
+  # vm_bitwise_comprehensive REMOVED - fake test using native C bitwise operations masquerading as VM test
+
+  # REAL ExecutionEngine Phase 4.11.4 Validation Test
+  execution_engine_arithmetic_gt:
+    source: test_execution_engine_arithmetic_gt.c
     dependencies: []
-    description: "Comprehensive ComponentVM bitwise operations validation"
-    timeout: 30s
+    description: "REAL ExecutionEngine Phase 4.11.4 validation using actual VM bytecode execution"
+    timeout: 45s
     expected_patterns:
-      - "ComponentVM Bitwise Comprehensive Test"
-      - "Bitwise AND operations: PASS"
-      - "Bitwise OR operations: PASS"
-      - "Bitwise XOR operations: PASS"
-      - "Bitwise NOT operations: PASS"
-      - "Left shift operations: PASS"
-      - "Right shift operations: PASS"
-      - "Complex bitwise expressions: PASS"
-      - "Bitwise operations with timing integration: PASS"
-      - "VM Bitwise Comprehensive Test: PASS"
-    hardware_requirements: []
-    category: vm_operations
-    priority: high
-    stability: phase_4_5_3b
-    notes: "Validates all bitwise operations: BIT_AND, BIT_OR, BIT_XOR, BIT_NOT, shifts"
+      - "ExecutionEngine Phase 4.11.4 GT Validation"
+      - "REAL VM BYTECODE EXECUTION TEST"
+      - "Host flashing: 4 fast flashes (200ms intervals)"
+      - "✓ Host LED sequence complete: 4 fast flashes validated"
+      - "Testing Phase 4.11.4 direct handlers with REAL VM bytecode"
+      - "✓ VM bytecode loaded successfully:"
+      - "✓ SUCCESS: ExecutionEngine direct handlers executed VM bytecode"
+      - "✓ Validated handlers: handle_push_direct, handle_sub_direct, handle_mul_direct"
+      - "✓ Phase 4.11.4 cleanup successful - direct dispatch working!"
+      - "Guest VM flashing: 8 long flashes (500ms intervals) via ExecutionEngine"
+      - "✓ Guest VM LED sequence complete: 8 long flashes via ExecutionEngine"
+      - "✓ ExecutionEngine GPIO handlers validated: handle_pin_mode_direct, handle_digital_write_direct"
+      - "ExecutionEngine Phase 4.11.4 GT: SUCCESS!"
+      - "FIRST REAL EXECUTIONENGINE VALIDATION COMPLETE!"
+    hardware_requirements:
+      - led_pc6
+      - swd_debugger_pyocd
+      - componentvm
+      - execution_engine
+    category: execution_engine_validation
+    priority: critical
+    stability: phase_4_11_4
+    notes: "First genuine ExecutionEngine test using real VM bytecode execution through execute_single_instruction_direct() - validates Phase 4.11.4 dual dispatch elimination and static VMMemoryContext backing"
+    platform_test_interface: true
+    debugger_required: true
+    real_vm_bytecode: true
+    execution_engine_handlers_tested:
+      - handle_halt_direct
+      - handle_push_direct
+      - handle_sub_direct
+      - handle_mul_direct
+      - handle_div_direct
+      - handle_printf_direct
+      - handle_pin_mode_direct
+      - handle_digital_write_direct
     validation:
       execution_strategy: dual_pass
       required: true
       authority:
         overall: authoritative
         semihosting: required
-        memory: optional
+        memory: required
+        execution_engine: required
         timeout_strategy: fail_graceful
-      timeout: 45s
-      
+      timeout: 60s
+
+      # Pass 1: Semihosting validation (VM execution results)
       semihosting_checks:
-        - contains: "ComponentVM Bitwise Comprehensive Test"
-        - contains: "Bitwise AND operations: PASS"
-        - contains: "Bitwise OR operations: PASS"
-        - contains: "Bitwise XOR operations: PASS"
-        - contains: "Bitwise NOT operations: PASS"
-        - contains: "Left shift operations: PASS"
-        - contains: "Right shift operations: PASS"
-        - contains: "Complex bitwise expressions: PASS"
-        - contains: "Bitwise operations with timing integration: PASS"
-        - contains: "VM Bitwise Comprehensive Test: PASS"
+        - contains: "ExecutionEngine Phase 4.11.4 GT Validation"
+        - contains: "REAL VM BYTECODE EXECUTION TEST"
+        - contains: "Host flashing: 4 fast flashes (200ms intervals)"
+        - contains: "✓ Host LED sequence complete: 4 fast flashes validated"
+        - contains: "Testing Phase 4.11.4 direct handlers with REAL VM bytecode"
+        - contains: "✓ VM bytecode loaded successfully:"
+        - contains: "Executing VM bytecode through execute_single_instruction_direct()..."
+        - contains: "✓ SUCCESS: ExecutionEngine direct handlers executed VM bytecode"
+        - contains: "✓ Validated handlers: handle_push_direct, handle_sub_direct, handle_mul_direct"
+        - contains: "✓ Validated handlers: handle_div_direct, handle_printf_direct, handle_pin_mode_direct"
+        - contains: "✓ Phase 4.11.4 cleanup successful - direct dispatch working!"
+        - contains: "Guest VM flashing: 8 long flashes (500ms intervals) via ExecutionEngine"
+        - contains: "✓ Guest VM LED sequence complete: 8 long flashes via ExecutionEngine"
+        - contains: "✓ ExecutionEngine GPIO handlers validated: handle_pin_mode_direct, handle_digital_write_direct"
+        - contains: "ExecutionEngine Phase 4.11.4 GT: SUCCESS!"
+        - contains: "✓ Static VMMemoryContext backing working"
+        - contains: "✓ Direct dispatch eliminates dual dispatch complexity"
+        - contains: "FIRST REAL EXECUTIONENGINE VALIDATION COMPLETE!"
+        - not_contains: "CRITICAL FAILURE"
         - not_contains: "FAIL"
-      semihosting_timeout: 30s
-      
+        - not_contains: "ERROR"
+      semihosting_timeout: 45s
+
+      # Pass 2: Memory validation (ExecutionEngine state and GPIO transitions)
+      memory_checks:
+        gpioc_pc6_configured_by_vm:
+          address: 0x48000800        # GPIOC base
+          offset: 0x00               # MODER register
+          mask: 0x3000               # PC6 mode bits [13:12]
+          expected: 0x1000           # Output mode (01) - set by ExecutionEngine handle_pin_mode_direct
+          description: "PC6 configured as output by ExecutionEngine VM bytecode execution"
+        gpioc_pc6_pin_state_final:
+          address: 0x48000800        # GPIOC base
+          offset: 0x14               # ODR register
+          mask: 0x40                 # PC6 output bit [6]
+          expected: 0x00             # LOW (final state after VM execution: HIGH then LOW)
+          description: "PC6 final output state LOW after VM DIGITAL_WRITE sequence"
+        gpioc_clock_enabled_for_vm:
+          address: 0x4002104C        # RCC AHB2ENR
+          mask: 0x04                 # GPIOC clock enable bit [2]
+          expected: 0x04             # GPIOC clock enabled
+          description: "GPIOC clock enabled for VM GPIO operations"
+        execution_engine_stack_state:
+          address: 0x20000000        # RAM start - ExecutionEngine stack area
+          description: "ExecutionEngine stack state after VM execution"
+        component_vm_memory_context:
+          address: 0x20001000        # VMMemoryContext area
+          description: "Static VMMemoryContext backing store used by ExecutionEngine"
+
+      # Rich diagnostics
       diagnostics:
-        verbosity: standard
-        memory_dump_range: 0x20
-        include_peripheral_summary: false
+        verbosity: verbose
+        memory_dump_range: 0x40
+        include_peripheral_summary: true
+        include_execution_engine_metrics: true
+        include_vm_bytecode_analysis: true
         include_both_passes: true
 
   # I2C Peripheral Validation Test (Phase 4.8.1)
@@ -1699,6 +1624,69 @@ tests:
         include_peripheral_summary: true
         include_both_passes: true
 
+  # Phase 4.9.4: Complete Auto-Execution with Oracle Integration
+  phase_4_9_4_auto_execution_complete:
+    source: test_phase_4_9_4_auto_execution_complete.c
+    dependencies: []
+    description: "Phase 4.9.4 complete auto-execution validation with Oracle integration - flash ArduinoC bytecode and test startup coordination"
+    timeout: 120s
+    semihosting: true  # Enable semihosting to capture guest program output after Oracle disconnects
+    oracle_scenarios:
+      - "flash_phase_4_9_4_bytecode"  # Custom Oracle scenario to flash our ArduinoC bytecode
+    expected_patterns:
+      - "=== COCKPITVM PHASE 4.9.4 AUTO-EXECUTION COMPLETE TEST ==="
+      - "Oracle Integration + Startup Coordination + Guest Execution"
+      - "✓ CockpitVM Bootloader initialized for Oracle"
+      - "=== ORACLE INTEGRATION READY ==="
+      - "Oracle Result: BYTECODE FLASHED SUCCESSFULLY ✓"
+      - "✓ Host startup systems initialized"
+      - "PC13 button: NOT_PRESSED (continue to auto-execution)"
+      - "✓ Guest program detected at Page 63"
+      - "✓ Guest program execution initiated"
+      - "✓ SUCCESS: Guest program LED activity detected"
+      - "✓ COMPLETE SUCCESS: End-to-end auto-execution validated"
+      - "PHASE_4_9_4_COMPLETE_SUCCESS"
+    hardware_requirements:
+      - usart1_pa9_pa10  # Oracle communication
+      - usart2_pa2_pa3   # Diagnostic output
+      - gpio_pc13        # Button input
+      - led_pc6          # Guest program GPIO validation
+    category: integration
+    priority: high
+    stability: phase_4_9_4
+    notes: "Complete end-to-end validation: Oracle → Flash → Startup → Auto-exec → Guest → GPIO. Requires Oracle integration with custom bytecode."
+
+  # Phase 4.9.4: Debug Minimal - Isolate hang point after Oracle
+  phase_4_9_4_debug_minimal:
+    source: test_phase_4_9_4_debug_minimal.c
+    dependencies: []
+    description: "Minimal debug test to isolate hang point after Oracle flash completion"
+    timeout: 60s
+    semihosting: false  # Disable semihosting for Oracle UART communication
+    oracle_scenarios:
+      - "flash_phase_4_9_4_bytecode"  # Same Oracle scenario as full test
+    expected_patterns:
+      - "=== MINIMAL DEBUG TEST ==="
+      - "✓ Diagnostics initialized"
+      - "✓ Bootloader initialized"
+      - "DEBUG_ORACLE_COMPLETED"
+      - "=== POST-ORACLE DEBUG CHECKPOINT 1 ==="
+      - "DEBUG_CHECKPOINT_1"
+      - "=== POST-ORACLE DEBUG CHECKPOINT 2 ==="
+      - "DEBUG_CHECKPOINT_2"
+      - "=== POST-ORACLE DEBUG CHECKPOINT 3 ==="
+      - "DEBUG_CHECKPOINT_3"
+      - "=== DEBUG TEST COMPLETE ==="
+      - "DEBUG_TEST_FINISHED"
+    hardware_requirements:
+      - usart1_pa9_pa10  # Oracle communication
+      - usart2_pa2_pa3   # Diagnostic output
+      - gpio_pc13        # LED for basic testing
+    category: debug
+    priority: high
+    stability: debug
+    notes: "Minimal test to isolate exact hang point after Oracle completion. Should reach all debug checkpoints if system is working correctly."
+
 # Test suites for batch execution
 test_suites:
   smoke_tests:
@@ -1762,14 +1750,14 @@ test_suites:
       - bootloader_golden_triangle
     timeout: 180s
     
-  vm_comprehensive:
-    description: "ComponentVM comprehensive operations validation suite"
+  # vm_comprehensive test suite REMOVED - contained fake tests using native C operations instead of ExecutionEngine
+
+  execution_engine_validation:
+    description: "REAL ExecutionEngine Phase 4.11.4 validation using actual VM bytecode execution"
     tests:
-      - vm_arithmetic_comprehensive
-      - vm_comparison_comprehensive
-      - vm_logical_comprehensive
-      - vm_bitwise_comprehensive
-    timeout: 180s
+      - execution_engine_arithmetic_gt
+    timeout: 75s
+    notes: "First genuine ExecutionEngine validation with real VM bytecode through execute_single_instruction_direct() - replaces fake native C arithmetic tests"
 
   phase_4_9_0:
     description: "Phase 4.9.0 STM32G4 Debug Detection - Hardware debugger detection validation"
@@ -1954,6 +1942,7 @@ test_suites:
     tests:
       - phase_4_9_4_host_startup_coordination
     timeout: 45s
+
 
   full_regression:
     description: "Complete regression test suite"
