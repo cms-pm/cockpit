@@ -1,5 +1,16 @@
 #pragma once
 
+// ============================================================================
+// PHASE 4.11.8: CONDITIONAL COMPILATION FOR EXECUTIONENGINE_V2
+// ============================================================================
+#ifdef USE_EXECUTION_ENGINE_V2
+#include "execution_engine_v2.h"
+// When USE_EXECUTION_ENGINE_V2 is defined, this file provides a compatibility
+// typedef to allow gradual migration
+using ExecutionEngine = ExecutionEngine_v2;
+#else
+// Traditional ExecutionEngine implementation continues below
+
 // #include <array> - removed for embedded compatibility
 #include <cstdint>
 #include <cstddef>
@@ -63,13 +74,12 @@ public:
     ExecutionEngine() noexcept;
     ~ExecutionEngine() noexcept;
     
-    // Core execution methods
+    // Core execution methods - UNIFIED HANDLER ARCHITECTURE (Phase 4.11.8)
     bool execute_program(const VM::Instruction* program, size_t program_size,
                         MemoryManager& memory, IOController& io) noexcept;
     bool execute_single_instruction(MemoryManager& memory, IOController& io) noexcept;
 
-    // Phase 4.11.2: Direct MemoryManager method interface (eliminates function pointers)
-    bool execute_single_instruction_direct(MemoryManager& memory, IOController& io) noexcept;
+    // Phase 4.11.8: execute_single_instruction_direct() ELIMINATED (infinite recursion fix)
     
     // State management
     void reset() noexcept;
@@ -203,3 +213,5 @@ private:
     ExecutionEngine(ExecutionEngine&&) = delete;
     ExecutionEngine& operator=(ExecutionEngine&&) = delete;
 };
+
+#endif // !USE_EXECUTION_ENGINE_V2
