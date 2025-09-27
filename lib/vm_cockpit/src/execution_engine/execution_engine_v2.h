@@ -76,6 +76,9 @@ public:
     vm_return_t handle_sub_impl(uint16_t immediate) noexcept;
     vm_return_t handle_mul_impl(uint16_t immediate) noexcept;
     vm_return_t handle_div_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_mod_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_call_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_ret_impl(uint16_t immediate) noexcept;
     vm_return_t handle_eq_impl(uint16_t immediate) noexcept;
     vm_return_t handle_ne_impl(uint16_t immediate) noexcept;
     vm_return_t handle_lt_impl(uint16_t immediate) noexcept;

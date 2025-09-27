@@ -6,7 +6,7 @@
 #include <algorithm>
 
 ComponentVM::ComponentVM() noexcept
-    : engine_{}, memory_context_{}, memory_{&memory_context_}, memory_ops_{create_memory_ops(&memory_context_)}, io_{},
+    : engine_{}, memory_context_{}, memory_{&memory_context_}, io_{},
       program_loaded_(false), program_(nullptr), program_size_(0), instruction_count_(0), last_error_(VM_ERROR_NONE),
       metrics_{}, execution_start_time_(0)
 {
@@ -57,7 +57,7 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
         }
 
         // Phase 4.11.3A: Use direct MemoryManager method calls for performance
-        if (!engine_.execute_single_instruction_direct(memory_, io_)) {
+        if (!engine_.execute_single_instruction(memory_, io_)) {
             // Propagate error from ExecutionEngine
             vm_error_t engine_error = engine_.get_last_error();
             set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
@@ -103,21 +103,24 @@ bool ComponentVM::execute_single_step() noexcept
     }
 
     // Phase 4.11.3A: Use direct MemoryManager method calls for performance
-    bool success = engine_.execute_single_instruction_direct(memory_, io_);
+    bool continue_execution = engine_.execute_single_instruction(memory_, io_);
 
-    if (success) {
+    // Check if execution was successful (either continuing or successfully halted)
+    vm_error_t engine_error = engine_.get_last_error();
+    bool execution_successful = (engine_error == VM_ERROR_NONE);
+
+    if (execution_successful) {
         instruction_count_++;
         metrics_.instructions_executed++;
 
         // Notify observers after successful instruction execution with REAL instruction data
         notify_instruction_executed(pc, actual_opcode, actual_operand);
     } else {
-        // Propagate error from ExecutionEngine
-        vm_error_t engine_error = engine_.get_last_error();
-        set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
+        // Propagate error from ExecutionEngine only if there was an actual error
+        set_error(engine_error);
     }
-    
-    return success;
+
+    return execution_successful;
 }
 
 bool ComponentVM::load_program(const VM::Instruction* program, size_t program_size) noexcept

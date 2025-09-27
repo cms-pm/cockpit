@@ -37,15 +37,13 @@ public:
     
     // Component access (for testing and debugging)
     ExecutionEngine& get_execution_engine() noexcept { return engine_; }
-    MemoryManager& get_memory_manager() noexcept { return memory_; }  // Legacy for Phase 3 transition
+    MemoryManager& get_memory_manager() noexcept { return memory_; }
     VMMemoryContext& get_memory_context() noexcept { return memory_context_; }
-    VMMemoryOps& get_memory_ops() noexcept { return memory_ops_; }
     IOController& get_io_controller() noexcept { return io_; }
 
     const ExecutionEngine& get_execution_engine() const noexcept { return engine_; }
-    const MemoryManager& get_memory_manager() const noexcept { return memory_; }  // Legacy for Phase 3 transition
+    const MemoryManager& get_memory_manager() const noexcept { return memory_; }
     const VMMemoryContext& get_memory_context() const noexcept { return memory_context_; }
-    const VMMemoryOps& get_memory_ops() const noexcept { return memory_ops_; }
     const IOController& get_io_controller() const noexcept { return io_; }
     
     // VM state inspection
@@ -78,8 +76,7 @@ private:
     // VM Components - construction order matters for RAII
     ExecutionEngine engine_;      // Constructed first
     VMMemoryContext memory_context_;  // Static memory context - must be before MemoryManager
-    MemoryManager memory_;        // Legacy for Phase 3 transition - takes memory_context_ pointer
-    VMMemoryOps memory_ops_;      // Function pointer interface
+    MemoryManager memory_;        // Uses static VMMemoryContext backing (Kill Bill completion)
     IOController io_;            // Constructed last
     
     // VM state

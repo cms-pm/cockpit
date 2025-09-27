@@ -4,6 +4,7 @@
 #include "../vm_opcodes.h"
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
 
 // ============================================================================
 // SPARSE JUMP TABLE - BATTLE-TESTED EMBEDDED DISPATCH
@@ -18,6 +19,9 @@ static const opcode_handler_entry OPCODE_TABLE[] = {
     {static_cast<uint8_t>(VMOpcode::OP_SUB),        &ExecutionEngine_v2::handle_sub_impl},
     {static_cast<uint8_t>(VMOpcode::OP_MUL),        &ExecutionEngine_v2::handle_mul_impl},
     {static_cast<uint8_t>(VMOpcode::OP_DIV),        &ExecutionEngine_v2::handle_div_impl},
+    {static_cast<uint8_t>(VMOpcode::OP_MOD),        &ExecutionEngine_v2::handle_mod_impl},
+    {static_cast<uint8_t>(VMOpcode::OP_CALL),       &ExecutionEngine_v2::handle_call_impl},
+    {static_cast<uint8_t>(VMOpcode::OP_RET),        &ExecutionEngine_v2::handle_ret_impl},
     {static_cast<uint8_t>(VMOpcode::OP_EQ),         &ExecutionEngine_v2::handle_eq_impl},    // 0x20 - FIXES RECURSION
     {static_cast<uint8_t>(VMOpcode::OP_NE),         &ExecutionEngine_v2::handle_ne_impl},    // 0x21 - FIXES RECURSION
     {static_cast<uint8_t>(VMOpcode::OP_LT),         &ExecutionEngine_v2::handle_lt_impl},    // 0x22 - FIXES RECURSION
@@ -49,10 +53,16 @@ ExecutionEngine_v2::ExecutionEngine_v2() noexcept
     : stack_{}, sp_(0), pc_(0), program_(nullptr), program_size_(0),
       halted_(false), last_error_(VM_ERROR_NONE), memory_(nullptr), io_(nullptr)
 {
+    printf("[DEBUG] ExecutionEngine_v2 constructor starting\n");
+    fflush(stdout);
+
     #ifdef DEBUG
     trace_enabled_ = true;
     initialize_stack_canary();
     #endif
+
+    printf("[DEBUG] ExecutionEngine_v2 constructor completed\n");
+    fflush(stdout);
 }
 
 ExecutionEngine_v2::~ExecutionEngine_v2() noexcept
@@ -438,6 +448,51 @@ vm_return_t ExecutionEngine_v2::handle_gt_impl(uint16_t immediate) noexcept
     }
 
     return vm_return_t::success();
+}
+
+// ============================================================================
+// ADDITIONAL CORE OPERATIONS
+// ============================================================================
+
+vm_return_t ExecutionEngine_v2::handle_mod_impl(uint16_t immediate) noexcept
+{
+    (void)immediate; // Unused parameter
+    int32_t b, a;
+    if (!pop_protected(b) || !pop_protected(a)) {
+        return vm_return_t::error(VM_ERROR_STACK_UNDERFLOW);
+    }
+
+    if (b == 0) {
+        return vm_return_t::error(VM_ERROR_DIVISION_BY_ZERO);
+    }
+
+    int32_t result = a % b;
+    if (!push_protected(result)) {
+        return vm_return_t::error(VM_ERROR_STACK_OVERFLOW);
+    }
+
+    return vm_return_t::success();
+}
+
+vm_return_t ExecutionEngine_v2::handle_call_impl(uint16_t immediate) noexcept
+{
+    uint32_t target_address = static_cast<uint32_t>(immediate);
+
+    // Validate target address
+    if (target_address >= program_size_) {
+        return vm_return_t::error(VM_ERROR_INVALID_JUMP);
+    }
+
+    // Use CALL_FUNCTION action - pc_ management handled in execute_instruction()
+    return vm_return_t::call_function(target_address);
+}
+
+vm_return_t ExecutionEngine_v2::handle_ret_impl(uint16_t immediate) noexcept
+{
+    (void)immediate; // Unused parameter
+
+    // Use RETURN_FUNCTION action - pc_ management handled in execute_instruction()
+    return vm_return_t::return_function();
 }
 
 // ============================================================================

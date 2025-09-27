@@ -6,19 +6,16 @@ CXX = g++
 CFLAGS = -std=c11 -Wall -Wextra -I../../../lib/vm_cockpit/src -I../../../lib/gt_diagnostics/include -I./include
 CXXFLAGS = -std=c++17 -Wall -Wextra -I../../../lib/vm_cockpit/src -I../../../lib/gt_diagnostics/include -I./include
 
-# Phase 4.11.8: ExecutionEngine_v2 conditional compilation support
-ifdef USE_EXECUTION_ENGINE_V2
+# Phase 4.11.8: ExecutionEngine_v2 Only - Legacy ExecutionEngine eliminated
 CFLAGS += -DUSE_EXECUTION_ENGINE_V2
 CXXFLAGS += -DUSE_EXECUTION_ENGINE_V2
-endif
 
 # ComponentVM source files - following vm_compiler pattern
 VM_COCKPIT_SRC = ../../../lib/vm_cockpit/src
 VM_COMPILER_SRC = ../../../lib/vm_compiler/validation/compiler
 GT_DIAG_SRC = ../../../lib/gt_diagnostics/src
 
-# Core ComponentVM dependencies (same as vm_compiler runtime_validator)
-ifdef USE_EXECUTION_ENGINE_V2
+# Core ComponentVM dependencies - ExecutionEngine_v2 only
 COMPONENTVM_OBJS = $(VM_COCKPIT_SRC)/component_vm.o \
                    $(VM_COCKPIT_SRC)/execution_engine/execution_engine_v2.o \
                    $(VM_COCKPIT_SRC)/memory_manager/memory_manager.o \
@@ -26,16 +23,6 @@ COMPONENTVM_OBJS = $(VM_COCKPIT_SRC)/component_vm.o \
                    $(VM_COCKPIT_SRC)/memory_manager/vm_memory_pool.o \
                    $(VM_COCKPIT_SRC)/io_controller/io_controller.o \
                    $(VM_COCKPIT_SRC)/vm_errors.o
-else
-COMPONENTVM_OBJS = $(VM_COCKPIT_SRC)/component_vm.o \
-                   $(VM_COCKPIT_SRC)/execution_engine/execution_engine.o \
-                   $(VM_COCKPIT_SRC)/execution/vm_handler_registry.o \
-                   $(VM_COCKPIT_SRC)/memory_manager/memory_manager.o \
-                   $(VM_COCKPIT_SRC)/memory_manager/vm_memory_ops.o \
-                   $(VM_COCKPIT_SRC)/memory_manager/vm_memory_pool.o \
-                   $(VM_COCKPIT_SRC)/io_controller/io_controller.o \
-                   $(VM_COCKPIT_SRC)/vm_errors.o
-endif
 
 # Platform stub (use vm_compiler's proven approach + bridge_c compatibility)
 PLATFORM_OBJS = $(VM_COMPILER_SRC)/platform_stub.o src/bridge_c_platform_compat.o
@@ -84,13 +71,9 @@ $(GT_DIAG_SRC)/gt_diagnostics.o: $(GT_DIAG_SRC)/gt_diagnostics.c
 $(VM_COCKPIT_SRC)/component_vm.o: $(VM_COCKPIT_SRC)/component_vm.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-ifdef USE_EXECUTION_ENGINE_V2
+# ExecutionEngine_v2 only compilation
 $(VM_COCKPIT_SRC)/execution_engine/execution_engine_v2.o: $(VM_COCKPIT_SRC)/execution_engine/execution_engine_v2.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
-else
-$(VM_COCKPIT_SRC)/execution_engine/execution_engine.o: $(VM_COCKPIT_SRC)/execution_engine/execution_engine.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-endif
 
 $(VM_COCKPIT_SRC)/memory_manager/memory_manager.o: $(VM_COCKPIT_SRC)/memory_manager/memory_manager.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
