@@ -183,4 +183,4 @@ design and testing practices.
 
 ---
 
-For detailed information: [ComponentVM Programmers Manage](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
+For detailed information: [ComponentVM Programmers Manual](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
