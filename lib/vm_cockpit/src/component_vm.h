@@ -36,12 +36,20 @@ public:
     void reset_vm() noexcept;
     
     // Component access (for testing and debugging)
+    #ifdef USE_EXECUTION_ENGINE_V2
+    ExecutionEngine_v2& get_execution_engine() noexcept { return engine_; }
+    #else
     ExecutionEngine& get_execution_engine() noexcept { return engine_; }
+    #endif
     MemoryManager& get_memory_manager() noexcept { return memory_; }
     VMMemoryContext& get_memory_context() noexcept { return memory_context_; }
     IOController& get_io_controller() noexcept { return io_; }
 
+    #ifdef USE_EXECUTION_ENGINE_V2
+    const ExecutionEngine_v2& get_execution_engine() const noexcept { return engine_; }
+    #else
     const ExecutionEngine& get_execution_engine() const noexcept { return engine_; }
+    #endif
     const MemoryManager& get_memory_manager() const noexcept { return memory_; }
     const VMMemoryContext& get_memory_context() const noexcept { return memory_context_; }
     const IOController& get_io_controller() const noexcept { return io_; }
@@ -74,7 +82,11 @@ public:
     
 private:
     // VM Components - construction order matters for RAII
-    ExecutionEngine engine_;      // Constructed first
+    #ifdef USE_EXECUTION_ENGINE_V2
+    ExecutionEngine_v2 engine_;   // Constructed first (ExecutionEngine_v2)
+    #else
+    ExecutionEngine engine_;      // Constructed first (original ExecutionEngine)
+    #endif
     VMMemoryContext memory_context_;  // Static memory context - must be before MemoryManager
     MemoryManager memory_;        // Uses static VMMemoryContext backing (Kill Bill completion)
     IOController io_;            // Constructed last

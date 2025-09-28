@@ -131,6 +131,17 @@ void enhanced_vm_get_performance_metrics(enhanced_vm_context_t* ctx, uint32_t* i
                                        uint32_t* execution_time_ms, size_t* memory_operations, size_t* io_operations);
 
 /**
+ * @brief Get ExecutionEngine_v2 stack contents for validation
+ * @param ctx Enhanced VM context
+ * @param stack_out Buffer to receive stack contents (caller allocated)
+ * @param max_stack_size Maximum stack elements to copy
+ * @param actual_stack_size Actual number of stack elements (output)
+ * @return true on success, false on error
+ */
+bool enhanced_vm_get_stack_contents(enhanced_vm_context_t* ctx, int32_t* stack_out,
+                                   size_t max_stack_size, size_t* actual_stack_size);
+
+/**
  * @brief Destroy enhanced VM context and cleanup resources
  * @param ctx Enhanced VM context to destroy
  */

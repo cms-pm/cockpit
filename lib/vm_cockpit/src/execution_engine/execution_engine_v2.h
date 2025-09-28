@@ -85,6 +85,49 @@ public:
     vm_return_t handle_gt_impl(uint16_t immediate) noexcept;
     vm_return_t handle_invalid_opcode_impl(uint16_t immediate) noexcept;
 
+    // Phase 4.13.1: Control Flow Operations
+    vm_return_t handle_jmp_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_jmp_true_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_jmp_false_impl(uint16_t immediate) noexcept;
+
+    // Phase 4.13.2: Extended Comparisons
+    vm_return_t handle_le_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_ge_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_eq_signed_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_ne_signed_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_lt_signed_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_gt_signed_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_le_signed_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_ge_signed_impl(uint16_t immediate) noexcept;
+
+    // Phase 4.13.3: Logical Operations
+    vm_return_t handle_and_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_or_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_not_impl(uint16_t immediate) noexcept;
+
+    // Phase 4.13.4: Memory Operations
+    vm_return_t handle_load_global_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_store_global_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_load_local_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_store_local_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_load_array_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_store_array_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_create_array_impl(uint16_t immediate) noexcept;
+
+    // Phase 4.13.5: Arduino HAL Integration
+    vm_return_t handle_digital_write_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_digital_read_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_analog_write_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_analog_read_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_delay_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_pin_mode_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_printf_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_millis_impl(uint16_t immediate) noexcept;
+    vm_return_t handle_micros_impl(uint16_t immediate) noexcept;
+
+    // Default handler for unimplemented opcodes (preserves binary search table)
+    vm_return_t handle_unimplemented_impl(uint16_t immediate) noexcept;
+
 private:
     // Core state
     int32_t stack_[STACK_SIZE];

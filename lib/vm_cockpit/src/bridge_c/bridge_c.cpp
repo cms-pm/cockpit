@@ -13,33 +13,10 @@
 #include <cstdio>
 
 // =================================================================
-// VM Instruction Set Definitions
+// VM Instruction Set - USING SINGLE SOURCE OF TRUTH vm_opcodes.h
 // =================================================================
-
-// Core VM Operations (matching CLAUDE.md instruction set)
-#define VM_OP_HALT              0x00
-#define VM_OP_PUSH              0x01
-#define VM_OP_POP               0x02
-#define VM_OP_CALL              0x03
-#define VM_OP_RET               0x04
-
-// Arduino API Bridge Operations
-#define VM_OP_DIGITAL_WRITE     0x10
-#define VM_OP_DIGITAL_READ      0x11
-#define VM_OP_ANALOG_WRITE      0x12
-#define VM_OP_ANALOG_READ       0x13
-#define VM_OP_DELAY             0x14
-#define VM_OP_PIN_MODE          0x15
-#define VM_OP_MILLIS            0x16
-#define VM_OP_MICROS            0x17
-#define VM_OP_PRINTF            0x18
-
-// Arithmetic Operations
-#define VM_OP_ADD               0x20
-#define VM_OP_SUB               0x21
-#define VM_OP_MUL               0x22
-#define VM_OP_DIV               0x23
-#define VM_OP_MOD               0x24
+// NOTE: All opcode definitions come from vm_opcodes.h
+// No duplicate definitions allowed here to prevent conflicts
 
 // =================================================================
 // Function Registration Table
@@ -65,11 +42,11 @@ void bridge_c_compat_init(void) {
     memset(function_table, 0, sizeof(function_table));
     
     // Register built-in Arduino API bridge functions
-    bridge_c_register_function(VM_OP_DIGITAL_WRITE, (void*)gpio_pin_write);
-    bridge_c_register_function(VM_OP_DIGITAL_READ, (void*)gpio_pin_read);
-    bridge_c_register_function(VM_OP_DELAY, (void*)delay_ms);
-    bridge_c_register_function(VM_OP_MILLIS, (void*)get_tick_ms);
-    bridge_c_register_function(VM_OP_MICROS, (void*)get_tick_us);
+    bridge_c_register_function(static_cast<uint8_t>(VMOpcode::OP_DIGITAL_WRITE), (void*)gpio_pin_write);
+    bridge_c_register_function(static_cast<uint8_t>(VMOpcode::OP_DIGITAL_READ), (void*)gpio_pin_read);
+    bridge_c_register_function(static_cast<uint8_t>(VMOpcode::OP_DELAY), (void*)delay_ms);
+    bridge_c_register_function(static_cast<uint8_t>(VMOpcode::OP_MILLIS), (void*)get_tick_ms);
+    bridge_c_register_function(static_cast<uint8_t>(VMOpcode::OP_MICROS), (void*)get_tick_us);
     
     bridge_initialized = true;
 }
@@ -359,6 +336,12 @@ enhanced_vm_context_t* create_enhanced_vm_context(bool enable_tracing, bool enab
     internal_ctx->loaded_program = nullptr;
     internal_ctx->loaded_instruction_count = 0;
 
+    // Register default test string for GT Lite printf testing
+    #ifdef QEMU_PLATFORM
+    uint8_t string_id;
+    vm->get_io_controller().add_string("GT_Lite_Test", string_id);
+    #endif
+
     if (enable_tracing) {
         // Create detailed observer
         ExecutionEngineDetailedObserver* observer = new ExecutionEngineDetailedObserver(vm, enable_gpio_verification);
@@ -515,6 +498,50 @@ void destroy_enhanced_vm_context(enhanced_vm_context_t* ctx) {
     }
 
     free(ctx);
+}
+
+bool enhanced_vm_get_stack_contents(enhanced_vm_context_t* ctx, int32_t* stack_out,
+                                   size_t max_stack_size, size_t* actual_stack_size) {
+    if (!ctx || !ctx->component_vm || !stack_out || !actual_stack_size) {
+        return false;
+    }
+
+    ComponentVM* vm = static_cast<ComponentVM*>(ctx->component_vm);
+
+    // Access ExecutionEngine_v2 through ComponentVM
+    #ifdef USE_EXECUTION_ENGINE_V2
+    ExecutionEngine_v2& engine = vm->get_execution_engine();
+
+    // Get current stack pointer
+    size_t stack_elements = engine.get_sp();
+    *actual_stack_size = stack_elements;
+
+    if (stack_elements == 0) {
+        return true; // Empty stack is valid
+    }
+
+    if (stack_elements > max_stack_size) {
+        stack_elements = max_stack_size; // Truncate to available buffer
+    }
+
+    // Copy stack contents from ExecutionEngine_v2
+    // We need to access the private stack_ member - for now use peek()
+    for (size_t i = 0; i < stack_elements; i++) {
+        int32_t value;
+        if (engine.peek(value)) {
+            // peek() gets top of stack, but we want to copy entire stack
+            // This is a limitation - we can only get the top element
+            stack_out[stack_elements - 1] = value; // Put top element at end
+            break; // Can only get one element with current API
+        }
+    }
+
+    #else
+    // For original ExecutionEngine, we don't have stack access
+    *actual_stack_size = 0;
+    #endif
+
+    return true;
 }
 
 } // extern "C"

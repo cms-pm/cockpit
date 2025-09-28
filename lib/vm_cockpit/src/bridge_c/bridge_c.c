@@ -8,33 +8,10 @@
 #include <string.h>
 
 // =================================================================
-// VM Instruction Set Definitions
+// VM Instruction Set - USING SINGLE SOURCE OF TRUTH vm_opcodes.h
 // =================================================================
-
-// Core VM Operations (matching CLAUDE.md instruction set)
-#define VM_OP_HALT              0x00
-#define VM_OP_PUSH              0x01
-#define VM_OP_POP               0x02
-#define VM_OP_CALL              0x03
-#define VM_OP_RET               0x04
-
-// Arduino API Bridge Operations
-#define VM_OP_DIGITAL_WRITE     0x10
-#define VM_OP_DIGITAL_READ      0x11
-#define VM_OP_ANALOG_WRITE      0x12
-#define VM_OP_ANALOG_READ       0x13
-#define VM_OP_DELAY             0x14
-#define VM_OP_PIN_MODE          0x15
-#define VM_OP_MILLIS            0x16
-#define VM_OP_MICROS            0x17
-#define VM_OP_PRINTF            0x18
-
-// Arithmetic Operations
-#define VM_OP_ADD               0x20
-#define VM_OP_SUB               0x21
-#define VM_OP_MUL               0x22
-#define VM_OP_DIV               0x23
-#define VM_OP_MOD               0x24
+// NOTE: All opcode definitions come from vm_opcodes.h via bridge_c.h
+// No duplicate definitions allowed here to prevent conflicts
 
 // =================================================================
 // Function Registration Table

@@ -1,23 +1,24 @@
 # CockpitVM Architecture Documentation Hub
 
-**Research Implementation Reference | Current + Planned Architecture**  
-**Version**: 4.9.0 | **Date**: September 2025 | **Status**: Research Development
+**Research Implementation Reference | ExecutionEngine_v2 Complete Architecture**
+**Version**: 4.13.0 | **Date**: September 2025 | **Status**: Phase 4.13 Complete
 
 ---
 
 ## 🏗️ Architecture Overview
 
-This directory contains the **CockpitVM architectural documentation** covering both current implementation and planned Trinity architecture. Each document focuses on a specific architectural aspect while maintaining clear relationships between current capabilities and research development.
+This directory contains the **CockpitVM architectural documentation** covering the completed ExecutionEngine_v2 implementation with binary search dispatch, Arduino HAL integration, and static memory architecture. Each document focuses on a specific architectural aspect of the production-ready embedded virtual machine.
 
 ### **📋 Architecture Documentation Structure**
 
 | Document | Focus | Audience | Implementation Status |
 |----------|-------|----------|--------|
+| **[COMPONENTVM_PROGRAMMERS_MANUAL.md](COMPONENTVM_PROGRAMMERS_MANUAL.md)** | ExecutionEngine_v2, MemoryManager, IOController | Software Engineers | ✅ **Phase 4.13 Complete** |
 | **[01-system-overview.md](01-system-overview.md)** | Mission, philosophy, design principles | Systems Architects | ✅ Current Implementation |
 | **[02-memory-instruction-architecture.md](02-memory-instruction-architecture.md)** | Memory layout, instruction format | Embedded Developers | ✅ Current Implementation |
 | **[03-component-integration-flows.md](03-component-integration-flows.md)** | Component interactions, data flows | Software Engineers | ✅ Current Implementation |
 | **[04-build-system-workflow.md](04-build-system-workflow.md)** | Build pipeline, development workflow | DevOps/Integration | ✅ Current Implementation |
-| **[ZERO_COST_HARDWARE_ABSTRACTION_ARCHITECTURE.md](ZERO_COST_HARDWARE_ABSTRACTION_ARCHITECTURE.md)** | Trinity three-tier zero-cost templates | Research Engineers | 🔬 Phase 4.9 Research |
+| **[ZERO_COST_HARDWARE_ABSTRACTION_ARCHITECTURE.md](ZERO_COST_HARDWARE_ABSTRACTION_ARCHITECTURE.md)** | Trinity three-tier zero-cost templates | Research Engineers | 🔬 Future Research |
 
 **Total Architecture Documentation**: ~2000 lines across focused documents
 
@@ -38,10 +39,14 @@ Start with: **[02-memory-instruction-architecture.md](02-memory-instruction-arch
 - Hardware abstraction layer architecture
 
 ### **Software Developers**
-Start with: **[03-component-integration-flows.md](03-component-integration-flows.md)**
-- ExecutionEngine, MemoryManager, IOController interactions
-- CALL/RET mechanism and PC management
-- Printf integration and string table management
+Start with: **[COMPONENTVM_PROGRAMMERS_MANUAL.md](COMPONENTVM_PROGRAMMERS_MANUAL.md)**
+- **NEW**: Complete ExecutionEngine_v2 architecture with binary search dispatch
+- ComponentVM orchestration and memory isolation (1.75KB per VM instance)
+- Arduino HAL integration with IOController abstraction
+- Sparse jump table performance (O(log n) opcode lookup)
+
+Alternative: **[03-component-integration-flows.md](03-component-integration-flows.md)**
+- Legacy ExecutionEngine patterns and integration flows
 
 ### **DevOps/Build Engineers**
 Start with: **[04-build-system-workflow.md](04-build-system-workflow.md)**
@@ -72,27 +77,27 @@ Available in `/docs/` - comprehensive documentation of Phase 1-3 implementation 
 
 ### **System Scale**
 ```yaml
-Codebase Size: ~15,000 lines C/C++ (production code)
-Test Coverage: 100% (181/181 tests passing)
-Memory Footprint: 97KB Flash, 11KB RAM (STM32G431CB)
-Performance: >100 instructions/second on 170MHz ARM Cortex-M4
+Codebase Size: ~15,000+ lines C/C++ (ExecutionEngine_v2 complete)
+Test Coverage: 100% GT Lite validation (9/9 Arduino HAL operations)
+Memory Footprint: <128KB Flash, 24KB RAM static allocation (STM32G474)
+Performance: O(log n) binary search dispatch, 112 total opcodes
 ```
 
 ### **Architectural Complexity**
 ```yaml
-Core Components: 3 (ExecutionEngine, MemoryManager, IOController)
-API Surface: 25+ C wrapper functions
-Instruction Set: 80+ opcodes in semantic groups
-Memory Regions: 5 (vectors, firmware, bytecode, config, reserved)
-Build Targets: 2 (development + production)
+Core Components: 3 (ExecutionEngine_v2, MemoryManager, IOController)
+API Surface: 25+ C wrapper functions + bridge_c integration
+Instruction Set: 112 opcodes (0x00-0x6F) with sparse jump table
+Memory Architecture: Static allocation, per-VM isolation (1.75KB each)
+Build Targets: Multiple (QEMU_PLATFORM, STM32G474, Arduino compatibility)
 ```
 
 ### **Quality Metrics**
 ```yaml
-Design Principles: KISS, memory safety, hardware abstraction
-Error Handling: Unified error system (vm_error_t)
-Memory Protection: Stack canaries, bounds checking, corruption detection
-Hardware Support: Full Arduino API compatibility + custom extensions
+Design Principles: Binary search efficiency, static memory allocation, Arduino HAL
+Error Handling: Unified vm_return_t system with PC control flow
+Memory Protection: VMMemoryContext isolation, bounds checking, RAII cleanup
+Hardware Support: 9/9 Arduino HAL operations validated on STM32G474
 ```
 
 ---
@@ -137,15 +142,16 @@ Hardware Support: Full Arduino API compatibility + custom extensions
 - Printf integration with string table management
 - Comprehensive testing and validation framework
 
-### **Phase 4**: Hardware Deployment (Current Implementation)
-- STM32G431CB target integration
-- Oracle bootloader protocol
-- Hardware validation and bringup procedures
+### **Phase 4.13**: ExecutionEngine_v2 Complete (Current Implementation)
+- Binary search dispatch system with sparse jump table (112 opcodes)
+- Arduino HAL integration with 9/9 operations validated
+- Static memory architecture with per-VM isolation
+- Comprehensive GT Lite testing framework with stack verification
 
-### **Phase 4.9**: Trinity Architecture (Research Development)
-- Three-tier zero-cost hardware abstraction
-- CVBC bytecode format with metadata
-- Template-based GPIO operations targeting single-instruction performance
+### **Phase 4.14**: End-to-End Blinky Proof (Next Development)
+- Memory management cleanup (dual ownership elimination)
+- ArduinoC guest program → CockpitVM → STM32G474 hardware validation
+- Complete end-to-end execution pipeline demonstration
 
 ---
 
@@ -158,10 +164,11 @@ Hardware Support: Full Arduino API compatibility + custom extensions
 - ✅ **Hardware Abstraction**: Arduino compatibility + custom extensions
 
 ### **Current Implementation Status**
-- ✅ **Core VM**: Stack-based execution engine with 6-layer architecture
-- ✅ **Hardware Integration**: STM32G431CB with Oracle bootloader protocol
-- ✅ **Development Framework**: Test-driven development with comprehensive validation
-- 🔬 **Research Phase**: Trinity zero-cost abstraction development in progress
+- ✅ **ExecutionEngine_v2**: Binary search dispatch with sparse jump table complete
+- ✅ **Arduino HAL**: 9/9 operations validated (pinMode, digitalWrite, delay, printf, etc.)
+- ✅ **Memory Architecture**: Static allocation with VMMemoryContext per-VM isolation
+- ✅ **GT Lite Framework**: Comprehensive testing with stack verification
+- 🎯 **Phase 4.14**: Memory cleanup and end-to-end validation in progress
 
 ---
 

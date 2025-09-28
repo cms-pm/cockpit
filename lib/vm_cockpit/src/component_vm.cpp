@@ -1,5 +1,9 @@
 #include "component_vm.h"
+#ifdef USE_EXECUTION_ENGINE_V2
+#include "execution_engine/execution_engine_v2.h"
+#else
 #include "execution_engine/execution_engine.h"
+#endif
 #include "memory_manager/memory_manager.h"
 #include "memory_manager/vm_memory_context.h"
 #include "io_controller/io_controller.h"

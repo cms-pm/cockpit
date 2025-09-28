@@ -3,12 +3,16 @@
 
 CC = gcc
 CXX = g++
-CFLAGS = -std=c11 -Wall -Wextra -I../../../lib/vm_cockpit/src -I../../../lib/gt_diagnostics/include -I./include
-CXXFLAGS = -std=c++17 -Wall -Wextra -I../../../lib/vm_cockpit/src -I../../../lib/gt_diagnostics/include -I./include
+CFLAGS = -std=c11 -Wall -Wextra -I../../../lib/vm_cockpit/src -I../../../lib/gt_diagnostics/include -I../../../lib/vm_bootloader/include -I./include
+CXXFLAGS = -std=c++17 -Wall -Wextra -I../../../lib/vm_cockpit/src -I../../../lib/gt_diagnostics/include -I../../../lib/vm_bootloader/include -I./include
 
 # Phase 4.11.8: ExecutionEngine_v2 Only - Legacy ExecutionEngine eliminated
 CFLAGS += -DUSE_EXECUTION_ENGINE_V2
 CXXFLAGS += -DUSE_EXECUTION_ENGINE_V2
+
+# Phase 4.13.5: Enable QEMU_PLATFORM for Arduino HAL mocks
+CFLAGS += -DQEMU_PLATFORM
+CXXFLAGS += -DQEMU_PLATFORM
 
 # ComponentVM source files - following vm_compiler pattern
 VM_COCKPIT_SRC = ../../../lib/vm_cockpit/src
@@ -27,12 +31,13 @@ COMPONENTVM_OBJS = $(VM_COCKPIT_SRC)/component_vm.o \
 # Platform stub (use vm_compiler's proven approach + bridge_c compatibility)
 PLATFORM_OBJS = $(VM_COMPILER_SRC)/platform_stub.o src/bridge_c_platform_compat.o
 
-# Bridge and diagnostics
+# Bridge, diagnostics, and bootloader dependencies
 BRIDGE_C_OBJS = $(VM_COCKPIT_SRC)/bridge_c/bridge_c.o
 GT_DIAG_OBJS = $(GT_DIAG_SRC)/gt_diagnostics.o
+BOOTLOADER_OBJS = ../../../lib/vm_bootloader/src/bootloader_diagnostics.o
 
 # GT Lite runner library
-GT_LITE_OBJS = src/gt_lite_runner.o $(BRIDGE_C_OBJS) $(COMPONENTVM_OBJS) $(PLATFORM_OBJS) $(GT_DIAG_OBJS)
+GT_LITE_OBJS = src/gt_lite_runner.o $(BRIDGE_C_OBJS) $(COMPONENTVM_OBJS) $(PLATFORM_OBJS) $(GT_DIAG_OBJS) $(BOOTLOADER_OBJS)
 
 # Pattern rule for GT Lite tests
 test_lite_%: ../lite_src/test_lite_%.o ../lite_data/test_%.o $(GT_LITE_OBJS)
@@ -97,6 +102,10 @@ src/bridge_c_platform_compat.o: src/bridge_c_platform_compat.c
 
 # VM errors C compilation
 $(VM_COCKPIT_SRC)/vm_errors.o: $(VM_COCKPIT_SRC)/vm_errors.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Bootloader diagnostics C compilation
+../../../lib/vm_bootloader/src/bootloader_diagnostics.o: ../../../lib/vm_bootloader/src/bootloader_diagnostics.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean build artifacts

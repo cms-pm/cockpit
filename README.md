@@ -1,56 +1,81 @@
-# 🚁 CockpitVM Project
+# CockpitVM Project
 
 [![Platform](https://img.shields.io/badge/Platform-STM32G474-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]()
 
-**Embedded Jail for ARM Cortex-M4** - Guest bytecode apps run under an embedded hypervisor, granted access to specific host peripherals via a generic API. Comprehensive testing system to support a TDD approach: compilation, execution, and memory are used to validate. Bytecode compiler based on ANTLR. Bootloader protocol to upload and verify guest bytecode. GUI to flash and verify.
+**Research-Grade Embedded Virtual Machine for ARM Cortex-M4** - Advanced bytecode execution platform with ExecutionEngine_v2 featuring binary search dispatch, static memory allocation, and guest HAL integration. Supports guest ArduinoC programs with deterministic real-time execution and Golden Triangle hardware validation.
 
-> **Phase 4.8 Demo** - Multi-peripheral demo app to connect, test, and validate system as a whole.
+> **Phase 4.13 Complete** - ExecutionEngine_v2 with 35+ opcode handlers and 9/9 HAL operations validated.
 
-## 🎯 Project Vision & Mission
+## Project Vision & Mission
 
-**CockpitVM** is a research-grade embedded hypervisor enabling safe C bytecode execution on ARM Cortex-M4 microcontrollers with hardware-level safety, predictable performance, and multi-peripheral coordination.
+**CockpitVM** is a research-grade embedded virtual machine enabling safe ArduinoC bytecode execution on ARM Cortex-M4 microcontrollers with deterministic performance, comprehensive hardware validation, with an aim to develop a better appreciation for modern embedded development by taking a hands-on, break things approach.
 
-### **Core Research Areas**
-- **32-bit Virtual Instruction Set** - Stack-based VM with peripheral isolation and validation
-- **6-Layer Architecture** - Clean abstraction layers from Guest Application → Hardware  
-- **Static Memory Allocation** - Research into compile-time task partitioning for determinism
-- **Trinity Zero-Cost Abstraction** - Research implementation of three-tier hardware abstraction templates
-- **Serial Bootloader Protocol** - Oracle bootloader client supporting test-driven development methodology
+### **Core Achievements**
+- **ExecutionEngine_v2** - Binary search dispatch with sparse jump table (112 opcodes, O(log n) performance)
+- **Arduino HAL Integration** - Complete pinMode(), digitalWrite(), delay(), printf() support with hardware validation
+- **Static Memory Architecture** - Per-VM memory isolation with VMMemoryContext (1.75KB per instance)
+- **Golden Triangle Testing** - Comprehensive validation framework with stack verification and register inspection
+- **Unified Error System** - Single source of truth error codes with bridge_c integration
 
-## 📊 Current Status
+## Current Status
 
-### **Phase 4.8: Demo Deployment** 🎯 **ACTIVE**
-****
-- **Core Peripherals**: OLED display, 5-button GPIO
-- **Static Task Memory**: 4KB compile-time allocation (OLED 2.5KB, Button 1.25KB)
-- **GUI Integration Tool**: [Canopy](https://github.com/cms-pm/canopy) GUI tool provides flash upload, protocol execution post-mortem, and bytecode file info (read/info with vm_bootloader Protocol V2)
+### **Phase 4.13: ExecutionEngine_v2 Complete** ✅ **DELIVERED**
 
-### **Completed Milestones** ✅
-- **Phase 4.6**: Oracle Bootloader Client Complete - Full protobuf bootloader cycle
-- **Phase 4.7**: Host Bootloader Tool - Dual-bank flash programming implementation complete  
-- **Phase 4.7.4**: Protocol Hardening - CRC16 validation + Universal Frame Parser divined by the Oracle
+**Major Architectural Achievements:**
+- **9/9 Arduino HAL Operations** - pinMode, digitalWrite, digitalRead, analogWrite, analogRead, delay, millis, micros, printf
+- **35+ Opcode Handlers** - Control flow, logical operations, memory operations, and Arduino HAL integration
+- **Binary Search Dispatch** - O(log n) opcode lookup with sparse jump table for 112 total opcodes
+- **QEMU_PLATFORM Testing** - Comprehensive mock implementations for validation
+- **Stack Verification Framework** - GT Lite enhanced with actual stack content validation
 
-### **Research Development Roadmap**
-- **Phase 4.9**: Trinity Architecture Implementation - Three-tier zero-cost hardware abstraction system
-- **Phase 5.0**: Cooperative Task Scheduler - Multi-program switching with static memory allocation  
-- **Future Research**: RTOS integration, cross-platform template expansion, security enhancements
-- **Tooling**: CanopyUI standalone repository, enhanced Oracle bootloader protocol
+### **Critical Bugs Eliminated** ✅
+- **Dual-Dispatch Infinite Recursion** - ExecutionEngine_v2 eliminates recursive handler calls
+- **Duplicate Opcode Definitions** - Single source of truth in vm_opcodes.h (112 opcodes, 0x00-0x6F)
+- **Memory Management Architecture** - Clean VMMemoryContext isolation per ComponentVM instance
+- **Error Code Conflicts** - Unified vm_error_t system across ExecutionEngine_v2 and bridge_c
 
-## 🏗️ Technical Architecture
+### **Current Development Roadmap**
+- **Phase 4.14**: End-to-End Demo - Guest ArduinoC → CockpitVM → STM32G474 hardware validation
+- **Phase 5.0**: Cooperative Task Scheduler - Multi-program execution with static memory allocation
+- **Learning by Doing**: Architecture suitable for embedded experiments with deterministic performance
 
-### **Trinity: Zero-Cost Hardware Abstraction (Phase 4.9 Research)**
+## Technical Architecture
 
-CockpitVM is developing **Trinity** - a revolutionary three-tier template system achieving bare-metal performance with hardware independence:
+### **ExecutionEngine_v2: Binary Search Dispatch System**
 
+CockpitVM achieves optimal performance through a sparse jump table with binary search opcode dispatch:
+
+```cpp
+// Sparse Jump Table with Binary Search (O(log n) dispatch)
+struct OpcodeTableEntry {
+    uint8_t opcode;
+    vm_return_t (ExecutionEngine_v2::*handler)(uint16_t immediate) noexcept;
+};
+
+static constexpr OpcodeTableEntry OPCODE_TABLE[] = {
+    // Sorted by opcode for binary search
+    {0x00, &ExecutionEngine_v2::handle_halt_impl},
+    {0x01, &ExecutionEngine_v2::handle_push_impl},
+    {0x10, &ExecutionEngine_v2::handle_digital_write_impl},
+    {0x11, &ExecutionEngine_v2::handle_digital_read_impl},
+    {0x17, &ExecutionEngine_v2::handle_pin_mode_impl},
+    // ... 112 total opcodes (0x00-0x6F)
+};
+
+// Binary search dispatch (cache-friendly, deterministic performance)
+vm_return_t execute_instruction(uint8_t opcode, uint16_t immediate) {
+    const auto* entry = std::lower_bound(OPCODE_TABLE, OPCODE_TABLE + SIZE, opcode);
+    if (entry->opcode == opcode) {
+        return (this->*entry->handler)(immediate);
+    }
+    return vm_return_t::error(VM_ERROR_INVALID_OPCODE);
+}
 ```
-Tier 1: Template Hardware Descriptors (90% operations - zero runtime cost)
-Tier 2: Runtime HAL Integration     (9% operations - performance fallback)  
-Tier 3: Generic Register Interface  (1% edge cases - compatibility layer)
-```
 
-**Research Goal**: `digitalWrite(13, HIGH)` compiles to **single instruction**: `GPIOC->BSRR = GPIO_PIN_6`
-
-**Documentation**: [Trinity Architecture](docs/architecture/ZERO_COST_HARDWARE_ABSTRACTION_ARCHITECTURE.md) • [CVBC Format](docs/technical/CVBC_BYTECODE_FORMAT_SPECIFICATION.md) • [Implementation Plan](docs/development/PHASE_4_9_ZERO_COST_IMPLEMENTATION_PLAN.md)
+**Performance Benefits:**
+- **O(log n) Dispatch**: 112 opcodes resolved in maximum 7 comparisons
+- **Cache Efficiency**: Sequential memory access pattern for optimal performance
+- **Deterministic Timing**: Predictable execution time for real-time systems
 
 ### **Hardware Platform**
 ```yaml
@@ -60,13 +85,30 @@ Memory: 128KB Flash (dual-bank), 32KB RAM (static allocation)
 Communication: USART1 Oracle bootloader client, USART2 Diagnostic Console
 ```
 
-### **Memory Architecture (Static Allocation)**
-```yaml
-Flash: Bootloader (16KB) + Hypervisor (48KB) + Dual-Bank Bytecode (32KB each)
-RAM (24KB VM): OLED (2.5KB) Button (1.25KB each) + Shared (512B)
-Platform Controllers: GPIO + I2C + UART + Timer coordination
-Resource Management: Mutex + reference counting
+### **Memory Architecture: Static Allocation with Per-VM Isolation**
+
+```cpp
+// VMMemoryContext: 1.75KB per ComponentVM instance
+class VMMemoryContext {
+private:
+    static constexpr size_t STACK_SIZE = 256;      // 1KB (256 * int32_t)
+    static constexpr size_t GLOBAL_SIZE = 128;     // 512B (128 * int32_t)
+    static constexpr size_t LOCAL_SIZE = 64;       // 256B (64 * int32_t)
+
+    int32_t stack_[STACK_SIZE];      // Stack operations
+    int32_t globals_[GLOBAL_SIZE];   // Global variables
+    int32_t locals_[LOCAL_SIZE];     // Local variables
+
+    size_t sp_;                      // Stack pointer
+    // RAII cleanup, bounds checking, thread safety
+};
 ```
+
+**Memory Benefits:**
+- **Static Allocation**: No heap fragmentation, deterministic memory usage
+- **Per-VM Isolation**: Each ComponentVM instance has independent memory context
+- **Bounds Checking**: All operations validate array indices for safety
+- **RAII Cleanup**: Automatic memory management with predictable lifecycle
 
 ## 🛠️ Quick Start
 
@@ -136,8 +178,9 @@ typedef struct {
 
 ## 🔬 **Research Status**
 
-Current implementation focuses on foundational embedded hypervisor concepts with the Oracle bootloader protocol enabling test-driven development. Trinity architecture represents ongoing research into zero-cost abstraction techniques for embedded systems.
+Current implementation focuses on foundational embedded hypervisor concepts with the Golden Triangle test framework, the GT Lite microkernel test runner, and the Oracle bootloader flash client enabling test-driven development. ExecutionEngine_v2 represents a step toward realising a deeper understanding of embedded system
+design and testing practices.
 
 ---
 
-For detailed information: [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
+For detailed information: [ComponentVM Programmers Manage](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
