@@ -12,7 +12,7 @@
 
 ### **Core Achievements**
 - **ExecutionEngine_v2** - Binary search dispatch with sparse jump table (112 opcodes, O(log n) performance)
-- **Arduino HAL Integration** - Complete pinMode(), digitalWrite(), delay(), printf() support with hardware validation
+- **HAL Integration** - Complete pinMode(), digitalWrite(), delay(), printf() support with hardware validation
 - **Static Memory Architecture** - Per-VM memory isolation with VMMemoryContext (1.75KB per instance)
 - **Golden Triangle Testing** - Comprehensive validation framework with stack verification and register inspection
 - **Unified Error System** - Single source of truth error codes with bridge_c integration
@@ -88,8 +88,8 @@ Communication: USART1 Oracle bootloader client, USART2 Diagnostic Console
 ### **Memory Architecture: Static Allocation with Per-VM Isolation**
 
 ```cpp
-// VMMemoryContext: 1.75KB per ComponentVM instance
-class VMMemoryContext {
+// VMMemoryContext_t owned by MemoryManager instance with one-to-one ownership with VM instance
+struct VMMemoryContext_t {
 private:
     static constexpr size_t STACK_SIZE = 256;      // 1KB (256 * int32_t)
     static constexpr size_t GLOBAL_SIZE = 128;     // 512B (128 * int32_t)
@@ -98,9 +98,6 @@ private:
     int32_t stack_[STACK_SIZE];      // Stack operations
     int32_t globals_[GLOBAL_SIZE];   // Global variables
     int32_t locals_[LOCAL_SIZE];     // Local variables
-
-    size_t sp_;                      // Stack pointer
-    // RAII cleanup, bounds checking, thread safety
 };
 ```
 
@@ -178,8 +175,8 @@ typedef struct {
 
 ## 🔬 **Research Status**
 
-Current implementation focuses on foundational embedded hypervisor concepts with the Golden Triangle test framework, the GT Lite microkernel test runner, and the Oracle bootloader flash client enabling test-driven development. ExecutionEngine_v2 represents a step toward realising a deeper understanding of embedded system
-design and testing practices.
+Current implementation focuses on foundational embedded hypervisor concepts with tools like the Golden Triangle test framework, the GT Lite microkernel test runner, and the Oracle bootloader flash client to enable test-driven development. ExecutionEngine_v2 showcases efforts to attain a deeper understanding of embedded system
+design and testing practices through experiential learning.
 
 ---
 
