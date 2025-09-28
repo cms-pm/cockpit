@@ -10,7 +10,21 @@
 #include <algorithm>
 
 ComponentVM::ComponentVM() noexcept
-    : engine_{}, memory_context_{}, memory_{&memory_context_}, io_{},
+    : engine_{}, memory_{}, io_{},
+      program_loaded_(false), program_(nullptr), program_size_(0), instruction_count_(0), last_error_(VM_ERROR_NONE),
+      metrics_{}, execution_start_time_(0)
+{
+    #ifdef DEBUG
+    trace_enabled_ = false;
+    trace_instruction_limit_ = 10000;
+    #endif
+
+    // Initialize hardware
+    io_.initialize_hardware();
+}
+
+ComponentVM::ComponentVM(VMMemoryContext_t context) noexcept
+    : engine_{}, memory_{context}, io_{},
       program_loaded_(false), program_(nullptr), program_size_(0), instruction_count_(0), last_error_(VM_ERROR_NONE),
       metrics_{}, execution_start_time_(0)
 {
@@ -62,10 +76,16 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
 
         // Phase 4.11.3A: Use direct MemoryManager method calls for performance
         if (!engine_.execute_single_instruction(memory_, io_)) {
-            // Propagate error from ExecutionEngine
-            vm_error_t engine_error = engine_.get_last_error();
-            set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
-            return false;
+            // Check if execution stopped due to halt (successful) vs error
+            if (engine_.is_halted() && engine_.get_last_error() == VM_ERROR_NONE) {
+                // Successful halt - break out of execution loop
+                break;
+            } else {
+                // Actual error occurred
+                vm_error_t engine_error = engine_.get_last_error();
+                set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
+                return false;
+            }
         }
         instruction_count_++;
         metrics_.instructions_executed++;
@@ -174,8 +194,7 @@ bool ComponentVM::load_program_with_strings(const VM::Instruction* program, size
 void ComponentVM::reset_vm() noexcept
 {
     engine_.reset();
-    memory_context_.reset();  // Reset static context directly
-    memory_.reset();          // Legacy MemoryManager reset (will call context reset again, but safe)
+    memory_.reset();          // MemoryManager owns and resets context internally
     io_.reset_hardware();
 
     program_loaded_ = false;

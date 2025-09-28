@@ -26,7 +26,8 @@ COMPONENTVM_OBJS = $(VM_COCKPIT_SRC)/component_vm.o \
                    $(VM_COCKPIT_SRC)/memory_manager/vm_memory_ops.o \
                    $(VM_COCKPIT_SRC)/memory_manager/vm_memory_pool.o \
                    $(VM_COCKPIT_SRC)/io_controller/io_controller.o \
-                   $(VM_COCKPIT_SRC)/vm_errors.o
+                   $(VM_COCKPIT_SRC)/vm_errors.o \
+                   $(VM_COCKPIT_SRC)/vm_auto_execution.o
 
 # Platform stub (use vm_compiler's proven approach + bridge_c compatibility)
 PLATFORM_OBJS = $(VM_COMPILER_SRC)/platform_stub.o src/bridge_c_platform_compat.o
@@ -104,8 +105,22 @@ src/bridge_c_platform_compat.o: src/bridge_c_platform_compat.c
 $(VM_COCKPIT_SRC)/vm_errors.o: $(VM_COCKPIT_SRC)/vm_errors.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Auto execution C++ compilation
+$(VM_COCKPIT_SRC)/vm_auto_execution.o: $(VM_COCKPIT_SRC)/vm_auto_execution.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 # Bootloader diagnostics C compilation
 ../../../lib/vm_bootloader/src/bootloader_diagnostics.o: ../../../lib/vm_bootloader/src/bootloader_diagnostics.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Phase 4.14.2: Auto execution test
+test_auto_execution: ../src/test_auto_execution_basic.o $(GT_LITE_OBJS)
+	@echo "Linking auto execution test: test_auto_execution"
+	$(CXX) $(CXXFLAGS) -o test_auto_execution ../src/test_auto_execution_basic.o \
+		src/gt_lite_runner.o $(COMPONENTVM_OBJS) $(BRIDGE_C_OBJS) $(PLATFORM_OBJS) $(GT_DIAG_OBJS) $(BOOTLOADER_OBJS)
+	rm ../src/test_auto_execution_basic.o
+
+../src/test_auto_execution_basic.o: ../src/test_auto_execution_basic.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean build artifacts

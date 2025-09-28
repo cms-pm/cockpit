@@ -22,6 +22,36 @@
 #include <cstdio>
 #include <cstring>
 
+// QEMU_PLATFORM mock bytecode for testing
+#ifdef QEMU_PLATFORM
+// Simple test program: pinMode(13, OUTPUT); digitalWrite(13, HIGH); delay(500);
+static const uint8_t mock_bytecode[] = {
+    // pinMode(13, OUTPUT)
+    0x01, 0x00, 0x0D, 0x00,  // PUSH 13 (pin)
+    0x01, 0x00, 0x01, 0x00,  // PUSH 1 (OUTPUT mode)
+    0x17, 0x00, 0x00, 0x00,  // PIN_MODE
+
+    // digitalWrite(13, HIGH)
+    0x01, 0x00, 0x0D, 0x00,  // PUSH 13 (pin)
+    0x01, 0x00, 0x01, 0x00,  // PUSH 1 (HIGH)
+    0x10, 0x00, 0x00, 0x00,  // DIGITAL_WRITE
+
+    // delay(1000ns = 1μs, just for testing)
+    0x01, 0x00, 0xE8, 0x03,  // PUSH 1000 (ns)
+    0x14, 0x00, 0x00, 0x00,  // DELAY
+
+    0x00, 0x00, 0x00, 0x00   // HALT
+};
+
+static const vm_auto_execution_header_t mock_header = {
+    .magic_signature = VM_AUTO_EXECUTION_MAGIC_SIGNATURE,
+    .program_size = sizeof(mock_bytecode),
+    .instruction_count = sizeof(mock_bytecode) / 4,  // 4 bytes per instruction
+    .string_count = 0,
+    .crc16_checksum = 0  // Will be calculated properly in real implementation
+};
+#endif
+
 // Simple CRC16 calculation for integrity check
 static uint16_t calculate_crc16(const uint8_t* data, size_t length) {
     uint16_t crc = 0xFFFF;
@@ -89,13 +119,16 @@ bool vm_auto_execution_program_available(void) {
     }
 
     return true;
+#elif defined(QEMU_PLATFORM)
+    // Mock bytecode always available for testing
+    return true;
 #else
-    return false;  // No flash access on non-STM32G4 platforms
+    return false;  // No flash access on other platforms
 #endif
 }
 
 vm_auto_execution_result_t vm_auto_execution_run(void) {
-    printf("Phase 4.9.3: Starting ComponentVM auto-execution...\n");
+    printf("Phase 4.14.2: Starting ComponentVM auto-execution...\n");
 
 #ifdef PLATFORM_STM32G4
     // Step 1: Read and validate Page 63 header
@@ -123,8 +156,9 @@ vm_auto_execution_result_t vm_auto_execution_run(void) {
     printf("Valid guest program found: %u instructions, %u strings, %u bytes\n",
            header->instruction_count, header->string_count, header->program_size);
 
-    // Step 3: Create ComponentVM and Golden Triangle observer
-    ComponentVM vm;
+    // Step 3: Create ComponentVM with factory-produced context and Golden Triangle observer
+    auto context = VMMemoryContext::create_standard_context();
+    ComponentVM vm(context);  // Phase 4.14.1: Direct context injection
     AutoExecutionObserver observer;
     vm.add_observer(&observer);
 
@@ -148,6 +182,54 @@ vm_auto_execution_result_t vm_auto_execution_run(void) {
     // Step 6: Report execution results
     auto metrics = vm.get_performance_metrics();
     printf("Guest program execution complete!\n");
+    printf("Performance: %u instructions in %u ms\n",
+           (uint32_t)metrics.instructions_executed, metrics.execution_time_ms);
+    printf("Operations: %zu memory, %zu I/O\n",
+           metrics.memory_operations, metrics.io_operations);
+
+    // Clean up observer
+    vm.remove_observer(&observer);
+
+    return VM_AUTO_EXECUTION_SUCCESS;
+
+#elif defined(QEMU_PLATFORM)
+    // QEMU_PLATFORM implementation for testing
+    printf("Using mock bytecode for QEMU_PLATFORM testing\n");
+
+    // Step 1: Use mock header and calculate CRC
+    vm_auto_execution_header_t header = mock_header;
+    header.crc16_checksum = calculate_crc16(mock_bytecode, sizeof(mock_bytecode));
+
+    printf("Mock guest program: %u instructions, %u bytes\n",
+           header.instruction_count, header.program_size);
+
+    // Step 2: Create ComponentVM with factory-produced context and Golden Triangle observer
+    auto context = VMMemoryContext::create_standard_context();
+    ComponentVM vm(context);  // Phase 4.14.1: Direct context injection
+    AutoExecutionObserver observer;
+    vm.add_observer(&observer);
+
+    // Step 3: Load mock bytecode into ComponentVM
+    const VM::Instruction* instructions = reinterpret_cast<const VM::Instruction*>(mock_bytecode);
+    size_t instruction_count = sizeof(mock_bytecode) / sizeof(VM::Instruction);
+
+    if (!vm.load_program(instructions, instruction_count)) {
+        printf("Failed to load mock guest program into ComponentVM\n");
+        return VM_AUTO_EXECUTION_VM_ERROR;
+    }
+
+    printf("Mock guest program loaded into ComponentVM\n");
+
+    // Step 4: Execute the mock guest program
+    if (!vm.execute_program(instructions, instruction_count)) {
+        vm_error_t last_error = vm.get_last_error();
+        printf("Mock guest program execution failed: %s (error code: %d)\n", vm.get_error_string(last_error), (int)last_error);
+        return VM_AUTO_EXECUTION_VM_ERROR;
+    }
+
+    // Step 5: Report execution results
+    auto metrics = vm.get_performance_metrics();
+    printf("Mock guest program execution complete!\n");
     printf("Performance: %u instructions in %u ms\n",
            (uint32_t)metrics.instructions_executed, metrics.execution_time_ms);
     printf("Operations: %zu memory, %zu I/O\n",
