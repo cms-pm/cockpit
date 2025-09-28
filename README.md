@@ -12,7 +12,7 @@
 
 ### **Core Achievements**
 - **ExecutionEngine_v2** - Binary search dispatch with sparse jump table (112 opcodes, O(log n) performance)
-- **Arduino HAL Integration** - Complete pinMode(), digitalWrite(), delay(), printf() support with hardware validation
+- **HAL Integration** - Complete pinMode(), digitalWrite(), delay(), printf() support with hardware validation
 - **Static Memory Architecture** - Per-VM memory isolation with VMMemoryContext (1.75KB per instance)
 - **Golden Triangle Testing** - Comprehensive validation framework with stack verification and register inspection
 - **Unified Error System** - Single source of truth error codes with bridge_c integration
@@ -89,8 +89,7 @@ Communication: USART1 Oracle bootloader client, USART2 Diagnostic Console
 
 ```cpp
 // VMMemoryContext: 1.75KB per ComponentVM instance
-class VMMemoryContext {
-private:
+struct VMMemoryContext {
     static constexpr size_t STACK_SIZE = 256;      // 1KB (256 * int32_t)
     static constexpr size_t GLOBAL_SIZE = 128;     // 512B (128 * int32_t)
     static constexpr size_t LOCAL_SIZE = 64;       // 256B (64 * int32_t)
@@ -178,9 +177,9 @@ typedef struct {
 
 ## 🔬 **Research Status**
 
-Current implementation focuses on foundational embedded hypervisor concepts with the Golden Triangle test framework, the GT Lite microkernel test runner, and the Oracle bootloader flash client enabling test-driven development. ExecutionEngine_v2 represents a step toward realising a deeper understanding of embedded system
-design and testing practices.
+Current implementation focuses on foundational embedded hypervisor concepts with tools like the Golden Triangle test framework, the GT Lite microkernel test runner, and the Oracle bootloader flash client to enable test-driven development. ExecutionEngine_v2 showcases efforts to attain a deeper understanding of embedded system
+design and testing practices through experiential learning.
 
 ---
 
-For detailed information: [ComponentVM Programmers Manage](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
+For detailed information: [ComponentVM Programmers Manual](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
