@@ -22,7 +22,7 @@
 #endif
 
 /**
- * @brief Static memory context for ComponentVM instances
+ * @brief Static memory context data structure for ComponentVM instances
  *
  * Provides compile-time deterministic memory allocation with ARM Cortex-M4
  * optimized alignment. Each context provides isolated memory for global
@@ -34,7 +34,7 @@
  * - Metadata: ~17 bytes
  * - Total: ~4.3KB per context
  */
-struct VMMemoryContext {
+struct VMMemoryContext_t {
     // Global variable storage (4-byte aligned for ARM Cortex-M4)
     alignas(4) int32_t globals[VM_MAX_GLOBALS];
 
@@ -44,12 +44,13 @@ struct VMMemoryContext {
     // Minimal metadata for runtime management
     uint8_t global_count;
     bool array_active[VM_MAX_ARRAYS];
+    uint16_t array_sizes[VM_MAX_ARRAYS];  // Track actual array sizes for bounds checking
 
     /**
      * @brief Initialize memory context to zero state
      */
-    constexpr VMMemoryContext()
-        : globals{}, arrays{}, global_count(0), array_active{} {}
+    constexpr VMMemoryContext_t()
+        : globals{}, arrays{}, global_count(0), array_active{}, array_sizes{} {}
 
     /**
      * @brief Reset context to initial state
@@ -62,6 +63,7 @@ struct VMMemoryContext {
         memset(arrays, 0, sizeof(arrays));
         global_count = 0;
         memset(array_active, false, sizeof(array_active));
+        memset(array_sizes, 0, sizeof(array_sizes));
     }
 
     /**
@@ -126,12 +128,64 @@ extern "C" {
 }
 
 /**
+ * @brief Factory class for creating properly initialized VMMemoryContext_t structures
+ *
+ * Provides static factory methods to ensure VMMemoryContext_t instances are created
+ * with safe defaults and proper memory initialization. Supports both standard
+ * contexts and custom-sized contexts for different VM requirements.
+ */
+class VMMemoryContext {
+public:
+    /**
+     * @brief Create standard memory context with default sizes
+     *
+     * Creates a VMMemoryContext_t with standard memory allocation suitable for
+     * most embedded applications:
+     * - 64 global variables (256 bytes)
+     * - 16 arrays with 64 elements each (4KB)
+     * - All memory zero-initialized for security
+     *
+     * @return VMMemoryContext_t Properly initialized context struct
+     */
+    static VMMemoryContext_t create_standard_context() noexcept {
+        VMMemoryContext_t context{};  // Zero-initialization via constructor
+        context.reset();              // Explicit security reset
+        return context;
+    }
+
+    /**
+     * @brief Create custom memory context with specified parameters
+     *
+     * Creates a VMMemoryContext_t with validation of custom parameters.
+     * Note: Actual memory sizes are compile-time fixed, but this method
+     * provides interface compatibility for future dynamic allocation.
+     *
+     * @param stack_size Stack size hint (ignored, static allocation)
+     * @param global_size Global variable count hint (ignored, static allocation)
+     * @param local_size Local variable count hint (ignored, static allocation)
+     * @return VMMemoryContext_t Properly initialized context struct
+     */
+    static VMMemoryContext_t create_context(size_t stack_size, size_t global_size, size_t local_size) noexcept {
+        // For embedded safety, ignore custom sizes and use compile-time allocation
+        // This maintains interface compatibility while ensuring deterministic memory usage
+        return create_standard_context();
+    }
+
+private:
+    // Factory class - no instantiation allowed
+    VMMemoryContext() = delete;
+    ~VMMemoryContext() = delete;
+    VMMemoryContext(const VMMemoryContext&) = delete;
+    VMMemoryContext& operator=(const VMMemoryContext&) = delete;
+};
+
+/**
  * @brief Create memory operations interface for a context
  *
- * @param context Pointer to VMMemoryContext
+ * @param context Pointer to VMMemoryContext_t
  * @return VMMemoryOps structure configured for the context
  */
-inline VMMemoryOps create_memory_ops(VMMemoryContext* context) noexcept {
+inline VMMemoryOps create_memory_ops(VMMemoryContext_t* context) noexcept {
     return {
         vm_load_global,
         vm_store_global,

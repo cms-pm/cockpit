@@ -29,28 +29,50 @@ private:
 
 ## Target Architecture
 
-**Clean Single Ownership**:
+**Direct Context Injection Pattern (Rust-Compatible)**:
 ```cpp
 class ComponentVM {
 private:
     ExecutionEngine_v2 engine_;
-    MemoryManager memory_;        // Owns VMMemoryContext internally
+    MemoryManager memory_;        // Owns MemoryManager instance (one-to-one)
     IOController io_;
-    // NO memory_context_ member
+
+public:
+    ComponentVM(VMMemoryContext_t context) noexcept
+        : engine_{},
+          memory_{context},       // Direct construction from factory-produced context
+          io_{}
+    {}
+};
+
+// Factory class that produces properly initialized VMMemoryContext_t structs
+class VMMemoryContext {
+public:
+    static VMMemoryContext_t create_standard_context() noexcept;
+    static VMMemoryContext_t create_context(size_t stack_size, size_t global_size, size_t local_size) noexcept;
 };
 
 class MemoryManager {
 private:
-    VMMemoryContext context_;     // Owned internally
-    // All operations go through MemoryManager interface
+    VMMemoryContext_t context_;   // Contains actual memory chunks for this VM instance
+
+public:
+    MemoryManager(VMMemoryContext_t context) noexcept : context_{context} {}
+    // All memory operations access context_ internally
 };
+
+// Usage Pattern:
+// auto context = VMMemoryContext::create_standard_context();
+// ComponentVM vm{context};  // One-to-one ownership, no std::move needed
 ```
 
 **Benefits**:
-- ✅ **Clear Ownership**: MemoryManager owns and manages memory context
-- ✅ **Simplified Construction**: No pointer passing in ComponentVM constructor
+- ✅ **One-to-One Guarantee**: Each ComponentVM owns exactly one MemoryManager instance
+- ✅ **Factory Pattern**: VMMemoryContext ensures properly initialized contexts with safe defaults
+- ✅ **Direct Injection**: Simple, embedded-safe constructor without std::move complexity
+- ✅ **Rust-Compatible**: Pattern translates cleanly to future Rust refactoring
 - ✅ **Better Encapsulation**: Memory details hidden from ComponentVM
-- ✅ **Reduced Coupling**: ComponentVM doesn't expose memory internals
+- ✅ **Testing Friendly**: Easy to inject different contexts for testing
 
 ---
 
@@ -198,21 +220,30 @@ MemoryManager::MemoryManager() noexcept
 
 #### 2.2 ComponentVM Constructor Switch (1 hour, ~6k tokens)
 
-**A. Add Preprocessor-Controlled Construction**
+**A. Add Direct Context Injection Constructor**
 ```cpp
-// lib/vm_cockpit/src/component_vm.cpp
-ComponentVM::ComponentVM() noexcept
-    : engine_{},
-      memory_context_{},
-#ifdef USE_INTERNAL_MEMORY_CONTEXT
-      memory_{},  // Use internal context constructor
-#else
-      memory_{&memory_context_},  // Use external context constructor
-#endif
-      io_{}
-{
-    io_.initialize_hardware();
-}
+// lib/vm_cockpit/src/component_vm.h
+class ComponentVM {
+private:
+    ExecutionEngine_v2 engine_;
+    MemoryManager memory_;      // Direct ownership of MemoryManager
+    IOController io_;
+
+public:
+    // NEW: Direct context injection constructor (Rust-compatible)
+    ComponentVM(VMMemoryContext_t context) noexcept
+        : engine_{},
+          memory_{context},     // Direct construction from context
+          io_{}
+    {
+        io_.initialize_hardware();
+    }
+
+    // Keep legacy constructor temporarily for transition
+    ComponentVM() noexcept
+        : ComponentVM{VMMemoryContext::create_standard_context()}
+    {}
+};
 ```
 
 **B. Test Both Constructor Paths**

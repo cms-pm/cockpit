@@ -383,11 +383,7 @@ GT Lite Validation: 6/6 control flow tests passing
 - Error handling: invalid jump address, stack underflow
 
 Handler Coverage: 17/58 (30%) - Critical milestone achieved
-Total GT Lite Tests: 25/25 passing (19 baseline + 6 control flow)
-
-🎯 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+Total GT Lite Tests: 25/25 passing (19 baseline + 6 control flow)"
 ```
 
 ---

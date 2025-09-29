@@ -292,9 +292,10 @@ class BytecodeCompiler:
             file_size = bytecode_path.stat().st_size
 
             with open(bytecode_path, 'rb') as f:
-                # Read header: instruction count (4 bytes) + string count (4 bytes)
-                instruction_count_bytes = f.read(4)
-                string_count_bytes = f.read(4)
+                # Read header: instruction count (2 bytes) + string count (2 bytes) + padding (4 bytes)
+                instruction_count_bytes = f.read(2)
+                string_count_bytes = f.read(2)
+                padding_bytes = f.read(4)  # Skip padding/additional header
 
                 instruction_count = int.from_bytes(instruction_count_bytes, byteorder='little')
                 string_count = int.from_bytes(string_count_bytes, byteorder='little')

@@ -1,0 +1,43 @@
+graph TB
+%% === STYLES ===
+classDef core fill:#1E90FF,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+classDef hal fill:#FFD700,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+classDef protocol fill:#FF69B4,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+classDef validation fill:#9ACD32,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+classDef vm fill:#DA70D6,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+classDef diagnostics fill:#00CED1,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+classDef tools fill:#FF8C00,stroke:#000,color:#000,stroke-width:2px,rx:10px,ry:10px;
+
+%% === CONTAINERS ===
+HAL["Hardware Abstraction Layer<br/>Encapsulates MCU-specific hardware access"]:::hal
+Bootloader["Bootloader Core<br/>Manages bootloader states and protocol"]:::core
+ProtocolEngine["Protocol Engine<br/>Implements Oracle-compatible protocol"]:::protocol
+ValidationInfra["Validation Infrastructure<br/>Supports dual-pass validation"]:::validation
+ComponentVM["ComponentVM<br/>Virtualized execution environment for guest programs"]:::vm
+Diagnostics["Diagnostics & Logging<br/>Structured, timestamped logs"]:::diagnostics
+Tools["Tools & Test Infrastructure<br/>Automated test harness and workspace builder"]:::tools
+
+%% === DATA FLOW ===
+HAL -->|"provides hardware access"| Bootloader
+Bootloader -->|"manages protocol sessions"| ProtocolEngine
+ProtocolEngine -->|"handles validation requests"| ValidationInfra
+ComponentVM -->|"executes guest programs"| Bootloader
+Diagnostics -->|"logs events"| Bootloader
+Tools -->|"supports testing"| ValidationInfra
+
+%% === CONTROL FLOW ===
+Bootloader -->|"initializes"| HAL
+Bootloader -->|"validates"| ValidationInfra
+ProtocolEngine -->|"processes messages"| ComponentVM
+ValidationInfra -->|"performs dual-pass validation"| ComponentVM
+Diagnostics -->|"captures logs"| ComponentVM
+
+%% === EXTERNAL INTERFACES ===
+ExternalInterface["External Interfaces<br/>MCU-specific HAL, pyOCD, Serial Ports"]:::core
+HAL -->|"interfaces with"| ExternalInterface
+Bootloader -->|"interfaces with"| ExternalInterface
+ProtocolEngine -->|"interfaces with"| ExternalInterface
+ValidationInfra -->|"interfaces with"| ExternalInterface
+ComponentVM -->|"interfaces with"| ExternalInterface
+Diagnostics -->|"interfaces with"| ExternalInterface
+Tools -->|"interfaces with"| ExternalInterface

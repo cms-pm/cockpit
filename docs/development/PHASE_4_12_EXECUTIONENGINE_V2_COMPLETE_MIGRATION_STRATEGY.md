@@ -455,7 +455,3 @@ vm_return_t handle_delay_impl(uint16_t immediate);          // Timing coordinati
 3. **Phase 5.0**: Cooperative task scheduling on ExecutionEngine_v2 foundation
 
 The embedded hypervisor is now ready for production deployment and advanced scheduling architectures.
-
-🎯 **Generated with [Claude Code](https://claude.ai/code)**
-
-**Co-Authored-By: Claude <noreply@anthropic.com>**
