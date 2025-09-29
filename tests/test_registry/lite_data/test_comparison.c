@@ -104,7 +104,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "eq_true",
             .bytecode = eq_true_bytecode,
             .bytecode_size = sizeof(eq_true_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {1},  // true = 1
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -114,7 +114,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "eq_false",
             .bytecode = eq_false_bytecode,
             .bytecode_size = sizeof(eq_false_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {0},  // false = 0
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -124,7 +124,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "ne_true",
             .bytecode = ne_true_bytecode,
             .bytecode_size = sizeof(ne_true_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {1},  // true = 1
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -134,7 +134,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "ne_false",
             .bytecode = ne_false_bytecode,
             .bytecode_size = sizeof(ne_false_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {0},  // false = 0
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -144,7 +144,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "lt_true",
             .bytecode = lt_true_bytecode,
             .bytecode_size = sizeof(lt_true_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {1},  // true = 1 (5 < 10)
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -154,7 +154,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "lt_false",
             .bytecode = lt_false_bytecode,
             .bytecode_size = sizeof(lt_false_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {0},  // false = 0 (20 not < 10)
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -164,7 +164,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "gt_true",
             .bytecode = gt_true_bytecode,
             .bytecode_size = sizeof(gt_true_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {1},  // true = 1 (25 > 15)
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -174,7 +174,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "gt_false",
             .bytecode = gt_false_bytecode,
             .bytecode_size = sizeof(gt_false_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_NONE,
+            .expected_error = VM_ERROR_NONE,
             .expected_stack = {0},  // false = 0 (8 not > 12)
             .expected_stack_size = 1,
             .memory_address = 0,
@@ -184,7 +184,7 @@ const gt_lite_test_suite_t comparison_test_suite = {
             .test_name = "comparison_stack_underflow",
             .bytecode = comparison_stack_underflow_bytecode,
             .bytecode_size = sizeof(comparison_stack_underflow_bytecode),
-            .expected_error = GT_LITE_VM_ERROR_STACK_UNDERFLOW,
+            .expected_error = VM_ERROR_STACK_UNDERFLOW,
             .expected_stack = {},
             .expected_stack_size = 0,
             .memory_address = 0,
