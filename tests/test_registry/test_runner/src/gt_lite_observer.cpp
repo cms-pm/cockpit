@@ -33,6 +33,15 @@ void GTLiteObserver::on_execution_complete(uint32_t total_instructions, uint32_t
            total_instructions, execution_time_ms);
 }
 
+void GTLiteObserver::on_execution_error(uint32_t pc, uint8_t opcode, uint32_t operand, vm_error_t error) {
+    execution_error_ = error;
+    error_pc_ = pc;
+
+    // GT Lite validation output for error tracking
+    printf("GT_LITE_VALIDATION: Execution error at PC=%u, opcode=0x%02x, error=%d\n",
+           pc, opcode, (int)error);
+}
+
 void GTLiteObserver::on_vm_reset() {
     reset();
     printf("GT_LITE_VALIDATION: VM reset for new test\n");
@@ -42,6 +51,8 @@ void GTLiteObserver::reset() noexcept {
     instruction_count_ = 0;
     execution_complete_ = false;
     execution_time_ms_ = 0;
+    execution_error_ = VM_ERROR_NONE;
+    error_pc_ = 0;
     instruction_trace_.clear();
     gpio_operations_.clear();
 }

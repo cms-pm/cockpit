@@ -36,8 +36,14 @@ bool gt_lite_validate_results(ComponentVM* vm, GTLiteObserver* observer, const g
                              bool success, bool verbose) {
     if (!vm || !observer || !test) return false;
 
-    // Error result validation using ComponentVM's unified error system
-    vm_error_t actual_error = vm->get_last_error();
+    // Error result validation using observer error tracking (replaces ComponentVM get_last_error)
+    vm_error_t actual_error = observer->get_execution_error();
+
+    #ifdef DEBUG
+    printf("[VALIDATION DEBUG] Test: %s, Expected error: %d, Actual error: %d, Success: %s, Observer has error: %s\n",
+           test->test_name, test->expected_error, actual_error, success ? "true" : "false",
+           observer->has_execution_error() ? "true" : "false");
+    #endif
 
     if (test->expected_error != VM_ERROR_NONE) {
         // Test expects an error
