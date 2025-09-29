@@ -304,3 +304,65 @@ void ComponentVM::notify_vm_reset() noexcept
         }
     }
 }
+
+#ifdef ENABLE_GT_LITE_TESTING
+// GT Lite testing support - stack introspection methods
+
+bool ComponentVM::vm_stack_copy(int32_t* out_buffer, size_t max_size, size_t* actual_size) const noexcept
+{
+    if (!out_buffer || !actual_size || max_size == 0) {
+        return false;
+    }
+
+    // Get current stack size from ExecutionEngine_v2
+    #ifdef USE_EXECUTION_ENGINE_V2
+    size_t stack_elements = engine_.get_sp();
+    const int32_t* stack_data = engine_.get_stack_data();
+    #else
+    size_t stack_elements = engine_.get_sp();
+    const int32_t* stack_data = nullptr; // Not implemented for legacy engine
+    #endif
+
+    *actual_size = stack_elements;
+
+    if (stack_elements == 0) {
+        return true; // Empty stack is valid
+    }
+
+    if (!stack_data) {
+        return false; // Stack data not available
+    }
+
+    // Limit to requested size
+    size_t copy_count = (stack_elements > max_size) ? max_size : stack_elements;
+
+    // Copy stack elements (0 = bottom, sp-1 = top)
+    for (size_t i = 0; i < copy_count; i++) {
+        out_buffer[i] = stack_data[i];
+    }
+
+    return true;
+}
+
+bool ComponentVM::vm_stack_peek(int32_t& value) const noexcept
+{
+    // Peek at top stack element
+    #ifdef USE_EXECUTION_ENGINE_V2
+    size_t sp = engine_.get_sp();
+    if (sp == 0) {
+        return false; // Empty stack
+    }
+
+    const int32_t* stack_data = engine_.get_stack_data();
+    if (!stack_data) {
+        return false;
+    }
+
+    value = stack_data[sp - 1]; // Top of stack
+    return true;
+    #else
+    return false; // Not implemented for legacy engine
+    #endif
+}
+
+#endif // ENABLE_GT_LITE_TESTING

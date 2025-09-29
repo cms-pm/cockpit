@@ -31,7 +31,7 @@ public:
     uint8_t get_array_count() const noexcept {
         uint8_t count = 0;
         for (uint8_t i = 0; i < VM_MAX_ARRAYS; ++i) {
-            if (context_.array_active[i]) count++;
+            if (context_.array_descriptors[i].active) count++;
         }
         return count;
     }

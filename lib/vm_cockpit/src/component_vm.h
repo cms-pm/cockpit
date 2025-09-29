@@ -78,6 +78,12 @@ public:
     void remove_observer(ITelemetryObserver* observer) noexcept;
     void clear_observers() noexcept;
     size_t get_observer_count() const noexcept { return observers_.size(); }
+
+    #ifdef ENABLE_GT_LITE_TESTING
+    // GT Lite testing support - stack introspection for test validation
+    bool vm_stack_copy(int32_t* out_buffer, size_t max_size, size_t* actual_size) const noexcept;
+    bool vm_stack_peek(int32_t& value) const noexcept;  // Peek at top element
+    #endif
     
 private:
     // VM Components - construction order matters for RAII (Phase 4.14.1: Direct context injection)
