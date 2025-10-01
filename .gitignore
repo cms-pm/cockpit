@@ -39,3 +39,4 @@ active_workspaces/
 legacy_backup/
 blog/
 restructuring_backup/
+tests/test_registry/test_runner/test_lite_*
