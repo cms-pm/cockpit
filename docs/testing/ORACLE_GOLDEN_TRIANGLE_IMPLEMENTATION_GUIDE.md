@@ -527,6 +527,222 @@ class HardwareTestFixture:
         self._pyocd_session.board.target.write_memory_block8(address, corrupt_bytes)
 ```
 
+## Oracle Guest Bytecode Compilation Integration (Phase 4.14.4)
+
+### Overview
+
+The Oracle bootloader testing system now supports automatic compilation and flashing of ArduinoC guest programs with auto-execution header wrapping. This enables end-to-end testing of the complete guest execution pipeline: **ArduinoC Source → Bytecode Compilation → Auto-Execution Wrapping → Oracle Flash → Page 63 → ComponentVM Execution**.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Oracle Test Scenario Configuration              │
+│  (scenarios/basic_scenarios.yaml)                               │
+│                                                                   │
+│  flash_phase_4_9_4_bytecode:                                    │
+│    compile_source: "test_registry/guest_programs/blinky.c"     │
+│    wrap_for_auto_execution: true                                │
+│    flash_target: "page_63"                                      │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Oracle Scenario Runner Integration                  │
+│  (oracle_bootloader/lib/scenario_runner.py)                    │
+│                                                                   │
+│  _compile_and_wrap_bytecode()                                   │
+│    ├─ Resolves source path relative to tests/                  │
+│    ├─ Calls tools/bytecode_compiler.py --wrap                  │
+│    └─ Returns wrapped bytecode as bytes                        │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Bytecode Compiler with Auto-Exec Wrapper            │
+│  (tests/tools/bytecode_compiler.py)                            │
+│                                                                   │
+│  wrap_bytecode_for_auto_execution()                             │
+│    ├─ Read raw bytecode (instruction_count, string_count, ...)│
+│    ├─ Calculate CRC16 of bytecode data                         │
+│    ├─ Create 16-byte auto-execution header:                    │
+│    │   ┌──────────────────────────────────────────────────┐  │
+│    │   │ uint32_t magic_signature   = 0x434F4E43 ("CONC") │  │
+│    │   │ uint32_t program_size       = bytecode length    │  │
+│    │   │ uint32_t instruction_count  = from bytecode      │  │
+│    │   │ uint16_t string_count       = from bytecode      │  │
+│    │   │ uint16_t crc16_checksum     = calculated CRC16   │  │
+│    │   └──────────────────────────────────────────────────┘  │
+│    └─ Write header + bytecode to *_wrapped.bin               │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Oracle Protocol Client Flash                        │
+│  → Page 63 (0x0801F800)                                         │
+└────────────────────┬────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│          ComponentVM Auto-Execution with Enhanced DIAG           │
+│  (lib/vm_cockpit/src/vm_auto_execution.cpp)                    │
+│                                                                   │
+│  Forensic Page 63 Analysis:                                     │
+│    ├─ PAGE63_ANALYSIS: Reading from address 0x0801f800         │
+│    ├─ MAGIC_CHECK: Found=0x434f4e43 Expected=0x434f4e43 ✓     │
+│    ├─ PAGE63_HEX: 434e4f43 7a010000 08000000 ...              │
+│    └─ Guest bytecode execution with real-time telemetry       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Scenario Configuration
+
+Add guest bytecode scenarios to `scenarios/basic_scenarios.yaml`:
+
+```yaml
+scenarios:
+  flash_phase_4_9_4_bytecode:
+    type: "single"
+    description: "Compile and flash ArduinoC guest bytecode for auto-execution"
+    error_type: "none"
+    protocol_flow:
+      - handshake
+      - prepare
+      - data_transfer
+      - verify
+    # Custom bytecode compilation and wrapping
+    compile_source: "test_registry/guest_programs/blinky_basic.c"
+    wrap_for_auto_execution: true
+    flash_target: "page_63"  # 0x0801F800
+    expected_result: "success"
+    validation_level: "complete_protocol"
+    potentially_destructive: true  # Writes to flash Page 63
+```
+
+### Test Configuration
+
+Reference the scenario in `test_catalog.yaml`:
+
+```yaml
+phase_4_9_4_auto_execution_complete:
+  source: test_phase_4_9_4_auto_execution_complete.c
+  description: "End-to-end auto-execution validation with Oracle integration"
+  timeout: 120s
+  semihosting: true
+  oracle_scenarios:
+    - "flash_phase_4_9_4_bytecode"  # Auto-compile and flash
+  expected_patterns:
+    - "Oracle Result: BYTECODE FLASHED SUCCESSFULLY ✓"
+    - "✓ Guest program detected at Page 63"
+    - "✓ Guest program execution initiated"
+```
+
+### Bytecode Compiler CLI
+
+Standalone compilation with auto-execution wrapper:
+
+```bash
+# Compile and wrap for auto-execution
+cd tests/tools
+python3 bytecode_compiler.py ../test_registry/guest_programs/blinky_basic.c --wrap
+
+# Output:
+# ✅ Compilation successful!
+#    Bytecode: ../test_registry/guest_programs/blinky_basic.bin
+#    Instructions: 8
+#    Strings: 2
+#
+# 📦 Wrapping bytecode for auto-execution...
+# ✅ Wrapped bytecode created
+#    Magic: 0x434F4E43, Size: 378, Instructions: 8, Strings: 2, CRC16: 0x5733
+```
+
+### Auto-Execution Header Format
+
+```c
+// lib/vm_cockpit/src/vm_auto_execution.h
+typedef struct {
+    uint32_t magic_signature;   // 0x434F4E43 ("CONC")
+    uint32_t program_size;      // Size of bytecode in bytes
+    uint32_t instruction_count; // Number of VM instructions
+    uint16_t string_count;      // Number of string literals
+    uint16_t crc16_checksum;    // CRC16 of bytecode data
+} vm_auto_execution_header_t;  // 16 bytes total
+```
+
+### Enhanced Observability
+
+ComponentVM now provides forensic Page 63 analysis via DIAG UART2:
+
+```c
+// Forensic telemetry output
+[DEBUG] PAGE63_ANALYSIS: Reading from address 0x0801f800
+[DEBUG] MAGIC_CHECK: Found=0x434f4e43 Expected=0x434f4e43
+[INFO ] PAGE63_HEX: 434e4f43 7a010000 08000000 02000033 57080002
+
+// Real-time execution telemetry
+[DEBUG] EXEC[1]: PC=0 opcode=0x17 operand=0x00010013
+[INFO ] GPIO_MODE: pin=13 mode=1 (PC=0)
+[DEBUG] EXEC[2]: PC=1 opcode=0x10 operand=0x00010013
+[INFO ] GPIO_WRITE: pin=13 value=1 (PC=1)
+[DEBUG] EXEC[3]: PC=2 opcode=0x18 operand=0x000001f4
+[INFO ] DELAY: 500 ms (PC=2)
+```
+
+### Test Execution Flow
+
+```bash
+# Run complete end-to-end test
+cd tests
+./tools/run_test phase_4_9_4_auto_execution_complete
+
+# Automatic flow:
+# 1. Workspace manager uploads host firmware to STM32G4
+# 2. Oracle integration detects oracle_scenarios in test config
+# 3. Scenario runner compiles blinky_basic.c with --wrap
+# 4. Oracle protocol client flashes wrapped bytecode to Page 63
+# 5. Host firmware auto-execution detects magic signature
+# 6. ComponentVM executes guest bytecode with telemetry
+# 7. Test validates GPIO operations and execution completion
+```
+
+### Troubleshooting
+
+**Issue**: `Source file not found`
+- **Cause**: Incorrect path in `compile_source`
+- **Fix**: Path must be relative to `tests/` directory
+- **Example**: `test_registry/guest_programs/blinky_basic.c` (not `../test_registry/...`)
+
+**Issue**: `Magic signature not found in Page 63`
+- **Cause**: Bytecode not wrapped with auto-execution header
+- **Fix**: Ensure `wrap_for_auto_execution: true` in scenario config
+- **Verify**: Check PAGE63_HEX starts with `434e4f43` ("CONC" in little-endian)
+
+**Issue**: `CRC mismatch in Page 63 bytecode`
+- **Cause**: Flash corruption during Oracle transfer
+- **Fix**: Check Oracle protocol logs for transmission errors
+- **Debug**: Use forensic hex dump to compare expected vs actual data
+
+### Implementation Checklist
+
+Oracle Integration:
+- [x] Bytecode compilation integrated into scenario_runner.py
+- [x] Auto-execution header wrapper in bytecode_compiler.py
+- [x] Scenario configuration supports compile_source parameter
+- [x] Test catalog references Oracle scenarios correctly
+
+Enhanced Observability:
+- [x] Forensic Page 63 analysis with hex dump
+- [x] Magic signature validation telemetry
+- [x] Real-time ComponentVM execution monitoring
+- [x] Canonical vm_error.h error code integration
+
+Testing:
+- [ ] End-to-end test passes with automatic Oracle trigger
+- [ ] Guest bytecode executes correctly on hardware
+- [ ] GPIO operations validated via hardware monitoring
+- [ ] Error conditions properly diagnosed via DIAG output
+
 ## Compliance and Testing Checklist
 
 ### Oracle CLI Integration
