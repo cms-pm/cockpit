@@ -318,6 +318,81 @@ class BytecodeCompiler:
                 compilation_time=compilation_time
             )
 
+    def wrap_bytecode_for_auto_execution(self, bytecode_path: str, output_path: str = None) -> bool:
+        """
+        Wrap raw bytecode with auto-execution header for Page 63 flashing
+
+        Adds vm_auto_execution_header_t wrapper with:
+        - Magic signature 0x434F4E43 ("CONC")
+        - Program size, instruction count, string count
+        - CRC16 checksum of bytecode data
+
+        Args:
+            bytecode_path: Path to raw bytecode file
+            output_path: Output path for wrapped bytecode (default: <name>_wrapped.bin)
+
+        Returns:
+            True if wrapping succeeded, False otherwise
+        """
+        import struct
+        import binascii
+
+        try:
+            bytecode_file = Path(bytecode_path)
+            if not bytecode_file.exists():
+                logger.error(f"Bytecode file not found: {bytecode_path}")
+                return False
+
+            # Read raw bytecode
+            with open(bytecode_file, 'rb') as f:
+                bytecode_data = f.read()
+
+            # Extract metadata from bytecode header
+            instruction_count = int.from_bytes(bytecode_data[0:2], byteorder='little')
+            string_count = int.from_bytes(bytecode_data[2:4], byteorder='little')
+            program_size = len(bytecode_data)
+
+            # Calculate CRC16 of bytecode data
+            crc16 = binascii.crc_hqx(bytecode_data, 0xFFFF)
+
+            # Create auto-execution header (16 bytes)
+            # typedef struct {
+            #     uint32_t magic_signature;   // 0x434F4E43 ("CONC")
+            #     uint32_t program_size;      // Size of bytecode
+            #     uint32_t instruction_count; // Number of instructions
+            #     uint16_t string_count;      // Number of strings
+            #     uint16_t crc16_checksum;    // CRC16 of bytecode
+            # } vm_auto_execution_header_t;
+
+            header = struct.pack('<IIIHH',
+                0x434F4E43,      # Magic signature "CONC"
+                program_size,     # Program size in bytes
+                instruction_count, # Instruction count
+                string_count,     # String count
+                crc16            # CRC16 checksum
+            )
+
+            # Determine output path
+            if output_path is None:
+                output_path = bytecode_file.parent / f"{bytecode_file.stem}_wrapped.bin"
+            else:
+                output_path = Path(output_path)
+
+            # Write wrapped bytecode (header + bytecode)
+            with open(output_path, 'wb') as f:
+                f.write(header)
+                f.write(bytecode_data)
+
+            logger.info(f"Wrapped bytecode: {output_path}")
+            logger.info(f"  Magic: 0x434F4E43, Size: {program_size}, "
+                       f"Instructions: {instruction_count}, Strings: {string_count}, CRC16: 0x{crc16:04x}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to wrap bytecode: {e}")
+            return False
+
 
 # Golden Triangle Integration Helper Functions
 
@@ -385,11 +460,13 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python3 bytecode_compiler.py <source_file.c> [output_dir]")
+        print("Usage: python3 bytecode_compiler.py <source_file.c> [output_dir] [--wrap]")
+        print("  --wrap: Add auto-execution header for Page 63 flashing")
         sys.exit(1)
 
     source_file = sys.argv[1]
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else None
+    wrap_for_auto_exec = '--wrap' in sys.argv
+    output_dir = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] != '--wrap' else None
 
     compiler = BytecodeCompiler(verbose=True)
 
@@ -404,6 +481,16 @@ if __name__ == "__main__":
         print(f"   Bytecode: {result.bytecode_path}")
         print(f"   Instructions: {result.instruction_count}")
         print(f"   Strings: {result.string_count}")
+
+        # Auto-execution wrapper if requested
+        if wrap_for_auto_exec:
+            print(f"\n📦 Wrapping bytecode for auto-execution...")
+            if compiler.wrap_bytecode_for_auto_execution(result.bytecode_path):
+                print(f"✅ Wrapped bytecode created")
+            else:
+                print(f"❌ Wrapping failed")
+                sys.exit(1)
+
         sys.exit(0)
     else:
         print(f"❌ Compilation failed: {result.error_message}")

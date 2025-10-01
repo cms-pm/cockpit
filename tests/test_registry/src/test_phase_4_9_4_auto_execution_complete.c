@@ -180,17 +180,17 @@ void run_phase_4_9_4_auto_execution_complete_main(void)
     uart_write_string("Waiting for Oracle flash programming...\r\n");
     uart_write_string("\r\n");
 
-    DIAG_INFO(MOD_PROTOCOL, "=== ORACLE FLASH PROGRAMMING FOR PHASE 4.9.4 ===");
+    DIAG_INFO(MOD_GENERAL, "=== ORACLE FLASH PROGRAMMING FOR PHASE 4.9.4 ===");
     uart_write_string("ENTERING_ORACLE_BOOTLOADER_MAIN_LOOP\r\n");
 
     vm_bootloader_run_result_t flash_result = vm_bootloader_main_loop(&flash_ctx);
 
     uart_write_string("EXITED_ORACLE_BOOTLOADER_MAIN_LOOP\r\n");
-    DIAG_DEBUGF(MOD_PROTOCOL, STATUS_SUCCESS, "Oracle flash result: %d", flash_result);
+    DIAG_DEBUGF(MOD_GENERAL, STATUS_SUCCESS, "Oracle flash result: %d", flash_result);
 
     // Give Oracle time to disconnect
     uart_write_string("Oracle flash sequence complete, transitioning to auto-execution test...\r\n");
-    delay_ms(2000);
+    delay_ms(500);
 
     // PLAN C: GT SEMIHOSTING SETUP WINDOW
     uart_write_string("=== GT SEMIHOSTING SETUP WINDOW ===\r\n");
@@ -200,7 +200,7 @@ void run_phase_4_9_4_auto_execution_complete_main(void)
 
     // Critical: This delay allows GT to transition to semihosting capture phase
     // GT will be listening when auto-execution starts producing printf output
-    delay_ms(20000);  // 20-second window for GT setup
+   //delay_ms(20000);  // 20-second window for GT setup
 
     uart_write_string("GT semihosting setup window complete - proceeding to auto-execution\r\n");
 
@@ -213,19 +213,20 @@ void run_phase_4_9_4_auto_execution_complete_main(void)
             uart_write_string("Oracle Result: BYTECODE FLASHED SUCCESSFULLY ✓\r\n");
             test_print("✓ Oracle flashed ArduinoC bytecode to Page 63");
             flash_success = true;
-            DIAG_INFO(MOD_PROTOCOL, "Oracle bytecode flash completed successfully");
+            DIAG_INFO(MOD_GENERAL, "Oracle bytecode flash completed successfully");
             break;
         case VM_BOOTLOADER_RUN_TIMEOUT:
             uart_write_string("Oracle Result: SESSION TIMEOUT\r\n");
             test_print("✗ Oracle timeout - no bytecode flashed");
-            DIAG_WARN(MOD_PROTOCOL, "Oracle flash session timeout");
+            DIAG_WARN(MOD_GENERAL, "Oracle flash session timeout");
             break;
         default:
             uart_write_string("Oracle Result: FLASH FAILED\r\n");
             test_print("✗ Oracle flash programming failed");
-            DIAG_ERROR(MOD_PROTOCOL, "Oracle flash programming error");
+            DIAG_ERROR(MOD_GENERAL, "Oracle flash programming error");
             break;
     }
+    delay_ms(8000);
 
     // PHASE 6: HOST STARTUP COORDINATION TESTING
     test_print("");
@@ -233,13 +234,15 @@ void run_phase_4_9_4_auto_execution_complete_main(void)
 
     if (flash_success) {
         test_print("Testing startup coordination with real guest program...");
-
+        DIAG_INFO(MOD_GENERAL, "Beginning startup coordination test...");
         // Initialize startup systems
         bool startup_init = vm_host_startup_init_systems();
         if (startup_init) {
             test_print("✓ Host startup systems initialized");
+            DIAG_INFO(MOD_GENERAL, "Host startup systems initialized");
         } else {
             test_print("✗ Host startup systems initialization failed");
+            DIAG_ERROR(MOD_GENERAL, "Host startup systems initialization failed");
             return;
         }
 
@@ -257,7 +260,9 @@ void run_phase_4_9_4_auto_execution_complete_main(void)
         bool program_available = vm_auto_execution_program_available();
         if (program_available) {
             test_print("✓ Guest program detected at Page 63");
+            DIAG_INFO(MOD_GENERAL, "Guest program detected at Page 63");
         } else {
+            DIAG_ERROR(MOD_GENERAL, "No guest program found at Page 63");
             test_print("✗ No guest program found at Page 63");
             test_print("✗ Oracle flash may have failed");
             return;
@@ -266,6 +271,7 @@ void run_phase_4_9_4_auto_execution_complete_main(void)
         // PHASE 7: AUTO-EXECUTION TESTING
         test_print("");
         test_print("=== AUTO-EXECUTION TESTING ===");
+        DIAG_INFO(MOD_GENERAL, "=== AUTO-EXECUTION TESTING ===");
         test_print("Executing guest program in ComponentVM isolated context...");
         uart_write_string("Starting auto-execution - guest printf output should appear in semihosting\r\n");
 

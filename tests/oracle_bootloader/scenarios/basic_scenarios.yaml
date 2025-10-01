@@ -67,6 +67,23 @@ scenarios:
     validation_level: "complete_protocol"
     potentially_destructive: false
 
+  flash_phase_4_9_4_bytecode:
+    type: "single"
+    description: "Compile and flash ArduinoC guest bytecode for Phase 4.9.4 auto-execution test"
+    error_type: "none"
+    protocol_flow:
+      - handshake
+      - prepare
+      - data_transfer
+      - verify
+    # Custom bytecode compilation and wrapping
+    compile_source: "test_registry/guest_programs/blinky_basic.c"
+    wrap_for_auto_execution: true
+    flash_target: "page_63"  # 0x0801F800
+    expected_result: "success"
+    validation_level: "complete_protocol"
+    potentially_destructive: true  # Writes to flash Page 63
+
 sequences:
   # Compound scenario chains
   timeout_recovery_chain:

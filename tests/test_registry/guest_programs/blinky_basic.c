@@ -23,21 +23,37 @@ void setup() {
     // Configure Pin 13 (PC13, onboard LED) as output
     pinMode(13, 1);  // 1 = OUTPUT
     printf("Pin 13 configured as OUTPUT\n");
-}
 
-void loop() {
-    printf("LED ON\n");
     digitalWrite(13, 1);  // 1 = HIGH
     delay(500);  // 500ms delay
 
-    printf("LED OFF\n");
     digitalWrite(13, 0);  // 0 = LOW
     delay(500);  // 500ms delay
 
-    printf("Blinky cycle complete\n");
+    digitalWrite(13, 1);  // 1 = HIGH
+    delay(500);  // 500ms delay
+
+    digitalWrite(13, 0);  // 0 = LOW
+    delay(500);  // 500ms delay
+
+    digitalWrite(13, 1);  // 1 = HIGH
+    delay(500);  // 500ms delay
+
+    digitalWrite(13, 0);  // 0 = LOW
+    delay(500);  // 500ms delay
+
+    digitalWrite(13, 1);  // 1 = HIGH
+    delay(500);  // 500ms delay
+
+    digitalWrite(13, 0);  // 0 = LOW
+    delay(500);  // 500ms delay
 
     // Exit after one cycle for deterministic testing
     // This allows Golden Triangle to capture predictable output
     printf("Guest program execution complete\n");
+}
+
+void loop() {
+
     return;
 }
