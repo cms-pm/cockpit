@@ -2,13 +2,13 @@
 
 [![Platform](https://img.shields.io/badge/Platform-STM32G474-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]()
 
-**Research-Grade Embedded Virtual Machine for ARM Cortex-M4** - Complete end-to-end bytecode execution platform with ExecutionEngine_v2 featuring binary search dispatch, static memory allocation, and Arduino HAL integration. Proven guest ArduinoC → bytecode → STM32G4 hardware pipeline with comprehensive validation.
+**Research-Grade Embedded Virtual Machine for ARM Cortex-M4** - Complete end-to-end bytecode execution platform with ExecutionEngine_v2 featuring binary search dispatch, static memory allocation, and Arduino HAL integration. Proven guest ArduinoC → bytecode → STM32G4 hardware pipeline with robust validation.
 
 > **Phase 4.14 Complete** ✅ - End-to-end validation successful: ArduinoC guest programs executing on STM32G474 hardware through ComponentVM hypervisor with Oracle bootloader integration.
 
 ## Project Vision & Mission
 
-**CockpitVM** is a research-grade embedded virtual machine enabling safe ArduinoC bytecode execution on ARM Cortex-M4 microcontrollers with deterministic performance, comprehensive hardware validation, with an aim to develop a better appreciation for modern embedded development by taking a hands-on, break things approach.
+**CockpitVM** is a research-grade embedded virtual machine enabling safe ArduinoC bytecode execution on ARM Cortex-M4 microcontrollers with deterministic performance, robust hardware validation, with an aim to develop a better appreciation for modern embedded development by taking a hands-on, break things approach.
 
 ### **Core Achievements**
 - **ExecutionEngine_v2** - Binary search dispatch with sparse jump table (112 opcodes, O(log n) performance)

@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This report documents the successful validation of the complete CockpitVM guest program execution pipeline, from high-level ArduinoC source code through bytecode compilation, over-the-air flashing, and real-time execution on STM32G4 hardware. The validation identified and resolved critical issues in timing subsystems, printf routing, and exposed three compiler bugs requiring future remediation.
+This report documents the successful validation of the complete CockpitVM guest program execution pipeline, from high-level ArduinoC source code through bytecode compilation, flashing bytecode via serial, and real-time execution on STM32G4 hardware. The validation identified and resolved critical issues in timing subsystems, printf routing, and exposed three compiler bugs requiring future remediation.
 
 **Key Achievement**: First successful execution of guest-authored ArduinoC code on bare-metal STM32G4 hardware via dual-bank flash bootloader with automatic execution trigger.
 
@@ -274,15 +274,24 @@ The specification provides:
 
 **Serial Output** (actual hardware capture):
 ```
-Starting guest program auto-execution...
-Guest program found: 320 bytes
-LED ON
-LED OFF
-Cycle complete
-LED ON
-LED OFF
-Cycle complete
-Guest execution complete: 18 instructions in 1001 ms
+[00008451] [DEBUG] [FRAME] [frame_parser.c:56] [SUCCESS] Parser reset - returning to IDLE state
+[00008462] [DEBUG] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:189] [SUCCESS] Oracle flash result: 1
+[00009016] [INFO ] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:216] [SUCCESS] Oracle bytecode flash completed successfully
+[00017037] [INFO ] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:237] [SUCCESS] Beginning startup coordination test...
+[00017455] [INFO ] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:242] [SUCCESS] Host startup systems initialized
+[00017474] [INFO ] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:263] [SUCCESS] Guest program detected at Page 63
+[00017487] [INFO ] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:274] [SUCCESS] === AUTO-EXECUTION TESTING ===
+[00017511] [DEBUG] [GENERAL] [vm_auto_execution.cpp:183] [SUCCESS] Scanning bytecode for string table (header unreliable)
+[00017522] [DEBUG] [GENERAL] [vm_auto_execution.cpp:229] [SUCCESS] String table found at offset=0x120 (header claimed 0x28)
+[00017533] [DEBUG] [GENERAL] [vm_auto_execution.cpp:282] [SUCCESS] Registered string[0]: len=32
+[00017542] [DEBUG] [GENERAL] [vm_auto_execution.cpp:282] [SUCCESS] Registered string[1]: len=66
+[00017550] [DEBUG] [GENERAL] [vm_auto_execution.cpp:282] [SUCCESS] Registered string[2]: len=30
+[00017559] [DEBUG] [GENERAL] [vm_auto_execution.cpp:282] [SUCCESS] Registered string[3]: len=35
+[00017567] [INFO ] [GENERAL] [vm_auto_execution.cpp:298] [SUCCESS] String table loaded: 4 strings (header claimed 2)
+[00017577] [DEBUG] [GENERAL] [vm_auto_execution.cpp:310] [SUCCESS] VM instructions: 70 (header claimed 8)
+[00021593] [INFO ] [GENERAL] [vm_auto_execution.cpp:342] [SUCCESS] GUEST_EXEC_SUCCESS: 67 instructions, 4005 ms, 0 mem_ops, 21 io_ops
+[00021604] [DEBUG] [GENERAL] [vm_auto_execution.cpp:350] [SUCCESS] OBSERVER_SUMMARY: 67 instructions tracked, execution_complete=true
+[00025238] [INFO ] [GENERAL] [test_phase_4_9_4_auto_execution_complete.c:377] [SUCCESS] Oracle bootloader client integration + startup coordination + auto-execution validated
 ```
 
 **Performance Metrics**:
@@ -390,7 +399,7 @@ All three active workarounds are **sustainable for continued development** but m
 
 **Capabilities Demonstrated**:
 - ArduinoC compilation to VM bytecode
-- Over-the-air flash programming via dual-bank bootloader
+- Serial flash programming via dual-bank bootloader
 - Automatic execution trigger with CRC validation
 - Full GPIO control (pinMode, digitalWrite)
 - Printf debugging via UART
