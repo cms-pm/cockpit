@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
+#include <memory>
 
 // Build-time memory configuration
 #ifndef VM_MAX_GLOBALS
@@ -13,8 +14,8 @@
 #define VM_MAX_ARRAYS 16
 #endif
 
-#ifndef VM_ARRAY_ELEMENTS
-#define VM_ARRAY_ELEMENTS 64
+#ifndef VM_ARRAY_MAX_ELEMENTS
+#define VM_ARRAY_MAX_ELEMENTS 64
 #endif
 
 #ifndef MAX_CONCURRENT_VMS
@@ -34,24 +35,35 @@
  * - Metadata: ~17 bytes
  * - Total: ~4.3KB per context
  */
-struct VMMemoryContext {
+struct VMMemoryContext_t {
     // Global variable storage (4-byte aligned for ARM Cortex-M4)
     alignas(4) int32_t globals[VM_MAX_GLOBALS];
 
-    // Multi-dimensional array storage (4-byte aligned)
-    alignas(4) int32_t arrays[VM_MAX_ARRAYS][VM_ARRAY_ELEMENTS];
+    // Hybrid array allocation: pool + descriptors for memory efficiency
+    alignas(4) int32_t array_pool[VM_MAX_ARRAYS * VM_ARRAY_MAX_ELEMENTS];  // Total pool
+
+    // Array metadata for efficient allocation
+    struct ArrayDescriptor {
+        uint16_t offset;        // Offset into array_pool
+        uint16_t size;          // Actual array size
+        bool active;
+        uint8_t padding[1];     // Maintain 4-byte alignment
+    } array_descriptors[VM_MAX_ARRAYS];
+
+    // Store the **actual logical capacity** requested by the factory.
+    // These per-context limits define the usable portion of the
+    // fixed-size arrays.
+    // This will likely change once VMs carry config metadata
+    // within bytecode files.
+    uint8_t actual_global_pool_size = 0;
+    uint8_t actual_array_pool_size = 0;
+    uint8_t actual_array_max_length = 0;
 
     // Minimal metadata for runtime management
     uint8_t global_count;
-    bool array_active[VM_MAX_ARRAYS];
+    uint16_t pool_allocated;  // Number of elements allocated in array_pool  
 
-    /**
-     * @brief Initialize memory context to zero state
-     */
-    constexpr VMMemoryContext()
-        : globals{}, arrays{}, global_count(0), array_active{} {}
-
-    /**
+    /*
      * @brief Reset context to initial state
      *
      * Clears all global variables, deactivates all arrays, and resets counters.
@@ -59,9 +71,19 @@ struct VMMemoryContext {
      */
     void reset() noexcept {
         memset(globals, 0, sizeof(globals));
-        memset(arrays, 0, sizeof(arrays));
+        memset(array_pool, 0, sizeof(array_pool));
         global_count = 0;
-        memset(array_active, false, sizeof(array_active));
+        pool_allocated = 0;
+        // Reset all array descriptors
+        for (uint8_t i = 0; i < VM_MAX_ARRAYS; ++i) {
+            array_descriptors[i] = {0, 0, false, {0}};
+        }
+    }
+
+    void set_logical_sizes(uint8_t g_size, uint8_t a_size, uint8_t a_max_len) noexcept {
+        actual_global_pool_size = g_size;
+        actual_array_pool_size = a_size;
+        actual_array_max_length = a_max_len;
     }
 
     /**
@@ -70,13 +92,20 @@ struct VMMemoryContext {
      * @return Size in bytes currently allocated for active arrays
      */
     size_t get_array_memory_usage() const noexcept {
-        size_t usage = 0;
-        for (size_t i = 0; i < VM_MAX_ARRAYS; ++i) {
-            if (array_active[i]) {
-                usage += VM_ARRAY_ELEMENTS * sizeof(int32_t);
-            }
+        return pool_allocated * sizeof(int32_t);
+    }
+
+    /**
+     * @brief Get array base pointer from descriptor
+     *
+     * @param array_id Array identifier
+     * @return Pointer to array start, or nullptr if invalid
+     */
+    int32_t* get_array_ptr(uint8_t array_id) noexcept {
+        if (array_id >= VM_MAX_ARRAYS || !array_descriptors[array_id].active) {
+            return nullptr;
         }
-        return usage;
+        return &array_pool[array_descriptors[array_id].offset];
     }
 
     /**
@@ -96,48 +125,17 @@ struct VMMemoryContext {
 };
 
 /**
- * @brief Memory operations function pointer interface
+ * @brief Factory function for creating validated VMMemoryContext_t instances
  *
- * Provides abstraction layer for memory operations, enabling dependency
- * injection and mock testing. All operations use C-style function pointers
- * for ARM Cortex-M4 optimization.
- */
-struct VMMemoryOps {
-    // Global variable operations
-    bool (*load_global)(void* ctx, uint8_t id, int32_t* out_value);
-    bool (*store_global)(void* ctx, uint8_t id, int32_t value);
-
-    // Array operations
-    bool (*create_array)(void* ctx, uint8_t id, size_t size);
-    bool (*load_array)(void* ctx, uint8_t id, uint16_t idx, int32_t* out_value);
-    bool (*store_array)(void* ctx, uint8_t id, uint16_t idx, int32_t value);
-
-    // Context pointer (points to VMMemoryContext)
-    void* context;
-};
-
-// Memory operation function declarations
-extern "C" {
-    bool vm_load_global(void* ctx, uint8_t id, int32_t* out_value);
-    bool vm_store_global(void* ctx, uint8_t id, int32_t value);
-    bool vm_create_array(void* ctx, uint8_t id, size_t size);
-    bool vm_load_array(void* ctx, uint8_t id, uint16_t idx, int32_t* out_value);
-    bool vm_store_array(void* ctx, uint8_t id, uint16_t idx, int32_t value);
-}
-
-/**
- * @brief Create memory operations interface for a context
+ * Ensures memory constraints are validated and logical sizes are set
+ * according to Phase 4.14.1 MemoryManager centralization design.
  *
- * @param context Pointer to VMMemoryContext
- * @return VMMemoryOps structure configured for the context
+ * @param global_pool_size Maximum number of global variables (1-64)
+ * @param array_pool_size Maximum number of arrays (1-16)
+ * @param array_max_length Maximum elements per array (1-64)
+ * @return Unique pointer to validated context, or nullptr if invalid parameters
  */
-inline VMMemoryOps create_memory_ops(VMMemoryContext* context) noexcept {
-    return {
-        vm_load_global,
-        vm_store_global,
-        vm_create_array,
-        vm_load_array,
-        vm_store_array,
-        context
-    };
-}
+std::unique_ptr<VMMemoryContext_t> VMMemContextFactory(
+    uint8_t global_pool_size,
+    uint8_t array_pool_size,
+    uint8_t array_max_length);

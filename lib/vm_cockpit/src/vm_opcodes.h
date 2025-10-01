@@ -43,7 +43,7 @@ enum class VMOpcode : uint8_t {
     OP_DIGITAL_READ = 0x11,            // digitalRead(pin) -> value
     OP_ANALOG_WRITE = 0x12,            // analogWrite(pin, value)
     OP_ANALOG_READ = 0x13,             // analogRead(pin) -> value
-    OP_DELAY = 0x14,                   // delay(nanoseconds) - compiler converts ms to ns
+    OP_DELAY = 0x14,                   // delay(milliseconds) - Arduino-compatible
     OP_RESERVED_15 = 0x15,             // Reserved for Arduino functions
     OP_RESERVED_16 = 0x16,             // Reserved for Arduino functions                       
     OP_PIN_MODE = 0x17,                // pinMode(pin, mode)

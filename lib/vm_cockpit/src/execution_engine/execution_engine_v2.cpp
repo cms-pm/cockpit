@@ -6,6 +6,11 @@
 #include <cstring>
 #include <cstdio>
 
+// DIAG framework for printf handler tracing
+#ifdef PLATFORM_STM32G4
+#include "bootloader_diagnostics.h"
+#endif
+
 // ============================================================================
 // SPARSE JUMP TABLE - BATTLE-TESTED EMBEDDED DISPATCH
 // ============================================================================
@@ -1153,19 +1158,24 @@ vm_return_t ExecutionEngine_v2::handle_delay_impl(uint16_t immediate) noexcept
         return vm_return_t::error(VM_ERROR_HARDWARE_FAULT);
     }
 
-    // Pop delay value from stack (in nanoseconds as per opcode comment)
-    int32_t delay_ns;
-    if (!pop_protected(delay_ns)) {
+    // Pop delay value from stack
+    // WORKAROUND: vm_compiler multiplies delay(ms) by 17000, so divide to get milliseconds
+    // Guest code: delay(500) → vm_compiler: 500*17000=8500000 → VM: 8500000/17000=500ms
+    int32_t delay_value;
+    if (!pop_protected(delay_value)) {
         return vm_return_t::error(VM_ERROR_STACK_UNDERFLOW);
     }
 
     // Validate delay range
-    if (delay_ns < 0) {
+    if (delay_value < 0) {
         return vm_return_t::error(VM_ERROR_INVALID_OPCODE);
     }
 
-    // Call IOController delay_nanoseconds
-    io_->delay_nanoseconds(static_cast<uint32_t>(delay_ns));
+    // Undo vm_compiler's bogus multiplication by 17000
+    uint32_t delay_ms = static_cast<uint32_t>(delay_value) / 17000U;
+
+    // Call IOController delay (expects milliseconds)
+    io_->delay(delay_ms);
 
     return vm_return_t::success();
 }
@@ -1206,8 +1216,7 @@ vm_return_t ExecutionEngine_v2::handle_printf_impl(uint16_t immediate) noexcept
         return vm_return_t::error(VM_ERROR_HARDWARE_FAULT);
     }
 
-    // For this MVP implementation, use immediate as string_id
-    // More sophisticated implementation would pop format string and arguments from stack
+    // Use immediate as string_id
     uint8_t string_id = static_cast<uint8_t>(immediate);
 
     // Pop argument count from stack

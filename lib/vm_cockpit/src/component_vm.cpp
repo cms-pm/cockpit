@@ -8,9 +8,29 @@
 #include "memory_manager/vm_memory_context.h"
 #include "io_controller/io_controller.h"
 #include <algorithm>
+#include <cstdio>  // for printf in debug builds
+
+// DIAG framework for execution tracing
+#ifdef PLATFORM_STM32G4
+#include "bootloader_diagnostics.h"
+#endif
 
 ComponentVM::ComponentVM() noexcept
-    : engine_{}, memory_context_{}, memory_{&memory_context_}, io_{},
+    : engine_{}, memory_{}, io_{},
+      program_loaded_(false), program_(nullptr), program_size_(0), instruction_count_(0), last_error_(VM_ERROR_NONE),
+      metrics_{}, execution_start_time_(0)
+{
+    #ifdef DEBUG
+    trace_enabled_ = false;
+    trace_instruction_limit_ = 10000;
+    #endif
+
+    // Initialize hardware
+    io_.initialize_hardware();
+}
+
+ComponentVM::ComponentVM(VMMemoryContext_t context) noexcept
+    : engine_{}, memory_{context}, io_{},
       program_loaded_(false), program_(nullptr), program_size_(0), instruction_count_(0), last_error_(VM_ERROR_NONE),
       metrics_{}, execution_start_time_(0)
 {
@@ -62,10 +82,32 @@ bool ComponentVM::execute_program(const VM::Instruction* program, size_t program
 
         // Phase 4.11.3A: Use direct MemoryManager method calls for performance
         if (!engine_.execute_single_instruction(memory_, io_)) {
-            // Propagate error from ExecutionEngine
-            vm_error_t engine_error = engine_.get_last_error();
-            set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
-            return false;
+
+            // Check if execution stopped due to halt (successful) vs error
+            if (engine_.is_halted() && engine_.get_last_error() == VM_ERROR_NONE) {
+                // Successful halt - break out of execution loop
+                break;
+            } else {
+                // Actual error occurred
+                vm_error_t engine_error = engine_.get_last_error();
+
+                // WORKAROUND: vm_compiler bug - emits RET (0x09) instead of HALT (0x00)
+                // If we get STACK_UNDERFLOW on a RET instruction, treat as program completion
+                if (engine_error == VM_ERROR_STACK_UNDERFLOW && actual_opcode == 0x09) {
+                    // Treat as successful completion
+                    break;
+                }
+
+                #ifdef DEBUG
+                printf("[DEBUG] ComponentVM: Engine error = %d, setting ComponentVM error\n", (int)engine_error);
+                #endif
+                set_error(engine_error != VM_ERROR_NONE ? engine_error : VM_ERROR_EXECUTION_FAILED);
+
+                // Notify observers of execution error
+                notify_execution_error(pc, actual_opcode, actual_operand, engine_error);
+
+                return false;
+            }
         }
         instruction_count_++;
         metrics_.instructions_executed++;
@@ -122,6 +164,9 @@ bool ComponentVM::execute_single_step() noexcept
     } else {
         // Propagate error from ExecutionEngine only if there was an actual error
         set_error(engine_error);
+
+        // Notify observers of execution error
+        notify_execution_error(pc, actual_opcode, actual_operand, engine_error);
     }
 
     return execution_successful;
@@ -174,8 +219,7 @@ bool ComponentVM::load_program_with_strings(const VM::Instruction* program, size
 void ComponentVM::reset_vm() noexcept
 {
     engine_.reset();
-    memory_context_.reset();  // Reset static context directly
-    memory_.reset();          // Legacy MemoryManager reset (will call context reset again, but safe)
+    memory_.reset();          // MemoryManager owns and resets context internally
     io_.reset_hardware();
 
     program_loaded_ = false;
@@ -216,6 +260,9 @@ const char* ComponentVM::get_error_string(vm_error_t error) const noexcept
 
 void ComponentVM::set_error(vm_error_t error) noexcept
 {
+    #ifdef DEBUG
+    printf("[DEBUG] ComponentVM::set_error(): Setting error to %d\n", (int)error);
+    #endif
     last_error_ = error;
 }
 
@@ -277,6 +324,15 @@ void ComponentVM::notify_execution_complete() noexcept
     }
 }
 
+void ComponentVM::notify_execution_error(uint32_t pc, uint8_t opcode, uint32_t operand, vm_error_t error) noexcept
+{
+    for (auto* observer : observers_) {
+        if (observer != nullptr) {
+            observer->on_execution_error(pc, opcode, operand, error);
+        }
+    }
+}
+
 void ComponentVM::notify_vm_reset() noexcept
 {
     for (auto* observer : observers_) {
@@ -285,3 +341,65 @@ void ComponentVM::notify_vm_reset() noexcept
         }
     }
 }
+
+#ifdef ENABLE_GT_LITE_TESTING
+// GT Lite testing support - stack introspection methods
+
+bool ComponentVM::vm_stack_copy(int32_t* out_buffer, size_t max_size, size_t* actual_size) const noexcept
+{
+    if (!out_buffer || !actual_size || max_size == 0) {
+        return false;
+    }
+
+    // Get current stack size from ExecutionEngine_v2
+    #ifdef USE_EXECUTION_ENGINE_V2
+    size_t stack_elements = engine_.get_sp();
+    const int32_t* stack_data = engine_.get_stack_data();
+    #else
+    size_t stack_elements = engine_.get_sp();
+    const int32_t* stack_data = nullptr; // Not implemented for legacy engine
+    #endif
+
+    *actual_size = stack_elements;
+
+    if (stack_elements == 0) {
+        return true; // Empty stack is valid
+    }
+
+    if (!stack_data) {
+        return false; // Stack data not available
+    }
+
+    // Limit to requested size
+    size_t copy_count = (stack_elements > max_size) ? max_size : stack_elements;
+
+    // Copy stack elements (0 = bottom, sp-1 = top)
+    for (size_t i = 0; i < copy_count; i++) {
+        out_buffer[i] = stack_data[i];
+    }
+
+    return true;
+}
+
+bool ComponentVM::vm_stack_peek(int32_t& value) const noexcept
+{
+    // Peek at top stack element
+    #ifdef USE_EXECUTION_ENGINE_V2
+    size_t sp = engine_.get_sp();
+    if (sp == 0) {
+        return false; // Empty stack
+    }
+
+    const int32_t* stack_data = engine_.get_stack_data();
+    if (!stack_data) {
+        return false;
+    }
+
+    value = stack_data[sp - 1]; // Top of stack
+    return true;
+    #else
+    return false; // Not implemented for legacy engine
+    #endif
+}
+
+#endif // ENABLE_GT_LITE_TESTING

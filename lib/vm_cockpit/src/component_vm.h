@@ -13,16 +13,18 @@
 class ITelemetryObserver {
 public:
     virtual ~ITelemetryObserver() = default;
-    
+
     // Generic execution events only - tests interpret instruction meaning
     virtual void on_instruction_executed(uint32_t pc, uint8_t opcode, uint32_t operand) = 0;
     virtual void on_execution_complete(uint32_t total_instructions, uint32_t execution_time_ms) = 0;
+    virtual void on_execution_error(uint32_t pc, uint8_t opcode, uint32_t operand, vm_error_t error) = 0;
     virtual void on_vm_reset() = 0;
 };
 
 class ComponentVM {
 public:
-    ComponentVM() noexcept;
+    ComponentVM() noexcept;                                    // Default constructor (legacy compatibility)
+    explicit ComponentVM(VMMemoryContext_t context) noexcept; // NEW: Direct context injection constructor
     ~ComponentVM() noexcept;
     
     // Core VM execution
@@ -42,7 +44,6 @@ public:
     ExecutionEngine& get_execution_engine() noexcept { return engine_; }
     #endif
     MemoryManager& get_memory_manager() noexcept { return memory_; }
-    VMMemoryContext& get_memory_context() noexcept { return memory_context_; }
     IOController& get_io_controller() noexcept { return io_; }
 
     #ifdef USE_EXECUTION_ENGINE_V2
@@ -51,7 +52,6 @@ public:
     const ExecutionEngine& get_execution_engine() const noexcept { return engine_; }
     #endif
     const MemoryManager& get_memory_manager() const noexcept { return memory_; }
-    const VMMemoryContext& get_memory_context() const noexcept { return memory_context_; }
     const IOController& get_io_controller() const noexcept { return io_; }
     
     // VM state inspection
@@ -79,16 +79,21 @@ public:
     void remove_observer(ITelemetryObserver* observer) noexcept;
     void clear_observers() noexcept;
     size_t get_observer_count() const noexcept { return observers_.size(); }
+
+    #ifdef ENABLE_GT_LITE_TESTING
+    // GT Lite testing support - stack introspection for test validation
+    bool vm_stack_copy(int32_t* out_buffer, size_t max_size, size_t* actual_size) const noexcept;
+    bool vm_stack_peek(int32_t& value) const noexcept;  // Peek at top element
+    #endif
     
 private:
-    // VM Components - construction order matters for RAII
+    // VM Components - construction order matters for RAII (Phase 4.14.1: Direct context injection)
     #ifdef USE_EXECUTION_ENGINE_V2
     ExecutionEngine_v2 engine_;   // Constructed first (ExecutionEngine_v2)
     #else
     ExecutionEngine engine_;      // Constructed first (original ExecutionEngine)
     #endif
-    VMMemoryContext memory_context_;  // Static memory context - must be before MemoryManager
-    MemoryManager memory_;        // Uses static VMMemoryContext backing (Kill Bill completion)
+    MemoryManager memory_;        // Direct ownership of VMMemoryContext_t (no external dependency)
     IOController io_;            // Constructed last
     
     // VM state
@@ -122,6 +127,7 @@ private:
     // Observer notification helpers - minimal generic interface
     void notify_instruction_executed(uint32_t pc, uint8_t opcode, uint32_t operand) noexcept;
     void notify_execution_complete() noexcept;
+    void notify_execution_error(uint32_t pc, uint8_t opcode, uint32_t operand, vm_error_t error) noexcept;
     void notify_vm_reset() noexcept;
     
     // Disable copy/move

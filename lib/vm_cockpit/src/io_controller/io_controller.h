@@ -3,12 +3,13 @@
 // #include <array> - removed for embedded compatibility
 #include <cstdint>
 #include <cstddef>
+#include "bootloader_diagnostics.h"
 
 class IOController {
 public:
     static constexpr size_t MAX_STRINGS = 32;
     static constexpr size_t MAX_GPIO_PINS = 20;
-    static constexpr size_t STRING_BUFFER_SIZE = 64;
+    static constexpr size_t STRING_BUFFER_SIZE = 128;  // Increased for guest bytecode strings
     
     IOController() noexcept;
     ~IOController() noexcept;
@@ -27,10 +28,6 @@ public:
     void delay_nanoseconds(uint32_t ns) noexcept;
     uint32_t millis() const noexcept;
     uint32_t micros() const noexcept;
-    
-    // Button/input handling
-    bool button_pressed(uint8_t button_id) noexcept;
-    bool button_released(uint8_t button_id) noexcept;
     
     // String and printf support
     bool add_string(const char* str, uint8_t& string_id) noexcept;

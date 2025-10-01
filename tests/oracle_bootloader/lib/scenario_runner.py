@@ -287,9 +287,17 @@ class OracleScenarioRunner:
         error_type = scenario_config.get('error_type', 'none')
         
         if error_type == 'none':
-            # Normal protocol execution
-            test_size = scenario_config.get('test_payload_size', 256)
-            test_data = TestDataGenerator.generate_test_data(test_size, "incremental")
+            # Check if this scenario requires guest bytecode compilation
+            if 'compile_source' in scenario_config:
+                logger.info(f"Compiling guest bytecode for scenario: {scenario_name}")
+                test_data = self._compile_and_wrap_bytecode(scenario_config)
+                if test_data is None:
+                    return ProtocolResult(False, "Bytecode compilation failed")
+            else:
+                # Normal protocol execution with generated test data
+                test_size = scenario_config.get('test_payload_size', 256)
+                test_data = TestDataGenerator.generate_test_data(test_size, "incremental")
+
             return self.protocol_client.execute_complete_protocol(test_data)
         
         elif error_type == 'timeout':
@@ -310,7 +318,80 @@ class OracleScenarioRunner:
         
         else:
             return ProtocolResult(False, f"Unknown error type: {error_type}")
-    
+
+    def _compile_and_wrap_bytecode(self, scenario_config: Dict[str, Any]) -> Optional[bytes]:
+        """
+        Compile ArduinoC source to bytecode and wrap for auto-execution.
+
+        Args:
+            scenario_config: Scenario configuration with compile_source and wrap_for_auto_execution
+
+        Returns:
+            Wrapped bytecode as bytes, or None on failure
+        """
+        import sys
+        import subprocess
+        from pathlib import Path
+
+        source_file = scenario_config.get('compile_source')
+        wrap_for_auto_exec = scenario_config.get('wrap_for_auto_execution', False)
+
+        if not source_file:
+            logger.error("No compile_source specified in scenario config")
+            return None
+
+        # Resolve source file path relative to test_registry
+        tests_dir = Path(__file__).parent.parent.parent
+        source_path = tests_dir / source_file
+
+        if not source_path.exists():
+            logger.error(f"Source file not found: {source_path}")
+            return None
+
+        logger.info(f"Compiling ArduinoC source: {source_path}")
+
+        # Path to bytecode compiler
+        compiler_script = tests_dir / "tools" / "bytecode_compiler.py"
+
+        # Compile with wrapper flag if requested
+        cmd = [sys.executable, str(compiler_script), str(source_path)]
+        if wrap_for_auto_exec:
+            cmd.append('--wrap')
+            logger.info("Auto-execution wrapper enabled")
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+            if result.returncode != 0:
+                logger.error(f"Compilation failed: {result.stderr}")
+                return None
+
+            logger.info(f"Compilation successful")
+
+            # Determine bytecode file path
+            if wrap_for_auto_exec:
+                bytecode_path = source_path.parent / f"{source_path.stem}_wrapped.bin"
+            else:
+                bytecode_path = source_path.parent / f"{source_path.stem}.bin"
+
+            if not bytecode_path.exists():
+                logger.error(f"Bytecode file not found: {bytecode_path}")
+                return None
+
+            # Read compiled bytecode
+            with open(bytecode_path, 'rb') as f:
+                bytecode_data = f.read()
+
+            logger.info(f"Loaded {len(bytecode_data)} bytes of bytecode")
+            return bytecode_data
+
+        except subprocess.TimeoutExpired:
+            logger.error("Compilation timed out")
+            return None
+        except Exception as e:
+            logger.error(f"Compilation error: {e}")
+            return None
+
     def execute_scenario_sequence(self, sequence_name: str) -> SequenceResult:
         """
         Execute compound scenario sequence.

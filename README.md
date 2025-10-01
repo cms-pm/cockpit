@@ -88,9 +88,8 @@ Communication: USART1 Oracle bootloader client, USART2 Diagnostic Console
 ### **Memory Architecture: Static Allocation with Per-VM Isolation**
 
 ```cpp
-// VMMemoryContext_t owned by MemoryManager instance with one-to-one ownership with VM instance
-struct VMMemoryContext_t {
-private:
+// VMMemoryContext: 1.75KB per ComponentVM instance
+struct VMMemoryContext {
     static constexpr size_t STACK_SIZE = 256;      // 1KB (256 * int32_t)
     static constexpr size_t GLOBAL_SIZE = 128;     // 512B (128 * int32_t)
     static constexpr size_t LOCAL_SIZE = 64;       // 256B (64 * int32_t)
@@ -98,6 +97,9 @@ private:
     int32_t stack_[STACK_SIZE];      // Stack operations
     int32_t globals_[GLOBAL_SIZE];   // Global variables
     int32_t locals_[LOCAL_SIZE];     // Local variables
+
+    size_t sp_;                      // Stack pointer
+    // RAII cleanup, bounds checking, thread safety
 };
 ```
 

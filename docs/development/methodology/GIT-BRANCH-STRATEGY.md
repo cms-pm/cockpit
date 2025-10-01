@@ -67,10 +67,6 @@ Phase X.Y.Z: Feature Description
 - ✅ Key achievement 1
 - ✅ Key achievement 2
 - ✅ Test results summary
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ## Recovery Strategy

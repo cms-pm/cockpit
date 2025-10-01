@@ -1,5 +1,5 @@
 # GT Lite Build System
-# Uses existing bridge_c interface for ComponentVM execution
+# Uses ComponentVM + observer pattern (eliminates bridge_c architectural cruft)
 
 CC = gcc
 CXX = g++
@@ -14,30 +14,33 @@ CXXFLAGS += -DUSE_EXECUTION_ENGINE_V2
 CFLAGS += -DQEMU_PLATFORM
 CXXFLAGS += -DQEMU_PLATFORM
 
+# GT Lite testing support - stack introspection for ComponentVM observer pattern
+CFLAGS += -DENABLE_GT_LITE_TESTING
+CXXFLAGS += -DENABLE_GT_LITE_TESTING
+
 # ComponentVM source files - following vm_compiler pattern
 VM_COCKPIT_SRC = ../../../lib/vm_cockpit/src
 VM_COMPILER_SRC = ../../../lib/vm_compiler/validation/compiler
 GT_DIAG_SRC = ../../../lib/gt_diagnostics/src
 
-# Core ComponentVM dependencies - ExecutionEngine_v2 only
+# Core ComponentVM dependencies - ExecutionEngine_v2 with ArrayDescriptor pattern
 COMPONENTVM_OBJS = $(VM_COCKPIT_SRC)/component_vm.o \
                    $(VM_COCKPIT_SRC)/execution_engine/execution_engine_v2.o \
                    $(VM_COCKPIT_SRC)/memory_manager/memory_manager.o \
-                   $(VM_COCKPIT_SRC)/memory_manager/vm_memory_ops.o \
-                   $(VM_COCKPIT_SRC)/memory_manager/vm_memory_pool.o \
                    $(VM_COCKPIT_SRC)/io_controller/io_controller.o \
-                   $(VM_COCKPIT_SRC)/vm_errors.o
+                   $(VM_COCKPIT_SRC)/vm_errors.o \
+                   $(VM_COCKPIT_SRC)/vm_auto_execution.o
 
-# Platform stub (use vm_compiler's proven approach + bridge_c compatibility)
-PLATFORM_OBJS = $(VM_COMPILER_SRC)/platform_stub.o src/bridge_c_platform_compat.o
+# Platform stub (use vm_compiler's proven approach without bridge_c)
+PLATFORM_OBJS = $(VM_COMPILER_SRC)/platform_stub.o
 
-# Bridge, diagnostics, and bootloader dependencies
-BRIDGE_C_OBJS = $(VM_COCKPIT_SRC)/bridge_c/bridge_c.o
+# GT Lite observer and diagnostics dependencies
+GT_LITE_OBSERVER_OBJS = src/gt_lite_observer.o
 GT_DIAG_OBJS = $(GT_DIAG_SRC)/gt_diagnostics.o
 BOOTLOADER_OBJS = ../../../lib/vm_bootloader/src/bootloader_diagnostics.o
 
-# GT Lite runner library
-GT_LITE_OBJS = src/gt_lite_runner.o $(BRIDGE_C_OBJS) $(COMPONENTVM_OBJS) $(PLATFORM_OBJS) $(GT_DIAG_OBJS) $(BOOTLOADER_OBJS)
+# GT Lite runner library (bridge_c eliminated)
+GT_LITE_OBJS = src/gt_lite_runner.o $(GT_LITE_OBSERVER_OBJS) $(COMPONENTVM_OBJS) $(PLATFORM_OBJS) $(GT_DIAG_OBJS) $(BOOTLOADER_OBJS)
 
 # Pattern rule for GT Lite tests
 test_lite_%: ../lite_src/test_lite_%.o ../lite_data/test_%.o $(GT_LITE_OBJS)
@@ -61,11 +64,12 @@ test_lite_%: ../lite_src/test_lite_%.o ../lite_data/test_%.o $(GT_LITE_OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # GT Lite runner library
-src/gt_lite_runner.o: src/gt_lite_runner.c include/gt_lite_test_types.h
-	$(CC) $(CFLAGS) -c $< -o $@
+# GT Lite runner C++ compilation (ComponentVM + observer pattern)
+src/gt_lite_runner.o: src/gt_lite_runner.cpp include/gt_lite_test_types.h include/gt_lite_observer.h
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# bridge_c C++ compilation
-$(VM_COCKPIT_SRC)/bridge_c/bridge_c.o: $(VM_COCKPIT_SRC)/bridge_c/bridge_c.cpp $(VM_COCKPIT_SRC)/bridge_c/bridge_c.h
+# GT Lite observer C++ compilation
+src/gt_lite_observer.o: src/gt_lite_observer.cpp include/gt_lite_observer.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # gt_diagnostics C compilation
@@ -83,11 +87,11 @@ $(VM_COCKPIT_SRC)/execution_engine/execution_engine_v2.o: $(VM_COCKPIT_SRC)/exec
 $(VM_COCKPIT_SRC)/memory_manager/memory_manager.o: $(VM_COCKPIT_SRC)/memory_manager/memory_manager.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(VM_COCKPIT_SRC)/memory_manager/vm_memory_ops.o: $(VM_COCKPIT_SRC)/memory_manager/vm_memory_ops.cpp
+$(VM_COCKPIT_SRC)/memory_manager/vm_memory_context.o: $(VM_COCKPIT_SRC)/memory_manager/vm_memory_context.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(VM_COCKPIT_SRC)/memory_manager/vm_memory_pool.o: $(VM_COCKPIT_SRC)/memory_manager/vm_memory_pool.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# vm_memory_ops.cpp and vm_memory_pool.cpp eliminated in Phase 4.14.1 MemoryManager centralization
+# ArrayDescriptor pattern handles memory allocation directly in memory_manager.cpp
 
 $(VM_COCKPIT_SRC)/io_controller/io_controller.o: $(VM_COCKPIT_SRC)/io_controller/io_controller.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -96,16 +100,28 @@ $(VM_COCKPIT_SRC)/io_controller/io_controller.o: $(VM_COCKPIT_SRC)/io_controller
 $(VM_COMPILER_SRC)/platform_stub.o: $(VM_COMPILER_SRC)/platform_stub.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Bridge C platform compatibility layer
-src/bridge_c_platform_compat.o: src/bridge_c_platform_compat.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# bridge_c compatibility layer eliminated - ComponentVM provides direct interface
 
 # VM errors C compilation
 $(VM_COCKPIT_SRC)/vm_errors.o: $(VM_COCKPIT_SRC)/vm_errors.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# Auto execution C++ compilation
+$(VM_COCKPIT_SRC)/vm_auto_execution.o: $(VM_COCKPIT_SRC)/vm_auto_execution.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 # Bootloader diagnostics C compilation
 ../../../lib/vm_bootloader/src/bootloader_diagnostics.o: ../../../lib/vm_bootloader/src/bootloader_diagnostics.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Phase 4.14.2: Auto execution test
+test_auto_execution: ../src/test_auto_execution_basic.o $(GT_LITE_OBJS)
+	@echo "Linking auto execution test: test_auto_execution"
+	$(CXX) $(CXXFLAGS) -o test_auto_execution ../src/test_auto_execution_basic.o \
+		src/gt_lite_runner.o $(COMPONENTVM_OBJS) $(BRIDGE_C_OBJS) $(PLATFORM_OBJS) $(GT_DIAG_OBJS) $(BOOTLOADER_OBJS)
+	rm ../src/test_auto_execution_basic.o
+
+../src/test_auto_execution_basic.o: ../src/test_auto_execution_basic.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean build artifacts

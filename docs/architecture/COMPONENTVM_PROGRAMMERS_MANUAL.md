@@ -108,8 +108,7 @@ execute_single_instruction()
 ExecutionEngine_v2 uses a unified result type for instruction control flow:
 
 ```cpp
-class vm_return_t {
-public:
+struct vm_return_t {
     enum Type { SUCCESS, ERROR, JUMP };
 
     static vm_return_t success() noexcept;
@@ -132,8 +131,7 @@ public:
 VMMemoryContext provides deterministic memory allocation for real-time embedded execution:
 
 ```cpp
-class VMMemoryContext {
-private:
+struct VMMemoryContext {
     static constexpr size_t STACK_SIZE = 256;      // 1KB (256 * 4 bytes)
     static constexpr size_t GLOBAL_SIZE = 128;     // 512B (128 * 4 bytes)
     static constexpr size_t LOCAL_SIZE = 64;       // 256B (64 * 4 bytes)

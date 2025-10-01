@@ -68,6 +68,11 @@ public:
     bool is_halted() const noexcept { return halted_; }
     vm_error_t get_last_error() const noexcept { return last_error_; }
 
+    #ifdef ENABLE_GT_LITE_TESTING
+    // GT Lite testing support - stack access for ComponentVM
+    const int32_t* get_stack_data() const noexcept { return stack_; }
+    #endif
+
     // Handler implementations accessible for dispatch table
     vm_return_t handle_halt_impl(uint16_t immediate) noexcept;
     vm_return_t handle_push_impl(uint16_t immediate) noexcept;

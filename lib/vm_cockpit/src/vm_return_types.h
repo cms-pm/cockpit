@@ -3,6 +3,7 @@
 #include "vm_errors.h"
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 
 /**
  * @file vm_return_types.h
