@@ -18,7 +18,7 @@ std::unique_ptr<VMMemoryContext_t> VMMemContextFactory(
         return nullptr;
     }
 
-    auto context = std::make_unique<VMMemoryContext_t>();
+    auto context = std::unique_ptr<VMMemoryContext_t>(new VMMemoryContext_t());
 
     // Set logical constraints before reset
     context->set_logical_sizes(global_pool_size, array_pool_size, array_max_length);

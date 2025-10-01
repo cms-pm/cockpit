@@ -13,10 +13,11 @@
 class ITelemetryObserver {
 public:
     virtual ~ITelemetryObserver() = default;
-    
+
     // Generic execution events only - tests interpret instruction meaning
     virtual void on_instruction_executed(uint32_t pc, uint8_t opcode, uint32_t operand) = 0;
     virtual void on_execution_complete(uint32_t total_instructions, uint32_t execution_time_ms) = 0;
+    virtual void on_execution_error(uint32_t pc, uint8_t opcode, uint32_t operand, vm_error_t error) = 0;
     virtual void on_vm_reset() = 0;
 };
 
@@ -126,6 +127,7 @@ private:
     // Observer notification helpers - minimal generic interface
     void notify_instruction_executed(uint32_t pc, uint8_t opcode, uint32_t operand) noexcept;
     void notify_execution_complete() noexcept;
+    void notify_execution_error(uint32_t pc, uint8_t opcode, uint32_t operand, vm_error_t error) noexcept;
     void notify_vm_reset() noexcept;
     
     // Disable copy/move

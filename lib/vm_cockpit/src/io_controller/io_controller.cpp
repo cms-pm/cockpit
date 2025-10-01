@@ -11,6 +11,7 @@
 #include <stdio.h>
 #elif defined(PLATFORM_STM32G4)
 #include "../platform/platform_interface.h"
+#include "../platform/stm32g4/stm32g4_platform.h"  // For stm32g4_delay_ms
 #include <time.h>
 #endif
 
@@ -133,11 +134,18 @@ void IOController::delay_nanoseconds(uint32_t ns) noexcept
     #ifdef ARDUINO_PLATFORM
     // Use our new arduino_hal timing system
     ::delay_nanoseconds(ns);
-#elif defined(QEMU_PLATFORM)
+    #elif defined(QEMU_PLATFORM)
     // Mock delay for testing - no actual delay needed
     printf("Delay: %u ns\n", ns);
+    #elif defined(PLATFORM_STM32G4)
+    // STM32G4: Use platform wrapper for HAL_Delay (millisecond delays)
+    // Note: Sub-millisecond precision would require DWT cycle counter or hardware timer
+    uint32_t delay_ms = ns / 1000000U;  // Convert nanoseconds to milliseconds
+    if (delay_ms > 0) {
+        stm32g4_delay_ms(delay_ms);
+    }
     #else
-    // Busy wait fallback (not ideal for real embedded)
+    // Legacy fallback - KNOWN BUG: micros() returns 0 on platforms without implementation
     uint32_t start_us = micros();
     uint32_t delay_us = ns / 1000U; // Convert nanoseconds to microseconds
     while (micros() - start_us < delay_us) {
@@ -198,40 +206,27 @@ bool IOController::vm_printf(uint8_t string_id, const int32_t* args, uint8_t arg
     if (!is_valid_string_id(string_id)) {
         return false;
     }
-    
+
     const char* format = string_table_[string_id];
     char output_buffer[256];
-    
+
     if (!format_printf_string(format, args, arg_count, output_buffer, sizeof(output_buffer))) {
         return false;
     }
-    
-    // Phase 4.9.1: Use automatic printf routing based on CoreDebug detection
+
     route_printf(output_buffer);
-    
     return true;
 }
 
 // Phase 4.9.1: Automatic printf routing based on CoreDebug detection
-// TODO: Hardware validation required - test printf routing with actual bytecode execution
-//       once upload/hardware connection is available for end-to-end validation
 void IOController::route_printf(const char* message) noexcept
 {
     #ifdef PLATFORM_STM32G4
-    // Use CoreDebug DHCSR register to determine printf routing
-    if (stm32g4_debug_is_debugger_connected()) {
-        // Debugger connected - route to semihosting for GT automation
-        semihost_write_string(message);
-    } else {
-        // No debugger - route to UART for production operation
-        printf("%s", message);  // Routes to STM32 HAL UART
-    }
-    #elif defined(ARDUINO_PLATFORM)
-    Serial.print(message);
+    // Route to UART unconditionally (semihosting hangs without active debugger)
+    uart_write_string(message);
     #elif defined(QEMU_PLATFORM)
     printf("%s", message);
     #else
-    // Fallback - standard printf
     printf("%s", message);
     #endif
 }
