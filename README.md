@@ -2,9 +2,9 @@
 
 [![Platform](https://img.shields.io/badge/Platform-STM32G474-blue.svg)]() [![ARM](https://img.shields.io/badge/ARM-Cortex--M4-green.svg)]() [![VM](https://img.shields.io/badge/VM-Stack--Based-red.svg)]() [![Build](https://img.shields.io/badge/Build-PlatformIO-purple.svg)]()
 
-**Research-Grade Embedded Virtual Machine for ARM Cortex-M4** - Advanced bytecode execution platform with ExecutionEngine_v2 featuring binary search dispatch, static memory allocation, and guest HAL integration. Supports guest ArduinoC programs with deterministic real-time execution and Golden Triangle hardware validation.
+**Research-Grade Embedded Virtual Machine for ARM Cortex-M4** - Complete end-to-end bytecode execution platform with ExecutionEngine_v2 featuring binary search dispatch, static memory allocation, and Arduino HAL integration. Proven guest ArduinoC → bytecode → STM32G4 hardware pipeline with comprehensive validation.
 
-> **Phase 4.13 Complete** - ExecutionEngine_v2 with 35+ opcode handlers and 9/9 HAL operations validated.
+> **Phase 4.14 Complete** ✅ - End-to-end validation successful: ArduinoC guest programs executing on STM32G474 hardware through ComponentVM hypervisor with Oracle bootloader integration.
 
 ## Project Vision & Mission
 
@@ -19,25 +19,50 @@
 
 ## Current Status
 
-### **Phase 4.13: ExecutionEngine_v2 Complete** ✅ **DELIVERED**
+### **Phase 4.14: End-to-End Validation Complete** ✅ **PROVEN**
 
-**Major Architectural Achievements:**
-- **9/9 Arduino HAL Operations** - pinMode, digitalWrite, digitalRead, analogWrite, analogRead, delay, millis, micros, printf
-- **35+ Opcode Handlers** - Control flow, logical operations, memory operations, and Arduino HAL integration
-- **Binary Search Dispatch** - O(log n) opcode lookup with sparse jump table for 112 total opcodes
-- **QEMU_PLATFORM Testing** - Comprehensive mock implementations for validation
-- **Stack Verification Framework** - GT Lite enhanced with actual stack content validation
+**Complete Pipeline Validation:**
+```
+ArduinoC Source → vm_compiler → Bytecode → Oracle Bootloader → Page 63 Flash →
+ComponentVM Auto-Execution → STM32G474 Hardware → Golden Triangle Validation
+```
 
-### **Critical Bugs Eliminated** ✅
-- **Dual-Dispatch Infinite Recursion** - ExecutionEngine_v2 eliminates recursive handler calls
-- **Duplicate Opcode Definitions** - Single source of truth in vm_opcodes.h (112 opcodes, 0x00-0x6F)
-- **Memory Management Architecture** - Clean VMMemoryContext isolation per ComponentVM instance
-- **Error Code Conflicts** - Unified vm_error_t system across ExecutionEngine_v2 and bridge_c
+**Validation Report**: [Phase 4.14 End-to-End Validation Report](docs/development/qa/PHASE_4_14_END_TO_END_VALIDATION_REPORT.md)
+
+**Key Achievements:**
+- ✅ **Guest Program Execution** - ArduinoC blinky program executing on real STM32G474 hardware
+- ✅ **Arduino HAL Validation** - pinMode(), digitalWrite(), delay() proven functional in guest context
+- ✅ **Bytecode Auto-Execution** - Page 63 flash loading with magic signature (0x434F4E43 "CONC") and CRC-16 validation
+- ✅ **Hardware Timing Accuracy** - 500ms delays accurate to ±2ms through platform-specific HAL integration
+- ✅ **Oracle Bootloader Integration** - Dual-bank flash programming with protobuf protocol complete
+
+### **Technical Highlights** ⚡
+
+**From Validation Report**:
+
+> **3.1 Test Configuration**
+> - **Hardware**: STM32G474 WeAct CoreBoard @ 168MHz
+> - **Flash Address**: Page 63 (0x0801F800, 2KB reserved)
+> - **Guest Program**: blinky_basic.c (pinMode + digitalWrite + delay)
+> - **Validation Method**: Hardware execution with timing measurement
+>
+> **3.2 Validation Results**
+> - ✅ Magic signature validated (0x434F4E43 "CONC")
+> - ✅ CRC-16-CCITT integrity check passed
+> - ✅ String table scanned successfully (4 strings)
+> - ✅ Guest bytecode auto-executed from flash
+> - ✅ Hardware timing: 500ms delays measured at 498-502ms
+
+**Critical Issues Resolved:**
+1. **Delay Subsystem Failure** - Fixed `micros()` returning 0 causing infinite hang
+2. **vm_compiler Timing Bug** - Implemented workaround for bogus ×17,000 multiplication
+3. **Semihosting Platform Conflict** - UART routing prevents processor halt without active debugger
+4. **String Table Corruption** - Dynamic pattern-based scanner bypasses vm_compiler header bugs
 
 ### **Current Development Roadmap**
-- **Phase 4.14**: End-to-End Demo - Guest ArduinoC → CockpitVM → STM32G474 hardware validation
+- **Phase 4.15**: vm_compiler CVBC Compliance - Fix header generation, HALT opcode, delay multiplication bugs
 - **Phase 5.0**: Cooperative Task Scheduler - Multi-program execution with static memory allocation
-- **Learning by Doing**: Architecture suitable for embedded experiments with deterministic performance
+- **Ongoing**: Architecture refinement through experiential embedded development learning
 
 ## Technical Architecture
 
@@ -177,9 +202,21 @@ typedef struct {
 
 ## 🔬 **Research Status**
 
-Current implementation focuses on foundational embedded hypervisor concepts with tools like the Golden Triangle test framework, the GT Lite microkernel test runner, and the Oracle bootloader flash client to enable test-driven development. ExecutionEngine_v2 showcases efforts to attain a deeper understanding of embedded system
-design and testing practices through experiential learning.
+Current implementation achieves complete end-to-end validation of ArduinoC guest program execution on STM32G474 hardware. Phase 4.14 proves the complete pipeline from source code compilation through bytecode execution with hardware validation. The system demonstrates foundational embedded hypervisor concepts through practical tools:
+
+- **Golden Triangle Framework** - Hardware validation with register inspection and semihosting
+- **GT Lite Test Runner** - Microkernel testing with stack verification
+- **Oracle Bootloader** - Dual-bank flash programming with protobuf protocol
+- **ExecutionEngine_v2** - Binary search dispatch with 35+ opcode handlers
+- **ComponentVM Auto-Execution** - Page 63 flash loading with integrity validation
+
+The Phase 4.14 validation report documents the complete journey from initial execution hang to full operational success, demonstrating test-driven embedded development practices through experiential learning.
+
+**Known Issues** (documented in [Validation Report](docs/development/qa/PHASE_4_14_END_TO_END_VALIDATION_REPORT.md)):
+- vm_compiler header generation requires CVBC specification compliance
+- vm_compiler emits RET (0x09) instead of HALT (0x00) - workaround in place
+- vm_compiler delay multiplication by 17,000 - workaround divides by 17,000 in VM
 
 ---
 
-For detailed information: [ComponentVM Programmers Manual](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [Architecture Documentation](docs/architecture/) • [Integration Architecture Whitepaper](docs/COCKPITVM_INTEGRATION_ARCHITECTURE.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
+For detailed information: [Phase 4.14 End-to-End Validation Report](docs/development/qa/PHASE_4_14_END_TO_END_VALIDATION_REPORT.md) • [ComponentVM Programmers Manual](docs/architecture/COMPONENTVM_PROGRAMMERS_MANUAL.md) • [API Reference](docs/API_REFERENCE_COMPLETE.md) • [Architecture Documentation](docs/architecture/) • [Hardware Integration Guide](docs/hardware/integration/HARDWARE_INTEGRATION_GUIDE.md)
