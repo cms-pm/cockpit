@@ -105,22 +105,88 @@ execute_single_instruction()
 
 ### 2.3 vm_return_t State Management
 
-ExecutionEngine_v2 uses a unified result type for instruction control flow:
+ExecutionEngine_v2 uses a sophisticated 64-bit bitfield structure for unified execution state management:
 
 ```cpp
+/**
+ * @brief Unified execution result for VM instruction handlers
+ *
+ * 8-byte packed structure optimized for embedded debugging and performance.
+ * Eliminates implicit PC management contracts through explicit state control.
+ *
+ * Memory layout:
+ * - packed_flags: 32-bit atomic access to all boolean state
+ * - pc_target: 32-bit jump target address
+ * - Total: 8 bytes (fits in two 32-bit registers)
+ */
 struct vm_return_t {
-    enum Type { SUCCESS, ERROR, JUMP };
+    // PCAction enum for explicit PC control
+    enum class PCAction : uint8_t {
+        INCREMENT = 0,                   // Normal instruction - increment PC
+        JUMP_ABSOLUTE,                   // PC set to absolute address
+        JUMP_RELATIVE,                   // PC += offset (for loops/branches)
+        HALT,                           // Stop execution - don't modify PC
+        CALL_FUNCTION,                  // Push return address, jump to function
+        RETURN_FUNCTION                 // Pop return address, jump back
+    };
 
-    static vm_return_t success() noexcept;
-    static vm_return_t error(vm_error_t error) noexcept;
-    static vm_return_t jump(size_t target_pc) noexcept;
+    union {
+        struct {
+            uint32_t error_code     : 8;   // vm_error_t (256 values max)
+            uint32_t pc_action      : 4;   // PCAction enum (16 values max)
+            uint32_t should_continue: 1;   // Boolean flag
+            uint32_t stack_modified : 1;   // Boolean flag
+            uint32_t requires_backpatch: 1; // Boolean flag (for future jump resolution)
+            uint32_t reserved       : 17;  // Future expansion
+        };
+        uint32_t packed_flags;              // For atomic operations and debugging
+    };
+    uint32_t pc_target;                     // Jump target address
+
+    // Debug-friendly accessors (zero runtime cost with optimization)
+    vm_error_t get_error() const;
+    PCAction get_pc_action() const;
+    bool get_should_continue() const;
+    bool get_stack_modified() const;
+    bool get_requires_backpatch() const;
+
+    // Factory methods for common cases
+    static vm_return_t success();
+    static vm_return_t error(vm_error_t err);
+    static vm_return_t jump(uint32_t target);
+    static vm_return_t halt();
+    static vm_return_t call_function(uint32_t target);
+    static vm_return_t return_function();
 };
+
+// Compile-time size verification
+static_assert(sizeof(vm_return_t) == 8, "vm_return_t must be exactly 8 bytes");
 ```
 
-**Benefits**:
-- Single return path eliminates dual-dispatch recursion
-- Jump target semantics use instruction indices (not byte offsets)
-- Error propagation preserves original vm_error_t codes
+**Bitfield Structure Benefits**:
+- **Single Point of PC Control**: Eliminates store/restore anti-pattern through explicit PCAction enum
+- **Debug-Friendly Layout**: GDB shows bitfields with clear field names
+- **Zero Runtime Overhead**: Fits in two 32-bit registers, optimized by compiler
+- **Atomic Operations**: Union allows atomic access to all flags via `packed_flags`
+- **Error Propagation**: Preserves original vm_error_t codes with 8-bit precision
+- **Stack Tracking**: `stack_modified` flag enables validation of stack operations
+- **Future Expansion**: 17 reserved bits for additional control flags
+
+**Factory Method Usage**:
+```cpp
+// Success case - normal instruction execution
+return vm_return_t::success();  // Increments PC, continues execution
+
+// Error case - propagates error and halts
+return vm_return_t::error(VM_ERROR_STACK_OVERFLOW);
+
+// Jump case - absolute address jump
+return vm_return_t::jump(target_address);
+
+// Call/Return cases - function invocation
+return vm_return_t::call_function(function_address);
+return vm_return_t::return_function();
+```
 
 ---
 
